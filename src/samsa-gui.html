@@ -132,6 +132,7 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	panel = document.querySelector("#glyphs>div");
 	panel.innerText = "";
+	let scale = 0.05 * 1000 / font.unitsPerEm;
 
 	for (let g=0; g < font.numGlyphs; g++) {
 
@@ -139,6 +140,7 @@ function vfLoaded (font) {
 
 		let glyphThumb = document.createElement("div");
 		glyphThumb.classList.add("glyph-thumb");
+		glyphThumb.setAttribute("id", `g-${g}`);
 
 		if (glyph.numContours > 1) {
 
@@ -146,17 +148,8 @@ function vfLoaded (font) {
 			let svgPath = SVG("path");
 			let svgg = SVG("g");
 
-			svg.setAttributeNS(null, "width","2000");
-			svg.setAttributeNS(null, "height","2000");
-			//svg.setAttributeNS(null, "xmlns", "http://www.w3.org/2000/svg");
-			
-
-			//svg.appendChild(svgg);
-
-			//svgg.setAttributeNS(null, "transform", "translate(200,1000) scale(0.05,-0.05)");
-			let scale = 0.05;
-			scale *= 1000 / font.unitsPerEm;
-
+			svg.setAttributeNS(null, "width","90");
+			svg.setAttributeNS(null, "height","90");
 			svgg.setAttributeNS(null, "transform", `translate(30,60) scale(${scale},-${scale})`);
 			
 			//svgMarker.attr({markerWidth:20,markerHeight:20);
@@ -190,6 +183,8 @@ function vfLoaded (font) {
 
 document.onclick = function (event) {
 
+	let glyphThumb;
+
 	if (event.target == document.querySelector("#font-file")) {
 
 		let vf = new SamsaVF({
@@ -198,8 +193,96 @@ document.onclick = function (event) {
 			url: "fonts/MutatorSans.ttf",
 			callback: vfLoaded,
 		});
-		//alert ("title click");
 	}
+
+	else if (glyphThumb = event.target.closest(".glyph-thumb")) {
+
+		font = GLOBAL.vf;
+
+		let scale = 0.5 * 1000 / font.unitsPerEm;
+
+		console.log(glyphThumb.id);
+		let comps = glyphThumb.id.split("-");
+		let g = comps[1];
+		let glyph = font.glyphs[g];
+
+
+		// clear main window
+		let drawing = document.querySelector("#drawing");
+		drawing.innerHTML = "";
+
+		// append svg
+
+		if (glyph.numContours > 1) {
+
+			let svg = SVG("svg");
+			let svgPath = SVG("path");
+			let svgg = SVG("g");
+
+			svg.setAttributeNS(null, "width","1000");
+			svg.setAttributeNS(null, "height","1000");
+			svgg.setAttributeNS(null, "transform", `translate(30,500) scale(${scale},-${scale})`);
+			
+			//svgMarker.attr({markerWidth:20,markerHeight:20);
+			svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
+			svgPath.setAttributeNS(null, "stroke", `black`);
+			svgPath.setAttributeNS(null, "stroke-width", `3px`);
+			svgPath.setAttributeNS(null, "fill", `pink`);
+
+			svg.appendChild(svgg);
+
+			// glyph
+			svgg.appendChild(svgPath);
+
+
+			glyph.points.forEach(function (pt, p) {
+				let size = font.config.ui.point.size;
+				if (pt[2]) {
+					svgP = SVG("rect");
+					svgP.setAttributeNS(null, "x", pt[0]-size);
+					svgP.setAttributeNS(null, "y", pt[1]-size);
+					svgP.setAttributeNS(null, "width", 2*size);
+					svgP.setAttributeNS(null, "height", 2*size);
+
+				}
+				else {
+					svgP = SVG("circle");
+					svgP.setAttributeNS(null, "cx", pt[0]);
+					svgP.setAttributeNS(null, "cy", pt[1]);
+					svgP.setAttributeNS(null, "r", 4);
+				}
+				svgg.appendChild(svgP);
+				/*
+				point numbers
+				$(svgg).append(
+					$(SVG("text"))
+						.prop("id", "l-"+p)
+						.addClass("point-label")
+						.attr({x:pt[0],y:-pt[1],transform:"scale(1,-1) translate(5,0)"})
+						.text(p)
+				);
+				*/
+			});
+
+
+
+			// x and y axes
+
+			drawing.appendChild(svg);
+			
+
+			//drawing.appendChild(glyphFull);
+
+		}
+
+
+
+
+
+	}
+
+
+
 }
 
 

@@ -67,7 +67,7 @@ let CONFIG = {
 		},
 
 		point: {
-			size: 12,
+			size: 7,
 			shapeOnCurve: "■", // one of ⯅●■
 			shapeOffCurve: "●", // ⯅●■
 		},
