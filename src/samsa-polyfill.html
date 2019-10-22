@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Polyfill test using samsa-core.js</title>
+	<script src="samsa-core.js"></script>
+
+	<style>
+	@font-face {
+		font-family: Gingham;
+		src: url(fonts/Gingham.ttf);
+	}
+	html {
+		font-family: Gingham;
+		font-size: 36px;
+	}
+	</style>
+</head>
+
+<body>
+
+
+<p style="font-family: Gingham; font-variation-settings:'wght' 411.5, 'wdth' 49.1;">
+	ABCDEabcde Variable font
+</p>
+
+<p style="font-family: Gingham; font-variation-settings:'wght' 678, 'wdth' 88.2;">
+	ABCDEabcde Variable font
+</p>
+
+<!-- <p class="samsa" data-variation-settings="'TEST' 0.0">
+	A
+</p>
+
+<p class="samsa" data-variation-settings="'TEST' 0.4">
+	A
+</p>
+
+<p class="samsa" data-variation-settings="'TEST' 0.944444">
+	A
+</p>
+
+<p class="samsa" data-variation-settings="'TEST' 1.0">
+	A
+</p>
+ -->
+<p class="samsa" data-variation-settings="'wght' 411.5, 'wdth' 49.1">
+	ABCDEabcde Polyfill font [411.5, 49.1]
+</p>
+
+<p class="samsa" data-variation-settings="'wght' 678, 'wdth' 88.2">
+	ABCDEabcde Polyfill font [678, 88.2]
+</p>
+
+<p class="samsa" data-variation-settings="'wght' 700, 'wdth' 1">
+	ABCDEabcde Polyfill font [700, 1]
+</p>
+
+<p class="samsa" data-variation-settings="'wght' 585, 'wdth' 17">
+	ABCDEabcde Polyfill font [585, 17]
+</p>
+
+<p class="samsa" data-variation-settings="'wght' 10000, 'wdth' 10000">
+	ABCDEabcde Polyfill font [10000, 10000]
+</p>
+
+<p class="samsa" data-variation-settings="'wght' -10000, 'wdth' -10000">
+	ABCDEabcde Polyfill font [-10000, -10000]
+</p>
+
+<script>
+
+
+	/*
+
+	* load VF into memory
+	* offer UI of axes?
+	* instantiate static TTF at default positions
+	* attach TTF as webfont
+	* display some text using this font
+	* when axes move
+		- update CSS font-variation-settings
+		- inspect CSS font-variation-settings
+		- instantiate static TTF
+		- attach TTF as webfont
+		- record instantiation time
+	*/
+
+
+/*
+
+TODO:
+
+Regard this as a simple polyfill page.
+
+Make another page samsa-benchmark.html for benchmarking:
+* test how many times a TTF can be generated per second
+* test how many times a TTF can be generated and attached as a webfont per second (tests animation smoothness)
+* default to Gingham
+
+*/
+
+
+// simple conversion functions
+
+// Convert a CSS font-variation-settings string into a fvs object, with each axis as a key
+function CSStoFvs (cssVariations) {
+
+	// TODO: the string "'wght' 678, 444, 'zdth' 88.2" currently becomes {"wght": 678, "zdth": 88.2}, but it should probably be rejected
+
+	let regex = /["']([\w ]{4})["']\s+([0-9.]+)\s*(?:$|,)\s*/g;
+	let parsed;
+	let fvs = {};
+	while ((parsed = regex.exec(cssVariations)) !== null) {
+		fvs[parsed[1]] = parseFloat(parsed[2]);
+	}
+	return fvs;
+}
+
+// Convert an fvs object to a CSS font-variation-settings string
+function fvsToCSS (fvs) {
+
+	// TODO: validation?
+	let cssVariations = [];
+	Object.keys(fvs).forEach(function (k) {
+		cssVariations.push(`"${k}" ${fvs[k]}`);
+	});
+
+	return cssVariations.join();
+}
+
+
+// Convert a font’s axis settings to a simple string for use in font names or as documentation
+// Note: Preserves axis order from the font.axes array (which normally comes from the fvar table)
+// Example: "wght=456&wdth=772" (format=url) or "wght_456_wdth_772" (format=familyName)
+// TODO?: move this to samsa-core.js
+function instanceAxisString (instance, format="familyName") {
+
+	let axisStrings = [];
+
+	switch (format) {
+		case "url":
+			instance.font.axes.forEach(function (axis) {
+				axisStrings.push (`${axis.tag}=${instance.fvs[axis.tag]}`);
+			});
+			return axisStrings.join("&");
+
+		case "familyName":
+			instance.font.axes.forEach(function (axis) {
+				axisStrings.push (`${axis.tag}_${instance.fvs[axis.tag]}`.replace(".", "_"));
+			});
+			return axisStrings.join("_");
+	}
+}
+
+
+function applyInstance (vf, el) {
+
+	let fvsString = el.getAttribute("data-variation-settings");
+	let fvs = CSStoFvs (fvsString);
+	let instance = vf.addInstance (fvs, "");
+
+	vf.makeInstance(instance); // places the instantiated binary data into instance.static
+	if (instance.static) {
+		
+		// attach this binary as a webfont
+		let iFontFace = new FontFace(
+			"I-" + instanceAxisString(instance, "familyName"), 
+			`url("data:font/ttf;base64,${uint8ToBase64(instance.static)}")`
+		);
+
+		iFontFace.load().then(iFontFace => {
+			document.fonts.add(iFontFace); // add font to the document: it’s ready for use
+			el.style.fontFamily = iFontFace.family; // assign the new fontface to the DOM element
+		});
+
+	}
+}
+
+function applyInstancesAll (vf, selector = ".samsa") {
+
+	let elements = document.querySelectorAll (selector);
+	elements.forEach(function (el) {
+		applyInstance (vf, el);	
+	});
+}
+
+
+// download link test
+function vfLoaded () {
+	
+	// POLYFILL FOR ALL ELEMENTS WITH CLASS ".samsa"
+	applyInstancesAll(vf, ".samsa");
+
+
+	// CREATE AN INSTANCE AND MAKE IT AVAILABLE FOR DOWNLOAD
+	// define the instance
+	let boldInstance = vf.addInstance ({wght: 700, wdth: 125}, "MyBold");
+	console.log ("boldInstance", boldInstance);
+
+	// make the instance
+	vf.makeInstance(boldInstance); // places the instantiated binary data into boldInstance.static
+
+	// do something with the binary data
+	if (boldInstance.static) {
+		
+		let downloadLink = document.createElement("a");
+		downloadLink.innerText = "Download instance";
+		downloadLink.setAttribute("download", "Download.ttf");
+		downloadLink.setAttribute("href", "data:font/ttf;base64," + uint8ToBase64(boldInstance.static));
+		document.body.appendChild(downloadLink);
+
+		boldInstance.static;
+	}
+}
+
+
+let vf = new SamsaVF({
+	//fontFamily: "LibreFranklin",
+	//url: "http://localhost/samsa/fonts/LibreFranklinGX-Roman.ttf",
+	
+	//fontFamily: "Gingham",
+	//url: "http://localhost/samsa/fonts/Gingham.ttf",
+
+	//fontFamily: "Bahnschrift",
+	//url: "http://localhost/samsa/fonts/bahnschrift.ttf",
+
+	//fontFamily: "IBMPlex",
+	//url: "http://localhost/samsa/fonts/ui/IBMPlexSansVar-Roman.ttf",
+
+	fontFamily: "Dunbar",
+	url: "http://localhost/samsa/fonts/MutatorSans.ttf",
+
+	//fontFamily: "GVARIUPTEST",
+	//url: "fonts/TestGVARNine-revised.ttf",
+	callback: vfLoaded,
+},
+{
+	testConfigItem: 34567,
+});
+
+
+</script>
+
+</body>
+</html>

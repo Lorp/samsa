@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+
+<!--
+<script src="/axispraxis/js/jquery-3.1.1/jquery-3.1.1.min.js"></script>
+<script src="/axispraxis/js/d3-4.2.6/d3.js"></script>
+<script src="samsa.js"></script>
+-->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.10.0/d3.js"></script>
+<script src="samsa.min.js"></script>
+
+
+<style>
+
+.noselect { /* http://stackoverflow.com/questions/826782/how-to-disable-text-selection-highlighting-using-css */
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+}
+
+html { /* Request system fonts using Marcin Wichary’s method https://medium.design/system-shock-6b1dc6d6596f */
+	font-family: -apple-system, ".SFNSText", "San Francisco", "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;
+	font-size: 10px;
+	color: black;
+	background-color: white;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+	text-rendering: optimizeLegibility;
+}
+
+#font-window, #glyph-window {
+	position: relative;
+	float:none;
+	left: 0;
+	height: auto;
+	top: 42px;
+	overflow: auto;
+}
+
+.glyph-icon {
+	position: relative;
+	float: left;
+	width: 100px;
+	height: 100px;
+	border: 1px solid black;
+	overflow: hidden;
+}
+
+#tabs {
+	position: absolute;
+	left: 0;
+	top: 0;
+    overflow: hidden;
+    border: 1px solid #ccc;
+    background-color: #f1f1f1;
+    height: 38px;
+    z-index: 10;
+}
+
+#tabs button.tab {
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 6px 8px;
+    transition: 0.3s;
+    font-size: 17px;
+}
+
+#tabs button.tab.active {
+	background-color: #ccc;
+}
+
+.tab {
+    padding: 1px 6px;
+    border: 1px solid #ccc;
+    border-top: none;
+}
+
+#glyph-nav {
+	float:left;
+	position: relative;
+	top:0.7rem; 
+}
+
+th {font-weight: normal;}
+
+#deltasets-table {
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+
+.S {
+	width: 40px;
+	overflow: hidden;
+	white-space: nowrap;
+	max-width: 40px;
+}
+
+#controls {
+    width: 360px;
+    float: right;
+
+
+	_position: fixed;
+	_top: 0px;
+	_right: 0px;
+
+	_z-index: 1;
+	background-color: lightgrey;
+	_padding: 10px;
+}
+
+#controls h1 {
+	font-weight: bold;
+	font-size: 1.5rem;
+	background-color: lightgrey;
+	color: white;
+}
+
+#controls h2 {
+	font-size: 1.25rem;
+}
+
+#controls h2 button {
+	position: relative;
+	bottom: .25em;
+}
+
+.node {
+	stroke-width: 5px;
+	stroke: green;
+	r:25;
+	fill:rgba(0,0,0,0.0);
+}
+
+.node .on-curve {
+
+}
+
+.node .off-curve {
+	
+
+}
+
+.background {
+	fill: lightblue;
+}
+
+.instance {
+	fill: rgba(128,128,128,0.8);
+	stroke: black;
+	stroke-weight:10px;
+}
+
+.delta-line {
+	stroke: green;
+	stroke-width: 2.5; /*1.25;*/
+	marker-end: url(#arrow);
+}
+
+.background .node {
+
+}
+
+.default .node {
+
+}
+
+.instance .node {
+
+}
+
+.axis-value {
+	font-size: 0.5rem;
+	width: 2rem;
+	text-align: right;
+}
+
+.point-label {
+	position: relative;
+	pointer-events: none;
+	font-size: 48px;
+	fill: grey;
+}
+
+.glyph-fill {
+	fill: black;
+	stroke: none;
+}
+
+.glyph-outline {
+	fill: none;
+	stroke: grey;
+	stroke-width: 2.5;
+}
+
+.font-sample {
+	width:300px;
+	font-size: 48px;
+	color: lightgrey;
+}
+
+
+</style>
+<style id="input-style"></style>
+<style id="output-style"></style>
+
+</head>
+<body>
+
+<div id="container" style="height: auto;overflow: hidden;">
+
+<div id="controls">
+	<h1>SAMSA</h1>
+<div id="font-dropzone" style="background-color: blue; color: white; margin: 1rem; width: 20rem; padding:20px; border: 2px solid blue; text-align: center; font-weight:bold;">DROP VARFONT HERE</div>
+	<h2>Stored variable fonts</h2>
+	<select id="stored-fonts" disabled><option>None</option></select> <button id="load-font">Load</button>
+	<h2>Editing</h2>
+	<div id="editing">
+	<!-- Layer <select id="editing-layers"></select><br> -->
+	<div id="xy"><span>0</span>,<span>0</span></div>
+	<input id="iup" type="checkbox" checked value="1"> <label for="iup">IUP</label><br>
+	<input id="point-numbers" type="checkbox" value="1"> <label for="point-numbers">point numbers</label><br>
+	<input id="fill" type="checkbox" value="1" checked> <label for="fill">fill glyph</label><br>
+	<input id="show-nodes" type="checkbox" value="1" checked> <label for="show-nodes">show nodes</label><br>
+	<input type="radio" name="edit-layer" value="-1" checked/> Edit default layer<br>
+	</div>
+
+	<h2>Axes <button id="axis-new" href="">+</button></h2>
+	<div id="axes"></div>
+	<h2>Delta sets <button id="deltaset-new" href="">+</button></h2>
+	<div id="deltasets">
+		<table id="deltasets-table">
+		</table>
+	</div>
+	<h2>Input font</h2>
+	<textarea id="input-font-sample" class="font-sample" rows="1">AaBbCcDdEe</textarea>
+	<div>
+		<button id="generate-font-browser">Generate font (browser)</button><br>
+		<button id="generate-font-server">Generate font (server)</button> <input id="generate-huge-font-server" type="checkbox" value="1"> <label for="generate-huge-font-server">Use huge test font</label> <input id="generate-font-server-zip" type="checkbox" value="1"  checked> <label for="generate-font-server-zip">zip</label>
+	</div>
+	<input id="font-name" style="width:100%;">
+	<h2>Output font</h2>
+	<textarea id="output-font-sample" class="font-sample" rows="1">AaBbCcDdEe</textarea>
+	<ul id="output-fonts"></ul>
+	<h2>Glyph info</h2>
+	<div id="glyph-info"></div>
+	<svg id="svg-deltasets"></svg>
+</div>
+
+<div id="font-window"></div>
+<div id="glyph-window" style="display:none;"></div>
+
+
+<div id="tabs">
+	<div style="float:left;">
+		<button class="tab">Font</button>
+		<button class="tab">Glyph</button>
+	</div>
+	<div id="glyph-nav" style="display:none;">
+		<button>«</button>
+		<button>»</button>
+	</div>
+</div>
+</div>
+
+</body>

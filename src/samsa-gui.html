@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+
+<script src="samsa-core.js"></script>
+
+<link rel = "stylesheet" type = "text/css" href = "samsa-gui.css" />
+</head>
+
+<body>
+
+<div id="container">
+
+<div id="title"><h1>Samsa</h1>
+	<div id="subtitle">variable font inspector</div>
+</div>
+
+<div id="font-file" class="inactive">
+	&lt;drop a variable font here&gt;
+</div>
+
+<div id="controls">
+
+	<div id="info" class="panel">
+		<h2>Info</h2>
+		<div></div>
+	</div>
+
+	<div id="axes" class="panel">
+		<h2>Axes</h2>
+		<div></div>
+	</div>
+
+	<div id="instances" class="panel">
+		<h2>Instances</h2>
+		<div></div>
+	</div>
+
+	<div id="tuples" class="panel">
+		<h2>Tuple Variations</h2>
+		<div></div>
+	</div>
+
+	<div id="designspace" class="panel">
+		<h2>Designspace</h2>
+		<div></div>
+	</div>
+
+	<div id="stat" class="panel">
+		<h2>STAT</h2>
+		<div></div>
+	</div>
+
+	<div id="glyphs" class="panel">
+		<h2>Glyphs</h2>
+		<div></div>
+	</div>
+
+</div>
+
+<div id="drawing"></div>
+
+</div>
+
+
+<script>
+
+
+let GLOBAL = {
+	vf: null, // maybe allow an array of fonts... select them with a drop down in info panel
+};
+
+
+
+function vfLoaded (font) {
+
+	GLOBAL.vf = font;
+
+	let panel;
+
+	///////////////////////////////////////////////////////
+	// axis panel
+	///////////////////////////////////////////////////////
+	panel = document.querySelector("#axes>div");
+	panel.innerText = "";
+
+	document.querySelector("#font-file").innerText = font.filename; // font.names[6];
+
+	// add each axis
+	font.axes.forEach((axis, a) => {
+
+		let label =  document.createElement("label");
+		label.innerHTML = `<span style="font-weight: bold; font-family: monospace;">${axis.tag}</span> ${axis.name}`;
+		panel.appendChild(label);
+
+		let slider = document.createElement("input");
+		slider.setAttribute("type", "range");
+
+		let boxes = document.createElement("label");
+
+		panel.appendChild(slider);
+
+	});
+
+
+
+	///////////////////////////////////////////////////////
+	// instances panel
+	///////////////////////////////////////////////////////
+	panel = document.querySelector("#instances>div");
+	panel.innerText = "";
+
+	// add each instance
+	font.instances.forEach((instance, i) => {
+
+		let fvsString = "";
+		panel.innerHTML += `${instance.name}<br>`;
+		panel.innerHTML += "&nbsp;&nbsp;&nbsp;[";
+		panel.innerHTML += instance.tuple.join();
+		panel.innerHTML += "] ";
+		panel.innerHTML += JSON.stringify(instance.fvs);
+		
+		panel.innerHTML += "]<br>";
+
+	});
+
+
+	///////////////////////////////////////////////////////
+	// glyphs panel
+	///////////////////////////////////////////////////////
+	panel = document.querySelector("#glyphs>div");
+	panel.innerText = "";
+
+	for (let g=0; g < font.numGlyphs; g++) {
+
+		let glyph = font.glyphs[g];
+
+		let glyphThumb = document.createElement("div");
+		glyphThumb.classList.add("glyph-thumb");
+
+		if (glyph.numContours > 1) {
+
+			let svg = SVG("svg");
+			let svgPath = SVG("path");
+			let svgg = SVG("g");
+
+			svg.setAttributeNS(null, "width","2000");
+			svg.setAttributeNS(null, "height","2000");
+			//svg.setAttributeNS(null, "xmlns", "http://www.w3.org/2000/svg");
+			
+
+			//svg.appendChild(svgg);
+
+			//svgg.setAttributeNS(null, "transform", "translate(200,1000) scale(0.05,-0.05)");
+			svgg.setAttributeNS(null, "transform", "translate(30,60) scale(0.05,-0.05)");
+			
+			//svgMarker.attr({markerWidth:20,markerHeight:20);
+			svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
+
+			svg.appendChild(svgg);
+
+
+			// glyph
+			svgg.appendChild(svgPath);
+
+			// x and y axes
+
+			glyphThumb.appendChild(svg);
+		}
+
+		panel.appendChild(glyphThumb);
+
+
+		let label = document.createElement("label");
+		label.innerText = g;
+
+		glyphThumb.appendChild(label);
+
+	}
+
+
+}
+
+
+
+document.onclick = function (event) {
+
+	if (event.target == document.querySelector("#font-file")) {
+
+		let vf = new SamsaVF({
+
+			fontFamily: "Dunbar",
+			url: "fonts/MutatorSans.ttf",
+
+			callback: vfLoaded,
+		});
+		//alert ("title click");
+	}
+}
+
+
+
+function dropHandler(ev) {
+
+// https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
+  // Prevent default behavior (Prevent file from being opened)
+  //alert ('File(s) dropped');
+  ev.preventDefault();
+
+  if (ev.dataTransfer.items) {
+    // Use DataTransferItemList interface to access the file(s)
+
+    for (var i = 0; i < 1 /* ev.dataTransfer.items.length */ ; i++) { // limit to processing of first file dropped
+
+      // If dropped items aren't files, reject them
+      if (ev.dataTransfer.items[i].kind === 'file') {
+        var file = ev.dataTransfer.items[i].getAsFile();
+        let reader = new FileReader();
+        reader.__file__ = file;
+        reader.onload = function (event) {
+
+			//console.log (event.target.result);
+			console.log (event.target);
+
+			let vf = new SamsaVF({
+
+				arrayBuffer: event.target.result,
+				inFile: this.__file__.name,
+				callback: vfLoaded,
+			});
+		};
+		reader.readAsArrayBuffer(file); // https://stackoverflow.com/questions/22659164/read-a-drag-and-dropped-file
+      }
+    }
+  }
+}
+
+document.querySelector("#font-file").addEventListener("drop", dropHandler);
+document.querySelector("#font-file").addEventListener("dragover",function(e){
+	e = e || event;
+	e.preventDefault();
+},false);
+
+
+
+function SVG(tag) {
+    return document.createElementNS('http://www.w3.org/2000/svg', tag);
+}
+
+
+
+</script>
+
+
+</body>
+</html>

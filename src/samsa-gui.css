@@ -1,0 +1,124 @@
+@font-face {
+	font-family: IBMPlexVariable;
+	src: url(fonts/ui/IBMPlexSansVar-Roman.woff2) format("woff2");
+	font-weight: 1 1000;
+	font-stretch: 85 100;
+}
+
+@font-face {
+	font-family: IBMPlexVariable;
+	src: url(fonts/ui/IBMPlexSansVar-Italic.woff2) format("woff2");
+	font-style: italic;
+	font-weight: 1 1000;
+	font-stretch: 85 100;
+}
+
+html {
+	font-family: IBMPlexVariable, -apple-system, ".SFNSText", "San Francisco", "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;
+	font-size: 16px;
+	text-rendering: optimizeLegibility;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+}
+
+#container {
+	width: 100vw;
+	height: 100vh;
+	display: grid;
+	grid-template-columns: 360px 1fr;
+	grid-template-rows: 80px 1fr;
+}
+
+#title {
+	background-color: orange;
+	padding: 0px 20px;
+	position: relative;
+}
+
+#title h1 {
+	font-size: 4rem;
+	font-weight: 700;
+	padding: 0;
+	margin: 0;
+}
+
+#subtitle {
+	position: absolute;
+	width: 120px;
+	right: 26px;
+	top: 8px;
+	font-size: 1rem;
+	line-height: 1.2;
+	display: inline-block;
+	text-transform: uppercase;
+	text-align: right;
+}
+
+#font-file {
+	background-color: beige;
+	font-size: 4rem;
+	padding: 0px 20px;
+	white-space: nowrap;
+}
+
+#controls {
+	background-color: beige;
+}
+
+#controls h2 {
+	font-size: 1em;
+	font-weight: 500;
+	background-color: darkgrey;
+	color: white;
+	padding-left: 1em;
+	margin: 0;
+	border-bottom: 1px solid black;
+}
+
+.panel>div {
+	width: 100%;
+	background-color: lightgrey;
+}
+
+.panel>div>input[type="range"] {
+	position: relative;
+	width: calc(100% - 20px);
+	left: 8px;
+}
+
+.panel>label {
+	font-size: 75%;
+}
+
+
+.glyph-thumb {
+	width: 90px;
+	height: 90px;
+	border: 0.5px solid lightgrey;
+	float: left;
+	box-sizing: border-box;
+	position: relative;
+}
+
+.glyph-thumb>label {
+	position: absolute;
+	left: 0;
+	top: 0;
+	_border: 1px solid lightgrey;
+	color: white;
+	background-color: darkgrey;
+	font-size: 75%;
+	padding: 0 2px;
+}
+
+#drawing {
+	
+}
+
+.inactive {
+	color: grey;
+	font-style: italic;
+}
