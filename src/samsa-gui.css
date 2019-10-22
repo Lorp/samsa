@@ -45,7 +45,7 @@ body {
 	margin: 0;
 }
 
-#subtitle {
+.subtitle {
 	position: absolute;
 	width: 120px;
 	right: 26px;
@@ -91,6 +91,13 @@ body {
 
 .panel>label {
 	font-size: 75%;
+}
+
+.instance {
+	background-color: white;
+	_border: 1px solid black;
+	padding: 4px;
+	margin: 4px;
 }
 
 

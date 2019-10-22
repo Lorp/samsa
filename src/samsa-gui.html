@@ -14,7 +14,11 @@
 <div id="container">
 
 <div id="title"><h1>Samsa</h1>
-	<div id="subtitle">variable font inspector</div>
+	<div class="subtitle">
+		variable font inspector<br>
+		<a href="https://github.com/Lorp/samsa" title="Samsa on GitHub"><img width="15" height="15" src="images/GitHub-Mark-64px.svg"></a>
+	</div>
+	<div class="subtitle"></div>
 </div>
 
 <div id="font-file" class="inactive">
@@ -81,6 +85,19 @@ function vfLoaded (font) {
 	let panel;
 
 	///////////////////////////////////////////////////////
+	// info panel
+	///////////////////////////////////////////////////////
+	panel = document.querySelector("#info>div");
+	panel.innerText = "";
+
+	document.querySelector("#font-file").innerText = font.filename; // font.names[6];
+
+	panel.innerHTML += `${font.filename} (${font.filesize || "<em>n</em>"} bytes)<br>`;
+	panel.innerHTML += `Full name: ${font.names[4]}<br>`;
+	panel.innerHTML += `Other name: ${font.names[1]}<br>`;
+
+
+	///////////////////////////////////////////////////////
 	// axis panel
 	///////////////////////////////////////////////////////
 	panel = document.querySelector("#axes>div");
@@ -111,18 +128,25 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	panel = document.querySelector("#instances>div");
 	panel.innerText = "";
+	panel.style.backgroundClip = "border-box";
+	panel.style.padding = "1px 0"; // necessary so the padding of the contents uses the panel’s background-color 
 
 	// add each instance
 	font.instances.forEach((instance, i) => {
 
+		let li = document.createElement("div");
+		li.classList.add("instance");
 		let fvsString = "";
-		panel.innerHTML += `${instance.name}<br>`;
-		panel.innerHTML += "&nbsp;&nbsp;&nbsp;[";
-		panel.innerHTML += instance.tuple.join();
-		panel.innerHTML += "] ";
-		panel.innerHTML += JSON.stringify(instance.fvs);
+		li.innerHTML += `${instance.name}<br>`;
+		li.innerHTML += "&nbsp;&nbsp;&nbsp;[";
+		li.innerHTML += instance.tuple.join();
+		li.innerHTML += "] ";
+		li.innerHTML += JSON.stringify(instance.fvs);
 		
-		panel.innerHTML += "]<br>";
+		li.innerHTML += "<br>";
+		panel.appendChild(li);
+		//li.style.padding = "10px";
+		//li.style.boxSizing = "content-box";
 
 	});
 
@@ -142,8 +166,10 @@ function vfLoaded (font) {
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
 
-		if (glyph.numContours > 1) {
 
+		if (glyph.numContours > 0) {
+
+			// simple glyph
 			let svg = SVG("svg");
 			let svgPath = SVG("path");
 			let svgg = SVG("g");
@@ -153,6 +179,7 @@ function vfLoaded (font) {
 			svgg.setAttributeNS(null, "transform", `translate(30,60) scale(${scale},-${scale})`);
 			
 			//svgMarker.attr({markerWidth:20,markerHeight:20);
+
 			svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
 
 			svg.appendChild(svgg);
@@ -164,6 +191,9 @@ function vfLoaded (font) {
 			// x and y axes
 
 			glyphThumb.appendChild(svg);
+		}
+		else if (glyph.numContours < 0) {
+
 		}
 
 		panel.appendChild(glyphThumb);
@@ -227,7 +257,7 @@ document.onclick = function (event) {
 			svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
 			svgPath.setAttributeNS(null, "stroke", `black`);
 			svgPath.setAttributeNS(null, "stroke-width", `3px`);
-			svgPath.setAttributeNS(null, "fill", `pink`);
+			svgPath.setAttributeNS(null, "fill", `#eee`);
 
 			svg.appendChild(svgg);
 
