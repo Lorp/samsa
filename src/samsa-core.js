@@ -1622,6 +1622,8 @@ function SamsaVF_parseSmallTable (tag) {
 			table.fontDirectionHint = data.getInt16(p), p+=2;
 			table.indexToLocFormat = data.getUint16(p), p+=2;
 			table.glyphDataFormat = data.getUint16(p), p+=2;
+
+			font.unitsPerEm = table.unitsPerEm;
 			break;
 
 

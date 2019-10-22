@@ -154,7 +154,10 @@ function vfLoaded (font) {
 			//svg.appendChild(svgg);
 
 			//svgg.setAttributeNS(null, "transform", "translate(200,1000) scale(0.05,-0.05)");
-			svgg.setAttributeNS(null, "transform", "translate(30,60) scale(0.05,-0.05)");
+			let scale = 0.05;
+			scale *= 1000 / font.unitsPerEm;
+
+			svgg.setAttributeNS(null, "transform", `translate(30,60) scale(${scale},-${scale})`);
 			
 			//svgMarker.attr({markerWidth:20,markerHeight:20);
 			svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
@@ -191,9 +194,8 @@ document.onclick = function (event) {
 
 		let vf = new SamsaVF({
 
-			fontFamily: "Dunbar",
+			fontFamily: "FontNameShouldGoHere",
 			url: "fonts/MutatorSans.ttf",
-
 			callback: vfLoaded,
 		});
 		//alert ("title click");
