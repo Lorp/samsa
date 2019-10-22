@@ -35,8 +35,15 @@ This creates new non-variable fonts for all the named instances in the variable 
 
 `--named-instances`  
 
+It is *much* faster than fontTools at instantiation. However the fonts produced are not production ready, lacking support for several variation tables. In most fonts, handling these extra tables will not slow the utility down significantly.
+
 
 ## Samsa-Core
 
 Refactoring during October 2019, moving many functions to Samsa-Core.
+
+
+## Samsa-Polyfill
+
+A demo page of how to set up Samsa for use as a polyfill.
 
