@@ -13,6 +13,19 @@
 	font-stretch: 85 100;
 }
 
+@font-face {
+	font-family: IBMPlexMono;
+	src: url(fonts/ui/IBMPlexMono-Bold.woff2) format("woff2");
+	font-weight: 700;
+}
+
+@font-face {
+	font-family: IBMPlexMono;
+	src: url(fonts/ui/IBMPlexMono-BoldItalic.woff2) format("woff2");
+	font-weight: 700;
+	font-style: italic;
+}
+
 html {
 	font-family: IBMPlexVariable, -apple-system, ".SFNSText", "San Francisco", "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;
 	font-size: 16px;
@@ -83,7 +96,7 @@ body {
 	background-color: lightgrey;
 }
 
-.panel>div>input[type="range"] {
+.panel>div>.slider {
 	position: relative;
 	width: calc(100% - 20px);
 	left: 8px;
@@ -128,4 +141,15 @@ body {
 .inactive {
 	color: grey;
 	font-style: italic;
+}
+
+.active {
+	background-color: #d0f473;
+}
+
+tt {
+	font-family: IBMPlexMono;
+	font-weight: bold;
+	background-color: black;
+	color: white;
 }

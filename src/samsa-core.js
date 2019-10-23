@@ -623,27 +623,6 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 	var glyfLocas = [0]; // there are numGlyphs+1 loca entries
 	var buffer = new ArrayBuffer(font.config.glyf.maxSize);
 	var glyfTable = new DataView(buffer);
-	let userTuple = [];
-
-
-	if (instance) { // the new method of using the instance tuple 2019-10-13
-		userTuple = instance.tuple; // already normalized
-		/*
-		font.axes.forEach(function (axis, a) {
-			//userTuple.push(axisNormalize(axis, instance.tuple[a]));
-			userTuple.push(instance.tuple[a]);
-		});
-		*/
-		console.log ("NEW METHOD", userTuple, font.axes);
-	}
-	else { // old method TODO: remove old method
-		// get the axis tuple from the font.axes array’s "curr" property
-		console.log ("old method")
-		font.axes.forEach(function (axis) {
-			userTuple.push(font.axisNormalize(axis, axis.curr));
-		});
-	}
-
 
 	// TODO: Consider storing an arrays of instantiated glyph objects in the instance object. They take up lots of space, so must be optional.
 	let iglyph;
@@ -659,7 +638,7 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 
   		if (tvts.length > 0 && glyph.numContours > 0)
   		{
-			iglyph = glyphApplyVariations (glyph, userTuple);
+			iglyph = glyphApplyVariations (glyph, instance.tuple); // instance.tuple is already normalized
 			iglyph.newLsb = 0;
 			newfont.glyphs[g] = iglyph;
 
@@ -1782,6 +1761,7 @@ function SamsaVF_parseSmallTable (tag) {
 			table.instanceCount = data.getUint16(p), p+=2;
 			table.instanceSize = data.getUint16(p), p+=2;
 
+			// build axes
 			font.axes = [];
 			font.axisTagToId = {}; // TODO: better as an object where each property has value as the axis array item? and add id as an axis property
 			for (let a=0; a<table.axisCount; a++)
@@ -1789,7 +1769,7 @@ function SamsaVF_parseSmallTable (tag) {
 				let axis = { id: a };
 				axis.tag = getStringFromData (data, p, 4), p+=4;
 				axis.min = data.getInt32(p)/65536, p+=4;
-				axis.curr = axis.default = data.getInt32(p)/65536, p+=4; // TODO: get rid of axis.curr (we should use the tuple of an instance directly)
+				axis.default = data.getInt32(p)/65536, p+=4;
 				axis.max = data.getInt32(p)/65536, p+=4;
 				axis.flags = data.getUint16(p), p+=2;
 				axis.axisNameID = data.getUint16(p), p+=2;
@@ -1800,24 +1780,45 @@ function SamsaVF_parseSmallTable (tag) {
 				font.axisTagToId[axis.tag] = a;
 			}
 
+			// build instances
+			// - insert default instance as well as the instances in the fvar table
+			// - flag named instances with namedInstance=true
 			font.instances = [];
-			for (let i=0; i<table.instanceCount; i++)
+			for (let i=0; i<table.instanceCount+1; i++) // +1 allows for default instance
 			{
-				let instance = { id: i, tuple:[] };
-				instance.subfamilyNameID = data.getUint16(p), p+=2;
-				instance.flags = data.getUint16(p), p+=2;
-				instance.fvs = {};
-				console.log (font);
+				let instance = {
+					id: i,
+					tuple:[],
+					fvs: {},
+					static: null, // if this is instantiated as a static font, this can point to the data or url
+				};
+
+				if (i>0) {
+					instance.subfamilyNameID = data.getUint16(p), p+=2;
+					p+=2; // skip over flags
+				}
+
 				font.axes.forEach((axis, a) => {
-					instance.tuple[a] = data.getInt32(p)/65536, p+=4;
+					instance.tuple[a] = axis.default;
+					if (i==0)
+						instance.tuple[a] = axis.default;
+					else
+						instance.tuple[a] = data.getInt32(p)/65536, p+=4;
 					instance.fvs[axis.tag] = instance.tuple[a];
 					instance.tuple[a] = font.axisNormalize(axis, instance.tuple[a]);
 				});
-				if (table.instanceSize == table.axisCount * 4 + 6)
-					instance.postScriptNameID = data.getUint16(p), p+=2;
-				instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed!
-				instance.namedInstance = true;
-				instance.static = null; // if this is instantiated as a static font, this can point to the data or url
+
+				if (i==0) {
+					instance.name = "Default";
+					instance.default = true;
+					instance.namedInstance = false;
+				}
+				else {
+					if (table.instanceSize == table.axisCount * 4 + 6)
+						instance.postScriptNameID = data.getUint16(p), p+=2;
+					instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed!
+					instance.namedInstance = true;
+				}
 				font.instances.push(instance);
 			}
 
@@ -2240,6 +2241,10 @@ function SamsaVF (init, config) {
 		// </segment>
 		let n;
 
+		if (axis === undefined) {
+			n = 0;
+		}
+
 
 		if (t == axis.default)
 			n = 0;
@@ -2270,13 +2275,18 @@ function SamsaVF (init, config) {
 					}
 				}
 			}
-			
-
 		}
 
 		return n;
 	}
 
+
+	// Convert from F2DOT14 internal values (-1.0 to +1.0) into user axis values
+	// TODO: include avar
+	this.axisDenormalize = (axis, t) => {
+
+
+	}
 
 
 	// load data if not already loaded

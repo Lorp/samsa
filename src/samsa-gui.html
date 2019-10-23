@@ -77,6 +77,49 @@ let GLOBAL = {
 };
 
 
+function getCurrentFvs() {
+
+	let fvs = {};
+	document.querySelectorAll(".slider").forEach(slider => {
+		let axis = slider.data.axis;
+		fvs[axis.tag] = axis.min + slider.value * (axis.max - axis.min);
+	});
+	return fvs;
+}
+
+
+function addInstance(instance, select) {
+
+	let panel = document.querySelector("#instances>div");
+
+	// initialize instance if necessary
+	if (instance === undefined) {
+		instance = { name: "Custom", tuple: [] };
+		instance.fvs = getCurrentFvs();
+		GLOBAL.vf.axes.forEach((axis, a) => {
+			instance.tuple[a] = GLOBAL.vf.axisNormalize(axis, instance.fvs[axis.tag]);
+		});
+		GLOBAL.vf.instances.push(instance);
+	}
+
+	// create & append the instance DOM element
+	let li = document.createElement("div");
+	li.classList.add("instance");
+	li.innerHTML += `${instance.name}<br>`;
+	li.innerHTML += "&nbsp;&nbsp;&nbsp;[";
+	li.innerHTML += instance.tuple.join();
+	li.innerHTML += "] ";
+	li.innerHTML += JSON.stringify(instance.fvs);
+	li.data = { instance: instance };
+	panel.appendChild(li);
+
+	// make it active
+	if (select) {
+		setActiveInstance (GLOBAL.vf, li);
+	}
+}
+
+
 
 function vfLoaded (font) {
 
@@ -90,7 +133,7 @@ function vfLoaded (font) {
 	panel = document.querySelector("#info>div");
 	panel.innerText = "";
 
-	document.querySelector("#font-file").innerText = font.filename; // font.names[6];
+	document.querySelector("#font-file").innerText = font.filename;
 
 	panel.innerHTML += `${font.filename} (${font.filesize || "<em>n</em>"} bytes)<br>`;
 	panel.innerHTML += `Full name: ${font.names[4]}<br>`;
@@ -103,22 +146,40 @@ function vfLoaded (font) {
 	panel = document.querySelector("#axes>div");
 	panel.innerText = "";
 
-	document.querySelector("#font-file").innerText = font.filename; // font.names[6];
+	document.querySelector("#font-file").innerText = font.filename; // or font.names[6];
 
 	// add each axis
 	font.axes.forEach((axis, a) => {
 
 		let label =  document.createElement("label");
-		label.innerHTML = `<span style="font-weight: bold; font-family: monospace;">${axis.tag}</span> ${axis.name}`;
+		//label.innerHTML = `<span style="font-weight: bold; font-family: monospace;">${axis.tag}</span> ${axis.name}`;
+		label.innerHTML = `<tt>${axis.tag}</tt> ${axis.name}`;
 		panel.appendChild(label);
 
 		let slider = document.createElement("input");
+		slider.classList.add("slider");
 		slider.setAttribute("type", "range");
+		slider.setAttribute("min", 0.0);
+		slider.setAttribute("max", 1.0);
+		slider.setAttribute("step", 0.001);
+
+		slider.data = {axis: axis};
 
 		let boxes = document.createElement("label");
 
 		panel.appendChild(slider);
 
+	});
+
+	// add button
+	let addInstanceEl = document.createElement("button");
+	addInstanceEl.innerText = "Add instance";
+	addInstanceEl.id = "instance-add";
+	panel.appendChild(addInstanceEl);
+	//addInstanceEl.onclick = addInstance;
+
+	addInstanceEl.addEventListener("click", ()=>{
+		addInstance(undefined, true);
 	});
 
 
@@ -131,25 +192,14 @@ function vfLoaded (font) {
 	panel.style.backgroundClip = "border-box";
 	panel.style.padding = "1px 0"; // necessary so the padding of the contents uses the panel’s background-color 
 
+	let li = document.createElement("div");
+	let fvsString = "";
+
 	// add each instance
 	font.instances.forEach((instance, i) => {
-
-		let li = document.createElement("div");
-		li.classList.add("instance");
-		let fvsString = "";
-		li.innerHTML += `${instance.name}<br>`;
-		li.innerHTML += "&nbsp;&nbsp;&nbsp;[";
-		li.innerHTML += instance.tuple.join();
-		li.innerHTML += "] ";
-		li.innerHTML += JSON.stringify(instance.fvs);
-		
-		li.innerHTML += "<br>";
-		panel.appendChild(li);
-		//li.style.padding = "10px";
-		//li.style.boxSizing = "content-box";
-
+		addInstance(instance);
 	});
-
+	setActiveInstance(GLOBAL.vf); // without an instance parameter, it sets it to the default
 
 	///////////////////////////////////////////////////////
 	// glyphs panel
@@ -210,10 +260,56 @@ function vfLoaded (font) {
 }
 
 
+function setAxes (font, fvs) {
+	
+
+	let sliders = document.querySelectorAll(".slider");
+	font.axes.forEach((axis, a) => {
+
+		if (axis.min > axis.max)
+			return;
+
+		let val = fvs[axis.tag];
+		if (val < axis.min)
+			val = axis.min;
+		if (val > axis.max)
+			val = axis.max;
+
+		sliders[a].value = (val - axis.min) / (axis.max - axis.min);
+	});
+}
+
+
+
+function setActiveInstance (font, target) {
+
+	document.querySelectorAll(".instance").forEach((el, i) => {
+
+		// update instance ui
+		if (el == target || (!target && font.instances[i].default)) {
+			console.log("setActiveInstance");
+			el.classList.add("active");
+			setAxes (font, el.data.instance.fvs);
+			//setAxes(el.data.instance.fvs);
+			console.log(font.instances[i].fvs); 
+			console.log(el.data.instance.fvs); 
+		}
+		else {
+			el.classList.remove("active");
+			//target.data.selected = true;
+		}
+	});
+
+
+	console.log("INSTY", target);
+}
+
+
+
 
 document.onclick = function (event) {
 
-	let glyphThumb;
+	let target;
 
 	if (event.target == document.querySelector("#font-file")) {
 
@@ -225,14 +321,20 @@ document.onclick = function (event) {
 		});
 	}
 
-	else if (glyphThumb = event.target.closest(".glyph-thumb")) {
+	else if (target = event.target.closest(".instance")) {
+
+		console.log("click inst");
+		console.log(event.target.closest(".instance"))
+		setActiveInstance(GLOBAL.vf, target);
+	}
+
+	else if (target = event.target.closest(".glyph-thumb")) {
 
 		font = GLOBAL.vf;
 
 		let scale = 0.5 * 1000 / font.unitsPerEm;
 
-		console.log(glyphThumb.id);
-		let comps = glyphThumb.id.split("-");
+		let comps = target.id.split("-");
 		let g = comps[1];
 		let glyph = font.glyphs[g];
 
