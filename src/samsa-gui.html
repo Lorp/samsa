@@ -95,12 +95,12 @@ function appendInstanceEl(instance, select) {
 	let panel = document.querySelector("#instances>div");
 
 	// create the instance DOM element
-	let li = document.createElement("div");
+	let li = document.createElement("div"); // not li?
 
 	// initialize instance if necessary
 	if (instance === undefined) {
 		//instance.fvs = ;
-		instance = GLOBAL.vf.addInstance(getCurrentFvs(), { name: "Custom!", ui: li }); // { name: "Custom", tuple: [] };
+		instance = GLOBAL.vf.addInstance(getCurrentFvs(), { name: "Custom", ui: li }); // { name: "Custom", tuple: [] };
 
 		/*
 		GLOBAL.vf.axes.forEach((axis, a) => {
@@ -110,12 +110,43 @@ function appendInstanceEl(instance, select) {
 		*/
 	}
 
+	// list view
+	// - items are: bookmark icon, name, n axis settings
+	panel.style.minWidth = "100%";
+	panel.style.overflowX = "scroll";
+
 	li.classList.add("instance");
+	li.style.display = "grid";
+	li.style.gridTemplateColumns = `1.5em 100px repeat(${GLOBAL.vf.axisCount}, 70px)`;
+
+	let cell0 = document.createElement("div");
+	let cell1 = document.createElement("div");
+
+	cell0.style.textAlign = "center";
+	cell0.innerHTML = instance.namedInstance ? "&#xf02e;" : instance.default ? "&#xf015;" : "&#xf1de;"; // bookmark
+	let readonly = instance.default ? " readonly " : "";
+	cell1.innerHTML = `<input value="${instance.name}" ${readonly} style="width: 85px">`;
+
+	cell0.style.fontFamily = "FontAwesome";
+	li.appendChild(cell0);
+	li.appendChild(cell1);
+
+	GLOBAL.vf.axes.forEach((axis, a) => {
+		let axisCell = document.createElement("div");
+		axisCell.style.fontSize = "75%";
+		axisCell.style.textAlign = "right";
+		axisCell.innerText = instance.fvs[axis.tag];
+		li.appendChild(axisCell);
+	});
+
+	/*
 	li.innerHTML += `<input value="${instance.name}"><br>`;
 	li.innerHTML += "[";
 	li.innerHTML += instance.tuple.join();
 	li.innerHTML += "] ";
 	li.innerHTML += JSON.stringify(instance.fvs);
+	*/
+
 	li.data = { instance: instance };
 
 	// append the instance DOM element
