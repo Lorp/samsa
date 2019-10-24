@@ -157,6 +157,8 @@ function instanceAxisString (instance, format="familyName") {
 
 function applyInstance (vf, el) {
 
+	// TODO: Do some type checking on the 'el' argument, so it accepts instance objects as well as instance DOM elements
+
 	let fvsString = el.getAttribute("data-variation-settings");
 	let fvs = CSStoFvs (fvsString);
 	let instance = vf.addInstance (fvs, "");
@@ -164,7 +166,7 @@ function applyInstance (vf, el) {
 	vf.makeInstance(instance); // places the instantiated binary data into instance.static
 	if (instance.static) {
 		
-		console.log("HERE", instanceAxisString(instance, "familyName"),`url(data:font/ttf;base64,${uint8ToBase64(instance.static)})`);
+		//console.log("HERE", instanceAxisString(instance, "familyName"),`url(data:font/ttf;base64,${uint8ToBase64(instance.static)})`);
 		// attach this binary as a webfont
 		let iFontFace = new FontFace(
 			"I-" + instanceAxisString(instance, "familyName"), 
