@@ -75,7 +75,7 @@ let CONFIG = {
 		glyph: {
 			fillColor: "#404040",
 			strokeColor: "#000000",
-			strokeWidth: 3,
+			strokeWidth: 1.5,
 		},
 
 		// ?better as CSS, so we can add italic, weight, border, background-color etc?
@@ -90,6 +90,44 @@ let CONFIG = {
 		},
 
 	},
+
+	docs: {
+		regex: {
+			microsoft: "https://docs.microsoft.com/en-us/typography/opentype/spec/dvaraxistag_$1",
+			typenetwork: "https://variationsguide.typenetwork.com/#$1",
+		},
+		axes: {
+			wght: "regex:microsoft",
+			wdth: "regex:microsoft",
+			opsz: "regex:microsoft",
+			ital: "regex:microsoft",
+			slnt: "regex:microsoft",
+			xtra: "regex:typenetwork",
+			xopq: "regex:typenetwork",
+			ytra: "regex:typenetwork",
+			yopq: "regex:typenetwork",
+			ytlc: "regex:typenetwork",
+			ytuc: "regex:typenetwork",
+			ytde: "regex:typenetwork",
+			ytas: "regex:typenetwork",
+			xtab: "regex:typenetwork",
+			vrot: "regex:typenetwork",
+			udln: "regex:typenetwork",
+			shdw: "regex:typenetwork",
+			refl: "regex:typenetwork",
+			otln: "regex:typenetwork",
+			engr: "regex:typenetwork",
+			embo: "regex:typenetwork",
+			ytch: "regex:typenetwork",
+			xtch: "regex:typenetwork",
+			rxad: "regex:typenetwork",
+			ryad: "regex:typenetwork",
+			rsec: "regex:typenetwork",
+			vuid: "regex:typenetwork",
+			votf: "regex:typenetwork",
+		},
+		hoi: "http://underware.nl/case-studies/hoi/",
+	}
 
 
 };
@@ -1772,6 +1810,8 @@ function SamsaVF_parseSmallTable (tag) {
 				axis.default = data.getInt32(p)/65536, p+=4;
 				axis.max = data.getInt32(p)/65536, p+=4;
 				axis.flags = data.getUint16(p), p+=2;
+				if (axis.flags & 0x0001)
+					axis.hidden = true;
 				axis.axisNameID = data.getUint16(p), p+=2;
 				axis.name = font.names[axis.axisNameID];
 				if (axis.name === undefined)

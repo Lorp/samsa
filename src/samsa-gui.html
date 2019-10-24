@@ -38,7 +38,7 @@
 	</div>
 
 	<div id="instances" class="panel">
-		<h2>Instances</h2>
+		<h2>Instances <span class="icon" id="instances-as-grid">&#xf00a;</span> <span class="icon" id="instances-as-list">&#xf0c9;</span></h2>
 		<div></div>
 	</div>
 
@@ -111,8 +111,8 @@ function appendInstanceEl(instance, select) {
 	}
 
 	li.classList.add("instance");
-	li.innerHTML += `<input value="${instance.name}">`;
-	li.innerHTML += "&nbsp;&nbsp;&nbsp;[";
+	li.innerHTML += `<input value="${instance.name}"><br>`;
+	li.innerHTML += "[";
 	li.innerHTML += instance.tuple.join();
 	li.innerHTML += "] ";
 	li.innerHTML += JSON.stringify(instance.fvs);
@@ -345,6 +345,22 @@ document.onclick = function (event) {
 		setActiveInstance(GLOBAL.vf, target);
 	}
 
+	else if (target = event.target.closest(".ctrl-pt")) {
+		console.log("click pt" + target);
+	}
+
+	else if (target = event.target.closest("#controls .panel>h2")) {
+		let panelDiv = target.parentNode.querySelector("div");
+		console.log (panelDiv);
+		if (panelDiv) {
+			if (panelDiv.style.display == "none") {
+				panelDiv.style.display = "block";
+			}
+			else if (panelDiv.style.display = "block")
+				panelDiv.style.display = "none";	
+		}
+	}
+
 	else if (target = event.target.closest(".glyph-thumb")) {
 
 		font = GLOBAL.vf;
@@ -363,7 +379,7 @@ document.onclick = function (event) {
 		// append svg
 
 		// draw the big glyph
-		if (glyph.numContours > 1) {
+		if (glyph.numContours > 0) {
 
 			let svg = SVG("svg");
 			let svgPath = SVG("path");
@@ -376,7 +392,7 @@ document.onclick = function (event) {
 			//svgMarker.attr({markerWidth:20,markerHeight:20);
 			svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
 			svgPath.setAttributeNS(null, "stroke", `black`);
-			svgPath.setAttributeNS(null, "stroke-width", `3px`);
+			svgPath.setAttributeNS(null, "stroke-width", `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`);
 			svgPath.setAttributeNS(null, "fill", `#eee`);
 
 			svg.appendChild(svgg);
@@ -389,6 +405,7 @@ document.onclick = function (event) {
 				let size = font.config.ui.point.size;
 				if (pt[2]) {
 					svgP = SVG("rect");
+					svgP.classList.add("ctrl-pt");
 					svgP.setAttributeNS(null, "x", pt[0]-size);
 					svgP.setAttributeNS(null, "y", pt[1]-size);
 					svgP.setAttributeNS(null, "width", 2*size);
@@ -397,6 +414,7 @@ document.onclick = function (event) {
 				}
 				else {
 					svgP = SVG("circle");
+					svgP.classList.add("ctrl-pt");
 					svgP.setAttributeNS(null, "cx", pt[0]);
 					svgP.setAttributeNS(null, "cy", pt[1]);
 					svgP.setAttributeNS(null, "r", 4);

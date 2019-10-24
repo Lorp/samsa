@@ -26,6 +26,11 @@
 	font-style: italic;
 }
 
+@font-face {
+	font-family: FontAwesome;
+	src: url(fonts/ui/fa-solid-900.woff2) format("woff2");
+}
+
 html {
 	font-family: IBMPlexVariable, -apple-system, ".SFNSText", "San Francisco", "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;
 	font-size: 16px;
@@ -152,4 +157,10 @@ tt {
 	font-weight: bold;
 	background-color: black;
 	color: white;
+}
+
+.icon {
+	font-family: FontAwesome;
+	font-weight: normal;
+	font-size: 75%;
 }
