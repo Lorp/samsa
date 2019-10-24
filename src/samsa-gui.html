@@ -88,29 +88,37 @@ function getCurrentFvs() {
 }
 
 
-function addInstance(instance, select) {
+// TODO: this is needless duplication of what SamsaVF.addInstance() already does
+// - we can assign the ui object in the options argument
+function appendInstanceEl(instance, select) {
 
 	let panel = document.querySelector("#instances>div");
 
+	// create the instance DOM element
+	let li = document.createElement("div");
+
 	// initialize instance if necessary
 	if (instance === undefined) {
-		instance = { name: "Custom", tuple: [] };
-		instance.fvs = getCurrentFvs();
+		//instance.fvs = ;
+		instance = GLOBAL.vf.addInstance(getCurrentFvs(), { name: "Custom!", ui: li }); // { name: "Custom", tuple: [] };
+
+		/*
 		GLOBAL.vf.axes.forEach((axis, a) => {
 			instance.tuple[a] = GLOBAL.vf.axisNormalize(axis, instance.fvs[axis.tag]);
 		});
 		GLOBAL.vf.instances.push(instance);
+		*/
 	}
 
-	// create & append the instance DOM element
-	let li = document.createElement("div");
 	li.classList.add("instance");
-	li.innerHTML += `${instance.name}<br>`;
+	li.innerHTML += `<input value="${instance.name}">`;
 	li.innerHTML += "&nbsp;&nbsp;&nbsp;[";
 	li.innerHTML += instance.tuple.join();
 	li.innerHTML += "] ";
 	li.innerHTML += JSON.stringify(instance.fvs);
 	li.data = { instance: instance };
+
+	// append the instance DOM element
 	panel.appendChild(li);
 
 	// make it active
@@ -118,7 +126,6 @@ function addInstance(instance, select) {
 		setActiveInstance (GLOBAL.vf, li);
 	}
 }
-
 
 
 function vfLoaded (font) {
@@ -179,7 +186,8 @@ function vfLoaded (font) {
 	//addInstanceEl.onclick = addInstance;
 
 	addInstanceEl.addEventListener("click", ()=>{
-		addInstance(undefined, true);
+		appendInstanceEl(undefined, true);
+		console.log (instance.glyphs[4])
 	});
 
 
@@ -197,27 +205,38 @@ function vfLoaded (font) {
 
 	// add each instance
 	font.instances.forEach((instance, i) => {
-		addInstance(instance);
+		appendInstanceEl(instance);
 	});
 	setActiveInstance(GLOBAL.vf); // without an instance parameter, it sets it to the default
+
+	updateGlyphsPanel (); // use default glyphs
+
+}
+
+
+
+function updateGlyphsPanel(instance) {
+
+
+	let font = GLOBAL.vf;
 
 	///////////////////////////////////////////////////////
 	// glyphs panel
 	///////////////////////////////////////////////////////
-	panel = document.querySelector("#glyphs>div");
+	let panel = document.querySelector("#glyphs>div");
 	panel.innerText = "";
 	let scale = 0.05 * 1000 / font.unitsPerEm;
 
 	for (let g=0; g < font.numGlyphs; g++) {
 
-		let glyph = font.glyphs[g];
+		let glyph = instance ? instance.glyphs[g] : font.glyphs[g];
 
 		let glyphThumb = document.createElement("div");
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
 
 
-		if (glyph.numContours > 0) {
+		if (glyph && glyph.numContours > 0) {
 
 			// simple glyph
 			let svg = SVG("svg");
@@ -226,7 +245,7 @@ function vfLoaded (font) {
 
 			svg.setAttributeNS(null, "width","90");
 			svg.setAttributeNS(null, "height","90");
-			svgg.setAttributeNS(null, "transform", `translate(30,60) scale(${scale},-${scale})`);
+			svgg.setAttributeNS(null, "transform", `translate(20,60) scale(${scale},-${scale})`);
 			
 			//svgMarker.attr({markerWidth:20,markerHeight:20);
 
@@ -242,7 +261,7 @@ function vfLoaded (font) {
 
 			glyphThumb.appendChild(svg);
 		}
-		else if (glyph.numContours < 0) {
+		else if (glyph && glyph.numContours < 0) {
 
 		}
 
@@ -258,7 +277,6 @@ function vfLoaded (font) {
 
 
 }
-
 
 function setAxes (font, fvs) {
 	
@@ -285,23 +303,22 @@ function setActiveInstance (font, target) {
 
 	document.querySelectorAll(".instance").forEach((el, i) => {
 
+		let instance = font.instances[i];
+
 		// update instance ui
 		if (el == target || (!target && font.instances[i].default)) {
-			console.log("setActiveInstance");
 			el.classList.add("active");
 			setAxes (font, el.data.instance.fvs);
-			//setAxes(el.data.instance.fvs);
-			console.log(font.instances[i].fvs); 
-			console.log(el.data.instance.fvs); 
+			instanceApplyVariations (font, instance);
+
+			updateGlyphsPanel (instance);
+
 		}
 		else {
 			el.classList.remove("active");
 			//target.data.selected = true;
 		}
 	});
-
-
-	console.log("INSTY", target);
 }
 
 
@@ -345,6 +362,7 @@ document.onclick = function (event) {
 
 		// append svg
 
+		// draw the big glyph
 		if (glyph.numContours > 1) {
 
 			let svg = SVG("svg");
@@ -439,12 +457,13 @@ function dropHandler(ev) {
         reader.onload = function (event) {
 
 			//console.log (event.target.result);
-			console.log (event.target);
-
+			//console.log (event.target);
+			console.log(this.__file__.size)
 			let vf = new SamsaVF({
 
 				arrayBuffer: event.target.result,
 				inFile: this.__file__.name,
+				filesize: this.__file__.size,
 				callback: vfLoaded,
 			});
 		};

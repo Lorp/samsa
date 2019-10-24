@@ -1788,6 +1788,7 @@ function SamsaVF_parseSmallTable (tag) {
 			{
 				let instance = {
 					id: i,
+					glyphs: [],
 					tuple:[],
 					fvs: {},
 					static: null, // if this is instantiated as a static font, this can point to the data or url
@@ -2045,9 +2046,7 @@ function SamsaVFGlyph (init) {
 
 	this.toGLIF = function () {
 		// UFO GLIF
-		// probably forget about doing anything with gvar
 		// if you want GLIF data for non-default masters, then make an instance and use the glyph from that
-
 
 	};
 
@@ -2080,7 +2079,6 @@ function SamsaVF (init, config) {
 	// general properties
 	this.dateCreated = new Date();
 
-	console.log (init.inFile);
 	this.arrayBuffer = init.arrayBuffer;
 	this.url = init.url; // for browser using a VF on a server
 	this.callback = init.callback;
@@ -2106,6 +2104,7 @@ function SamsaVF (init, config) {
 
 	this.path = init.inFile || this.url;
 	this.filename = this.path.substr(this.path.lastIndexOf("/")+1); // works nicely even when there are no slashes in the name because of the -1 return :)
+	this.filesize = init.filesize;
 
 	// methods defined externally (TODO: bring them all inside the SamsaVF init function)
 	this.parse = SamsaVF_parse;
@@ -2126,6 +2125,8 @@ function SamsaVF (init, config) {
 			//console.log ("IN FONT LOAD", this.inFile);
 			if (this.fd = config.fs.openSync (this.inFile, "r")) {
 				this.stat = config.fs.fstatSync(this.fd);
+				this.filesize = this.stat.size;
+				this.date = this.stat.birthtime;
 			}
 			this.parse();
 		}
@@ -2140,6 +2141,7 @@ function SamsaVF (init, config) {
 				//this.data = new DataView(this.response);
 				//this.parse();
 				oReq.SamsaVF.data = new DataView(this.response);
+				oReq.SamsaVF.filesize = oReq.SamsaVF.data.byteLength;
 				oReq.SamsaVF.parse();
 
 			};
@@ -2167,17 +2169,22 @@ function SamsaVF (init, config) {
 
 		let instance = {
 			font: this,
+			glyphs: [],
 			tuple: [], // normalized
 			fvs: {},
 			namedInstance: false, // it’s a custom instance, so not "named" (in the OpenType spec sense)
 			static: null, // on instantiation, will contain binary data
 
 			// it’s quite possible we’d like to keep the instance binary in memory as well as know where the file is
-			binaryBuffer: null, // on instantiation, will contain binary data (replaces static)
-			binaryFile: null, // on instantiation, will contain a filename (replaces static)
+			binaryBuffer: null, // on instantiation, will contain binary data (replaces static) ?
+			binaryFile: null, // on instantiation, will contain a filename (replaces static) ?
 		};
 
+
+		console.log ("here is new instance" , instance)
+
 		// assign options
+		//  - possibly we can add an instance pointing to a pre-existing binary in memory or file
 		if (typeof options == "object") {
 			Object.keys(options).forEach(k => {
 				instance[k] = options[k];
@@ -2378,6 +2385,18 @@ function getGlyphSVGpath(glyph)
 }
 
 
+function instanceApplyVariations (font, instance) {
+	console.log(font);
+	console.log(instance);
+
+	for (let g=0; g<font.numGlyphs; g++) {
+		if (font.glyphs[g].numContours > 0) {
+			instance.glyphs[g] = glyphApplyVariations (font.glyphs[g], instance.tuple);
+		}
+	}
+}
+
+
 function glyphApplyVariations (glyph, userTuple) {
 
 	let config = glyph.font.config;
@@ -2519,7 +2538,6 @@ function glyphApplyVariations (glyph, userTuple) {
 		newGlyph.xMin = newGlyph.yMin = 32767;
 		newGlyph.xMax = newGlyph.yMax = -32768;
 		for (let pt=0; pt<newGlyph.numPoints; pt++) { // exclude the phantom points
-		//newGlyph.points.forEach(function (point) {
 			let point = newGlyph.points[pt];
 			if (newGlyph.xMin > point[0])
 				newGlyph.xMin = point[0];
@@ -2542,10 +2560,8 @@ function SamsaInstance () {
 	this.fvs = {};
 	this.tuple = [];
 
-
-
-
 }
+
 
 // exports for node.js
 if (CONFIG.isNode) {
