@@ -43,7 +43,7 @@
 		<div></div>
 	</div>
 
-	<div id="tuples" class="panel">
+	<div id="tvts" class="panel">
 		<h2>Tuple Variations</h2>
 		<div></div>
 	</div>
@@ -397,8 +397,13 @@ document.onclick = function (event) {
 
 		let fauxLink = document.createElement("a");
 		fauxLink.download = GLOBAL.vf.filename;
-		fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
-		document.body.appendChild(fauxLink);
+		//fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
+
+		let str = btoa(instance.static)
+		console.log (typeof str);
+		console.log (str);
+		fauxLink.href = "data:font/ttf;base64," + str;
+		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
 		fauxLink.click();
 		fauxLink.remove();
 
@@ -414,6 +419,7 @@ document.onclick = function (event) {
 	}
 
 	else if (target = event.target.closest("#controls .panel>h2")) {
+		// toggle display of panel when panel header is clicked
 		let panelDiv = target.parentNode.querySelector("div");
 		console.log (panelDiv);
 		if (panelDiv) {
@@ -436,11 +442,12 @@ document.onclick = function (event) {
 		let glyph = font.glyphs[g];
 
 
-		// clear main window
+		// clear main window and tvts panel
 		let drawing = document.querySelector("#drawing");
 		drawing.innerHTML = "";
+		let panel = document.querySelector("#tvts>div");
+		panel.innerHTML = "";
 
-		// append svg
 
 		// draw the big glyph
 		if (glyph.numContours > 0) {
@@ -507,8 +514,80 @@ document.onclick = function (event) {
 
 		}
 
+		// display the tvts
+
+		glyph.tvts.forEach((tvt, t) => {
+
+			let li = document.createElement("li");
+			li.classList.add("tvt");
+
+			// we mention some stuff about tvt id, then numpoints moved or something, then (aligning with axes in instance panel) an SVG graph for each axis
+			li.style.display = "grid";
+			li.style.gridTemplateColumns = `1.5em 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`
+
+			let tvtId = document.createElement("div");
+			tvtId.innerText = t;
+
+			let tvtDeltas = document.createElement("div");
+			tvtDeltas.innerText = tvt.peak[0]; // JSON.stringify(tvt.deltas);
+
+			let tvtBlank = document.createElement("div");
+			tvtBlank.innerText = "x";
+
+			li.appendChild(tvtId);
+			li.appendChild(tvtDeltas);
+			li.appendChild(tvtBlank);
+
+			// add an svg graph for each axis
+			for (let a=0; a<GLOBAL.vf.axisCount; a++) {
+				let tvtGraphEl = document.createElement("div");
+				let tvtGraph = SVG("svg");
+				let svgg = SVG("g");
+
+				tvtGraph.setAttributeNS(null, "width","50");
+				tvtGraph.setAttributeNS(null, "height","30");
+				svgg.setAttributeNS(null, "transform", `translate(25,25) scale(1,-1)`);
 
 
+				// draw a graph through start, peak, end for each axis
+				let Sx = 20, Sy = 20; // x and y scales
+
+				// draw graph paper
+				let pathG = SVG("path");
+				//let pathD = pathD = `M ${Sx*-1},0 L ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy} L ${Sx*tvt.end[a]},0`;
+				pathG.setAttributeNS(null, "fill", "none");
+				pathG.setAttributeNS(null, "stroke", "darkgrey");
+				pathG.setAttributeNS(null, "stroke-width", "0.5");
+				pathG.setAttributeNS(null, "d", `M ${Sx*-1},0 L ${Sx*1},0 M 0,0 L 0,${Sy*1}`);
+				svgg.appendChild(pathG);
+
+				// draw tuple start, peak, end data
+				if (tvt.peak[a] != 0) { // “When a delta is provided for a region defined by n-tuples that have a peak value of 0 for some axis, then that axis does not factor into scalar calculations.”
+					// typicaly graphs are shown at https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
+					let path = SVG("path");
+					let pathD = `M ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy} L ${Sx*tvt.end[a]},0`;
+					path.setAttributeNS(null, "fill", "none");
+					path.setAttributeNS(null, "stroke", "black");
+					path.setAttributeNS(null, "stroke-width", "2");
+					path.setAttributeNS(null, "d", pathD);
+					svgg.appendChild(path);
+				}
+
+
+				tvtGraph.appendChild(svgg);
+				tvtGraphEl.appendChild(tvtGraph);
+
+				tvtGraphEl.style.textAlign = "right";
+				li.appendChild(tvtGraphEl);
+			}
+			
+
+
+			//panel.innerHTML += JSON.stringify(tvt) + "<br>";
+
+			panel.appendChild(li);
+
+		});
 
 
 	}

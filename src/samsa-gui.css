@@ -118,6 +118,12 @@ body {
 	margin: 4px;
 }
 
+.tvt {
+	background-color: white;
+	_border: 1px solid black;
+	padding: 4px;
+	margin: 4px;
+}
 
 .glyph-thumb {
 	width: 90px;

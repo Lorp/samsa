@@ -2257,14 +2257,8 @@ function SamsaVF (init, config) {
 		//  - we should check if the static binary exists already, and if it does, do nothing unless a flag tells us to update and overwrite (because of outline editing for example)
 		// ALSO: rename this method! instantiate() or makeBinary() or makeStatic() better
 		console.log ("Making static instance for ", this, instance);
-
-
 		instance.static = makeStaticFont(this, instance);
-
-
 		console.log ("Finished making static instance for ", this, instance);
-		//console.log ("Here it is");
-		//console.log (instance.static);
 	}
 
 
