@@ -2017,7 +2017,9 @@ function SamsaVF_parse () {
 			font.glyphs[g].tvts = font.parseTvts(g); // gvar data
 
 			// delete glyph if this is a big file, to save memory
+			// - which of these is better?
 			// font.glyphs[g] = undefined;
+			// delete font.glyphs[g]
 		}
 	}
 	// glyf end
@@ -2253,6 +2255,7 @@ function SamsaVF (init, config) {
 		//  - if it is a fvs object, we first add the instance then proceed below
 		//  - so makeInstance will addInstance if it does not exist
 		//  - we should check if the static binary exists already, and if it does, do nothing unless a flag tells us to update and overwrite (because of outline editing for example)
+		// ALSO: rename this method! instantiate() or makeBinary() or makeStatic() better
 		console.log ("Making static instance for ", this, instance);
 
 
@@ -2260,8 +2263,8 @@ function SamsaVF (init, config) {
 
 
 		console.log ("Finished making static instance for ", this, instance);
-		console.log ("Here it is");
-		console.log (instance.static);
+		//console.log ("Here it is");
+		//console.log (instance.static);
 	}
 
 

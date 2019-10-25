@@ -3,6 +3,7 @@
 
 <head>
 <meta charset="utf-8">
+<title>Samsa: Variable Font Inspector</title>
 
 <script src="samsa-core.js"></script>
 
@@ -117,20 +118,29 @@ function appendInstanceEl(instance, select) {
 
 	li.classList.add("instance");
 	li.style.display = "grid";
-	li.style.gridTemplateColumns = `1.5em 100px repeat(${GLOBAL.vf.axisCount}, 70px)`;
+	li.style.gridTemplateColumns = `1.5em 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`;
 
 	let cell0 = document.createElement("div");
-	let cell1 = document.createElement("div");
-
 	cell0.style.textAlign = "center";
-	cell0.innerHTML = instance.namedInstance ? "&#xf02e;" : instance.default ? "&#xf015;" : "&#xf1de;"; // bookmark
-	let readonly = instance.default ? " readonly " : "";
-	cell1.innerHTML = `<input value="${instance.name}" ${readonly} style="width: 85px">`;
-
 	cell0.style.fontFamily = "FontAwesome";
+	cell0.innerHTML = instance.namedInstance ? "&#xf02e;" : instance.default ? "&#xf015;" : "&#xf1de;"; // bookmark
+	//let readonly = instance.default ? " readonly " : "";
+
+	let cell1 = document.createElement("div");
+	cell1.style.textAlign = "center";
+	cell1.innerHTML = `<input value="${instance.name}" ${instance.default ? "readonly " : ""}style="width: 85px">`;
+
+	let cell2 = document.createElement("div");
+	cell2.classList.add("instantiate");
+	cell2.setAttribute("title", "Instantiate TTF");
+	cell2.style.textAlign = "center";
+	cell2.style.fontFamily = "FontAwesome";
+	cell2.style.cursor = "pointer";
+	cell2.innerHTML = "&#xf56d;"
+
 	li.appendChild(cell0);
 	li.appendChild(cell1);
-
+	li.appendChild(cell2);
 	GLOBAL.vf.axes.forEach((axis, a) => {
 		let axisCell = document.createElement("div");
 		axisCell.style.fontSize = "75%";
@@ -218,7 +228,6 @@ function vfLoaded (font) {
 
 	addInstanceEl.addEventListener("click", ()=>{
 		appendInstanceEl(undefined, true);
-		console.log (instance.glyphs[4])
 	});
 
 
@@ -357,10 +366,17 @@ function setActiveInstance (font, target) {
 
 document.onclick = function (event) {
 
+
+	// about target
+	// - via the method of assignment in the if(), target gets the desired element rather than a child (or grandchild) that in fact received the event
+	// - the closest(x) method is great: we find whether event.target happened on something within something selected by x
+	// - order matters! (e.g. an icon within an instance row must be handled before the instance row itself)
 	let target;
 
-	if (event.target == document.querySelector("#font-file")) {
 
+	if (event.target == document.querySelector("#font-file")) {
+	//if (target = event.target.closest("#font-file")) {
+		// debug hack to load MutatorSans easily
 		let vf = new SamsaVF({
 
 			fontFamily: "FontNameShouldGoHere",
@@ -369,10 +385,27 @@ document.onclick = function (event) {
 		});
 	}
 
+	else if (target = event.target.closest("#controls .panel .instantiate")) {
+
+		// create and download the instance		
+		let instanceEl = target.closest(".instance");
+		let instance = instanceEl.data.instance;
+
+		GLOBAL.vf.makeInstance(instance); // creates instance.static
+
+		//window.open (`data:font/ttf;base64,${uint8ToBase64(instance.static)}`, "_blank"); // this method wasn’t great
+
+		let fauxLink = document.createElement("a");
+		fauxLink.download = GLOBAL.vf.filename;
+		fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
+		document.body.appendChild(fauxLink);
+		fauxLink.click();
+		fauxLink.remove();
+
+	}
+
 	else if (target = event.target.closest(".instance")) {
 
-		console.log("click inst");
-		console.log(event.target.closest(".instance"))
 		setActiveInstance(GLOBAL.vf, target);
 	}
 
@@ -483,8 +516,6 @@ document.onclick = function (event) {
 
 
 }
-
-
 
 function dropHandler(ev) {
 
