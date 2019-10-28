@@ -605,7 +605,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 	fileHeaderBuf.setUint32(0, font.fingerprint);
 	fileHeaderBuf.setUint16(4, newTableDirectory.length);
 	let sr, es;
-	for (sr=1, es=0; sr*2 <= newTableDirectory.length; sr*=2, es++)
+	for (sr=1, es=0; sr*2 <= newTableDirectory.length; sr*=2, es++) // TODO: this isn’t quite right according to FontValidator
 		;
 	fileHeaderBuf.setUint16(6, sr*16);
 	fileHeaderBuf.setUint16(8, es);
@@ -624,6 +624,8 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 
 	// [4e] write the font header and table directory
 	write (fdw, fileHeaderBuf, 0, 12 + newTableDirectory.length*16, 0);
+
+	// [4f] TODO: Fix checksums, timestamp
 
 
 	// [5] close file
@@ -2262,6 +2264,19 @@ function SamsaVF (init, config) {
 	}
 
 
+	//////////////////////////////////
+	//  fvsToTuple()
+	//////////////////////////////////
+	this.fvsToTuple = fvs => {
+
+		// transforms an fvs object into a normalized tuple
+		let tuple = [];
+		this.axes.forEach((axis,a) => {
+			let val = fvs[axis.tag] === undefined ? axis.default : 1.0 * fvs[axis.tag];
+			tuple[a] = this.axisNormalize(axis, val);
+		});
+		return tuple;
+	}
 
 
 	//////////////////////////////////
@@ -2452,6 +2467,11 @@ function glyphApplyVariations (glyph, userTuple) {
 		advanceWidth: 0,
 		flags: glyph.flags, // do we need this?
 	};
+
+	// validate userTuple (TODO: more validations than the array check)
+	if (typeof userTuple == "object") {
+		userTuple = glyph.font.fvsToTuple(userTuple); // userTuple was an fvs type object, but we transform it into a tuple array
+	}
 
 	// make a duplicate of the default glyph
 	glyph.points.forEach(function (point, p) {
