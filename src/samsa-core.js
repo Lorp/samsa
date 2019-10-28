@@ -1150,25 +1150,25 @@ function SamsaVF_parseTvts(g) {
 			//console.log ("tupleSize, tupleIndex: ", tupleSize, tupleIndex)
 
 			let a, c;
-			let savedP = p;
-
-			//console.log (`p:${p}  ps:${ps}`);
 
 			// [[ 2b ]] get tvt peaks, starts, ends that define the subset of design space
 			// populate peak, start and end arrays for this tvt
 			if (tupleEmbedded) {
 				for (a=0; a<font.axisCount; a++) {
-					tvt.peak[a] = data.getF2DOT14(savedP+a*2);
+					tvt.peak[a] = data.getF2DOT14(p), p+=2;
 				}
 			}
 			else {
 				tvt.peak = font.sharedTuples[tupleIndex];
 			}
 
-			if (tupleIntermediate) {
+			if (tupleIntermediate) { // this should never happen if !tupleEmbedded
 				for (a=0; a<font.axisCount; a++) {
-					tvt.start[a] = data.getF2DOT14(savedP + font.axisCount*2 + a*4);
-					tvt.end[a] = data.getF2DOT14(savedP + font.axisCount*2 + a*4+2);
+					tvt.start[a] = data.getF2DOT14(p), p+=2;
+				}
+
+				for (a=0; a<font.axisCount; a++) {
+					tvt.end[a]   = data.getF2DOT14(p), p+=2;
 				}
 			}
 			else {
