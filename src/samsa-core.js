@@ -144,6 +144,7 @@ let newGlyph;
 
 function getStringFromData (data, p0, length)
 {
+	// TODO: add a Pascal and C modes to use in parsing "post" table (use length = undefined for C, -1 for Pascal)
 	var str = "";
 	var p = p0;
 	while (p - p0 < length)
@@ -570,7 +571,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 			}
 
 			// pad table
-			let padLength = (4 - table.length%4) % 4; // no padding if table.size%4 == 0
+			let padLength = (4 - table.length%4) % 4; // no padding if table.length%4 == 0
 			if (padLength) {
 				write (fdw, zeroBuffer, 0, padLength, position); // write at current position
 				position += padLength;
@@ -950,18 +951,8 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 		});
 		newfont.tables[font.tableDirectory[t].tag] = newfont.tableDirectory[newfont.tableDirectory.length -1];
 
-		// pad to 4 bytes
-		/*
-		switch (p%4)
-		{
-			case 3: fDataView.setUint8(p, 0); fDataView.setUint8(p+1, 0); fDataView.setUint8(p+2, 0); p+=3; break;
-			case 2: fDataView.setUint8(p, 0); fDataView.setUint8(p+2, 0); p+=2; break;
-			case 1: fDataView.setUint8(p, 0); p+=1; break;
-		}
-		*/
-
 		// pad this table to 4 bytes
-		var padBytes = (4 - p%4) % 4; // no padding if p%4 == 0
+		let padBytes = (4 - p%4) % 4; // no padding if p%4 == 0
 		while (padBytes--)
 			fDataView.setUint8(p++, 0);
 	}
@@ -1780,15 +1771,29 @@ function SamsaVF_parseSmallTable (tag) {
 			font.glyphNames = [];
 			table.format = data.getUint32(p), p+=4;
 			font.italicAngle = data.getInt32(p) / 65536, p+=4;
-			p = font.tables['post'].offset + 32; // jump past header
 
+			// most fonts are format 2
 			if (table.format == 0x00020000) {
-				p+=2;
-				console.log("post table is format 2");
+
+				// parse names data
+				p = font.tables['post'].offset + 32; // jump past header
+				p += 2 + 2 * font.numGlyphs;
+				let len, str="", extraNames = [];
+				while (p < font.tables['post'].offset + font.tables['post'].length) {
+					len = data.getUint8(p++); // Pascal style strings: first byte is length, the rest is the string
+					for (let l=0; l<len; l++) {
+						str += String.fromCharCode(data.getUint8(p++));
+					}
+					extraNames.push(str);
+					str = "";
+				}
+
+				// parse glyphNameIndex array
+				p = font.tables['post'].offset + 32; // jump past header
+				p += 2;
 				for (let g=0; g<font.numGlyphs; g++) {
-					let gni;
-					gni = data.getUint16(p), p+=2;
-					font.glyphNames[g] = gni < 258 ? config.postscriptNames[gni] : "not_yet"; // TODO: parse postscript names 258+
+					let gni = data.getUint16(p + g*2);
+					font.glyphNames[g] = gni < 258 ? config.postscriptNames[gni] : extraNames[gni-258];
 				}
 			}
 			break;
