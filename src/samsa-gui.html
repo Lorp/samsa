@@ -39,7 +39,10 @@
 	</div>
 
 	<div id="instances" class="panel">
-		<h2>Instances <span class="icon" id="instances-as-grid">&#xf00a;</span> <span class="icon" id="instances-as-list">&#xf0c9;</span></h2>
+		<h2>Instances
+			<span class="icon" id="instances-as-grid">&#xf00a;</span>
+			<span class="icon" id="instances-as-list">&#xf0c9;</span>
+		</h2>
 		<div></div>
 	</div>
 
@@ -59,7 +62,14 @@
 	</div>
 
 	<div id="glyphs" class="panel">
-		<h2>Glyphs</h2>
+		<h2>Glyphs
+			<span class="icon" id="glyphs-rewind">&#xf04a;</span>
+			<span class="icon" id="glyphs-stepback">&#xf048;</span>
+			<span class="icon" id="glyphs-stop">&#xf04d;</span>
+			<span class="icon" id="glyphs-play">&#xf04b;</span>
+			<span class="icon" id="glyphs-stepforward">&#xf051;</span>
+			<span class="icon" id="glyphs-fastforward">&#xf04e;</span>
+		</h2>
 		<div></div>
 	</div>
 
@@ -118,29 +128,34 @@ function appendInstanceEl(instance, select) {
 
 	li.classList.add("instance");
 	li.style.display = "grid";
-	li.style.gridTemplateColumns = `1.5em 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`;
+	li.style.gridTemplateColumns = `30px 30px 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`;
 
 	let cell0 = document.createElement("div");
 	cell0.style.textAlign = "center";
 	cell0.style.fontFamily = "FontAwesome";
-	cell0.innerHTML = instance.namedInstance ? "&#xf02e;" : instance.default ? "&#xf015;" : "&#xf1de;"; // bookmark
-	//let readonly = instance.default ? " readonly " : "";
+	cell0.innerHTML = instance.namedInstance ? "&#xf02e;" /* bookmark */ : instance.default ? "&#xf015;" /* home */ : "&#xf1de;" /* sliders */;
 
 	let cell1 = document.createElement("div");
 	cell1.style.textAlign = "center";
-	cell1.innerHTML = `<input value="${instance.name}" ${instance.default ? "readonly " : ""}style="width: 85px">`;
+	cell1.style.fontFamily = "FontAwesome";
+	cell1.innerHTML = "&#xf06e"; // eye open f070 eye closed
 
 	let cell2 = document.createElement("div");
-	cell2.classList.add("instantiate");
-	cell2.setAttribute("title", "Instantiate TTF");
 	cell2.style.textAlign = "center";
-	cell2.style.fontFamily = "FontAwesome";
-	cell2.style.cursor = "pointer";
-	cell2.innerHTML = "&#xf56d;"
+	cell2.innerHTML = `<input value="${instance.name}" ${instance.default ? "readonly " : ""}style="width: 85px">`;
+
+	let cell3 = document.createElement("div");
+	cell3.classList.add("instantiate");
+	cell3.setAttribute("title", "Download TTF");
+	cell3.style.textAlign = "center";
+	cell3.style.fontFamily = "FontAwesome";
+	cell3.style.cursor = "pointer";
+	cell3.innerHTML = "&#xf358;"; //"&#xf56d;" // download
 
 	li.appendChild(cell0);
 	li.appendChild(cell1);
 	li.appendChild(cell2);
+	li.appendChild(cell3);
 	GLOBAL.vf.axes.forEach((axis, a) => {
 		let axisCell = document.createElement("div");
 		axisCell.style.fontSize = "75%";
@@ -185,7 +200,7 @@ function vfLoaded (font) {
 
 	panel.innerHTML += `${font.filename} (${font.filesize || "<em>n</em>"} bytes)<br>`;
 	panel.innerHTML += `Full name: ${font.names[4]}<br>`;
-	panel.innerHTML += `Other name: ${font.names[1]}<br>`;
+	//panel.innerHTML += `Date: ${Date(font.date).toString()}<br>`;
 
 
 	///////////////////////////////////////////////////////
@@ -257,6 +272,7 @@ function vfLoaded (font) {
 
 function updateGlyphsPanel(instance) {
 
+	console.log("Updating glyphs panel");
 
 	let font = GLOBAL.vf;
 
@@ -270,6 +286,7 @@ function updateGlyphsPanel(instance) {
 	for (let g=0; g < font.numGlyphs; g++) {
 
 		let glyph = instance ? instance.glyphs[g] : font.glyphs[g];
+		let glyphName;
 
 		let glyphThumb = document.createElement("div");
 		glyphThumb.classList.add("glyph-thumb");
@@ -300,21 +317,30 @@ function updateGlyphsPanel(instance) {
 			// x and y axes
 
 			glyphThumb.appendChild(svg);
+
+			glyphName = glyph.name;
 		}
 		else if (glyph && glyph.numContours < 0) {
 
+			glyphName = glyph.name;
+
 		}
 
+		let selected = document.createElement("div");
+		selected.classList.add("selected");
+		glyphThumb.appendChild(selected);
 		panel.appendChild(glyphThumb);
 
 
 		let label = document.createElement("label");
-		label.innerText = g;
+
+		label.innerText = glyphName ? glyphName : `#${g}`; // TODO: implement a toggle so we see glyph id when we want to
 
 		glyphThumb.appendChild(label);
 
 	}
 
+	setActiveGlyph(0);
 
 }
 
@@ -347,12 +373,12 @@ function setActiveInstance (font, target) {
 
 		// update instance ui
 		if (el == target || (!target && font.instances[i].default)) {
+			
 			el.classList.add("active");
 			setAxes (font, el.data.instance.fvs);
 			instanceApplyVariations (font, instance);
-
 			updateGlyphsPanel (instance);
-
+			console.log("Setting active instance");
 		}
 		else {
 			el.classList.remove("active");
@@ -362,8 +388,314 @@ function setActiveInstance (font, target) {
 }
 
 
+function getActiveGlyph () {
+
+	let g = 0;
+	document.querySelectorAll(".glyph-thumb .selected").forEach(el => {
+		if (el.style.display == "block") {
+			let comps = el.parentNode.id.split("-");
+			g = 1 * comps[1];
+		}
+	});
+	return g;
+	// TODO: it would be simpler just to store the active glyph somewhere
+}
 
 
+function setActiveGlyph (g) {
+
+	let font = GLOBAL.vf;
+
+	g *= 1;
+	document.querySelectorAll(".glyph-thumb").forEach(el => {
+
+		document.querySelector(`#${el.id} .selected`).style.display = "none";
+	});
+	
+	document.querySelector(`#g-${g} .selected`).style.display = "block";
+	// TODO: wouldn’t this be more elegant setting background-color with a class?
+
+
+
+
+	let glyph = font.glyphs[g];
+	let iglyph = glyphApplyVariations(glyph, getCurrentFvs());
+	//setActiveGlyph(g);
+
+	//event.target.classList.add("selected");
+
+	console.log ("Glyph " + g)
+	// clear main window and tvts panel
+	let drawing = document.querySelector("#drawing");
+	drawing.innerHTML = "";
+	let panel = document.querySelector("#tvts>div");
+	panel.innerHTML = "";
+
+	let layers = []; // layers are drawn from low values (bottom) to high values (top)
+
+
+	let scale = 0.5 * 1000 / font.unitsPerEm;
+	let opacity = 0.5;
+	let svg = SVG("svg");
+	let svgg = SVG("g"); // this transforms everything inside it
+	let svgDefs = SVG("defs")
+	let svgMarker = SVG("marker")
+	let svgMarkerPath = SVG("path")
+	svg.setAttributeNS(null, "width","1000");
+	svg.setAttributeNS(null, "height","1000");
+	svgg.setAttributeNS(null, "transform", `translate(30,500) scale(${scale},-${scale})`);
+
+	// define marker
+	svgMarker.setAttributeNS(null, "id","arrow");
+	svgMarker.setAttributeNS(null, "markerWidth","20");
+	svgMarker.setAttributeNS(null, "markerHeight","20");
+	svgMarkerPath.setAttributeNS(null, "d", "M 10 5 L 3 2 L 3 8 z");
+	svgMarker.setAttributeNS(null, "fill", `${GLOBAL.vf.config.ui.arrow.color}`);
+	svgMarker.setAttributeNS(null, "orient", "auto");
+	svgMarker.setAttributeNS(null, "refX", "10");
+	svgMarker.setAttributeNS(null, "refY", "5");
+	svgMarker.appendChild(svgMarkerPath);
+	svgDefs.appendChild(svgMarker);
+	svg.appendChild(svgDefs);
+
+	for (let L=0; L<5; L++) {
+		let svgPath;
+		let layer = layers[L] = {
+			on: true,
+			svg: null,
+		};
+
+		switch (L) {
+
+			// coordinate grid
+			case 0:
+				layer.type = "grid";
+				svgPath = SVG("path");
+
+				svgPath.setAttributeNS(null, "d", "M-10000,0 L10000,0 M0,-10000 L0,10000");
+				svgPath.setAttributeNS(null, "stroke", `lightblue`);
+				svgPath.setAttributeNS(null, "stroke-width", `1`);
+				svgPath.setAttributeNS(null, "fill", "none");
+
+				svgg.appendChild(svgPath);
+				//svg.appendChild(svgg);
+
+				break;
+
+			case 1:
+				layer.type = "default";
+				svgPath = SVG("path");
+
+				// draw glyph
+				svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
+				svgPath.setAttributeNS(null, "stroke", `black`); // make this take a value from the ui config
+				svgPath.setAttributeNS(null, "stroke-width", `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`);
+				svgPath.setAttributeNS(null, "fill", `#eee`);
+				svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
+				svgg.appendChild(svgPath);
+				//svg.appendChild(svgg);
+
+				break;
+
+			case 2:
+				layer.type = "instance";
+				svgPath = SVG("path");
+
+				svgPath.setAttributeNS(null, "style",`opacity:${opacity}`);
+
+				// draw glyph with variations taken from the current axis settings
+
+				// should we render all active instances in this "layer"?
+
+				svgPath.setAttributeNS(null, "d", getGlyphSVGpath(iglyph));
+				svgPath.setAttributeNS(null, "stroke", `black`); // make this take a value from the ui config
+				svgPath.setAttributeNS(null, "stroke-width", `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`);
+				svgPath.setAttributeNS(null, "fill", `#00f`);
+
+				svgg.appendChild(svgPath);
+				//svg.appendChild(svgg);
+				break;
+
+			case 3:
+				layer.type = "arrows";
+
+				svgg2 = SVG("g");
+				svgg2.setAttributeNS(null, "stroke", `${GLOBAL.vf.config.ui.arrow.color}`);
+				svgg2.setAttributeNS(null, "stroke-width", `${GLOBAL.vf.config.ui.arrow.strokeWidth}`);
+
+				console.log(iglyph.touched);
+
+				glyph.points.forEach((point1, pt) => {
+					let point2 = iglyph.points[pt]; // transformed point
+					let svgLine = SVG("line");
+
+					// we have to truncate each line so that it ends in a nice point (might be more elegant to draw the whole line+arrow as a path)
+					let x1 = point1[0], y1 = point1[1], x2 = point2[0], y2 = point2[1];
+					svgLine.setAttributeNS(null, "x1", x1);
+					svgLine.setAttributeNS(null, "y1", y1);
+					svgLine.setAttributeNS(null, "x2", x2);
+					svgLine.setAttributeNS(null, "y2", y2);
+
+					if (!iglyph.touched[pt]) { // IUP
+						svgLine.setAttributeNS(null, "stroke-dasharray", "1 4");
+					}
+
+					svgLine.setAttributeNS(null, "marker-end", "url(#arrow)");
+					svgg2.appendChild(svgLine);
+				});										
+
+				svgg.appendChild(svgg2);
+				break;
+
+			case 4:
+
+				// draw control points, grouped in their own <g>
+				layer.type = "points";
+				svgg2 = SVG("g");
+
+				glyph.points.forEach(function (pt, p) {
+					let size = font.config.ui.point.size;
+					let svgP;
+					if (pt[2]) {
+						svgP = SVG("rect"); // on-curve
+						svgP.classList.add("ctrl-pt");
+						svgP.setAttributeNS(null, "x", pt[0]-size);
+						svgP.setAttributeNS(null, "y", pt[1]-size);
+						svgP.setAttributeNS(null, "width", 2*size);
+						svgP.setAttributeNS(null, "height", 2*size);
+					}
+					else {
+						svgP = SVG("circle"); // off-curve
+						svgP.classList.add("ctrl-pt");
+						svgP.setAttributeNS(null, "cx", pt[0]);
+						svgP.setAttributeNS(null, "cy", pt[1]);
+						svgP.setAttributeNS(null, "r", 4);
+					}
+					svgP.data = { point: pt };
+					svgg2.appendChild(svgP);
+				});
+
+				svgg.appendChild(svgg2);
+				//svg.appendChild(svgg2);
+
+
+		}
+
+
+
+		// add layer to the view
+
+
+
+		layer.svg = svg;
+
+	}
+
+
+	svg.appendChild(svgg);
+	drawing.appendChild(svg);
+
+	// drawing layers
+	// - coordinate grid
+	// - default glyph (options: control points)
+	// - transformed glyph (options: control points, arrows, per-tuple arrows)
+	// - point loci
+	// each layer can be on/off
+
+
+	// default glyph
+
+
+	// display the tvts
+
+	glyph.tvts.forEach((tvt, t) => {
+
+		let li = document.createElement("li");
+		li.classList.add("tvt");
+
+		// we mention some stuff about tvt id, then numpoints moved or something, then (aligning with axes in instance panel) an SVG graph for each axis
+		li.style.display = "grid";
+		li.style.gridTemplateColumns = `1.5em 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`
+
+		let tvtId = document.createElement("div");
+		tvtId.innerText = t;
+
+		let tvtDeltas = document.createElement("div");
+		tvtDeltas.innerText = tvt.peak[0]; // JSON.stringify(tvt.deltas);
+
+		let tvtBlank = document.createElement("div");
+		tvtBlank.innerText = "x";
+
+		li.appendChild(tvtId);
+		li.appendChild(tvtDeltas);
+		li.appendChild(tvtBlank);
+
+		// add an svg graph for each axis
+		for (let a=0; a<GLOBAL.vf.axisCount; a++) {
+			let tvtGraphEl = document.createElement("div");
+			let tvtGraph = SVG("svg");
+			let svgg = SVG("g");
+
+			tvtGraph.setAttributeNS(null, "width","50");
+			tvtGraph.setAttributeNS(null, "height","30");
+			svgg.setAttributeNS(null, "transform", `translate(25,25) scale(1,-1)`);
+
+
+			// draw a graph through start, peak, end for each axis
+			let Sx = 20, Sy = 20; // x and y scales
+
+			// draw graph paper
+			let pathG = SVG("path");
+			//let pathD = pathD = `M ${Sx*-1},0 L ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy} L ${Sx*tvt.end[a]},0`;
+			pathG.setAttributeNS(null, "fill", "none");
+			pathG.setAttributeNS(null, "stroke", "darkgrey");
+			pathG.setAttributeNS(null, "stroke-width", "0.5");
+			pathG.setAttributeNS(null, "d", `M ${Sx*-1},0 L ${Sx*1},0 M 0,0 L 0,${Sy*1}`);
+			svgg.appendChild(pathG);
+
+			// draw tuple start, peak, end data
+			if (tvt.peak[a] != 0) { // “When a delta is provided for a region defined by n-tuples that have a peak value of 0 for some axis, then that axis does not factor into scalar calculations.”
+				// typicaly graphs are shown at https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
+				let path = SVG("path");
+				let pathD = `M ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy*1.0} L ${Sx*tvt.end[a]},0`;
+				path.setAttributeNS(null, "fill", "none");
+				path.setAttributeNS(null, "stroke", "black");
+				path.setAttributeNS(null, "stroke-width", "2");
+				path.setAttributeNS(null, "d", pathD);
+				svgg.appendChild(path);
+			}
+
+
+			tvtGraph.appendChild(svgg);
+			tvtGraphEl.appendChild(tvtGraph);
+
+			tvtGraphEl.style.textAlign = "right";
+			li.appendChild(tvtGraphEl);
+		}
+		
+
+
+		//panel.innerHTML += JSON.stringify(tvt) + "<br>";
+
+		panel.appendChild(li);
+
+	});
+
+
+
+
+
+}
+
+
+function playGlyphs() {
+	g = getActiveGlyph();
+	setActiveGlyph ((g+1) % GLOBAL.vf.numGlyphs);
+	GLOBAL.vf.timerGlyphPlayer = setTimeout (playGlyphs, 500);
+}
+
+
+// click handlers for all clicks
 document.onclick = function (event) {
 
 
@@ -372,6 +704,9 @@ document.onclick = function (event) {
 	// - the closest(x) method is great: we find whether event.target happened on something within something selected by x
 	// - order matters! (e.g. an icon within an instance row must be handled before the instance row itself)
 	let target;
+	let font = GLOBAL.vf;
+
+	//console.log(event.target.classList);
 
 
 	if (event.target == document.querySelector("#font-file")) {
@@ -414,8 +749,38 @@ document.onclick = function (event) {
 		setActiveInstance(GLOBAL.vf, target);
 	}
 
-	else if (target = event.target.closest(".ctrl-pt")) {
-		console.log("click pt" + target);
+	//else if (target = event.target.closest(".ctrl-pt")) {
+	else if (event.target.classList.contains("ctrl-pt")) {
+		console.log("click pt", event.target);
+		console.log(event.target.data.point);
+	}
+
+	else if (target = event.target.closest("#glyphs>h2")) { // ordering important
+
+		let g;
+		clearTimeout(GLOBAL.vf.timerGlyphPlayer);
+
+		switch (event.target.id) {
+
+			case "glyphs-stepforward":
+				clearTimeout(GLOBAL.vf.timerGlyphPlayer);
+				g = getActiveGlyph();
+				setActiveGlyph ((g+1) % font.numGlyphs);
+				break;
+			case "glyphs-stepback":
+				clearTimeout(GLOBAL.vf.timerGlyphPlayer);
+				g = getActiveGlyph();
+				setActiveGlyph ((g-1+font.numGlyphs) % font.numGlyphs);
+				break;
+			case "glyphs-play":
+				playGlyphs();
+				break;
+			case "glyphs-stop":
+				clearTimeout(GLOBAL.vf.timerGlyphPlayer);
+				GLOBAL.vf.timerGlyphPlayer = undefined;
+				break;
+		}
+
 	}
 
 	else if (target = event.target.closest("#controls .panel>h2")) {
@@ -433,162 +798,10 @@ document.onclick = function (event) {
 
 	else if (target = event.target.closest(".glyph-thumb")) {
 
-		font = GLOBAL.vf;
-
-		let scale = 0.5 * 1000 / font.unitsPerEm;
-
 		let comps = target.id.split("-");
 		let g = comps[1];
-		let glyph = font.glyphs[g];
 
-
-		// clear main window and tvts panel
-		let drawing = document.querySelector("#drawing");
-		drawing.innerHTML = "";
-		let panel = document.querySelector("#tvts>div");
-		panel.innerHTML = "";
-
-
-		// draw the big glyph
-		if (glyph.numContours > 0) {
-
-			let svg = SVG("svg");
-			let svgPath = SVG("path");
-			let svgg = SVG("g");
-
-			svg.setAttributeNS(null, "width","1000");
-			svg.setAttributeNS(null, "height","1000");
-			svgg.setAttributeNS(null, "transform", `translate(30,500) scale(${scale},-${scale})`);
-			
-			//svgMarker.attr({markerWidth:20,markerHeight:20);
-			svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
-			svgPath.setAttributeNS(null, "stroke", `black`);
-			svgPath.setAttributeNS(null, "stroke-width", `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`);
-			svgPath.setAttributeNS(null, "fill", `#eee`);
-
-			svg.appendChild(svgg);
-
-			// glyph
-			svgg.appendChild(svgPath);
-
-
-			glyph.points.forEach(function (pt, p) {
-				let size = font.config.ui.point.size;
-				if (pt[2]) {
-					svgP = SVG("rect");
-					svgP.classList.add("ctrl-pt");
-					svgP.setAttributeNS(null, "x", pt[0]-size);
-					svgP.setAttributeNS(null, "y", pt[1]-size);
-					svgP.setAttributeNS(null, "width", 2*size);
-					svgP.setAttributeNS(null, "height", 2*size);
-
-				}
-				else {
-					svgP = SVG("circle");
-					svgP.classList.add("ctrl-pt");
-					svgP.setAttributeNS(null, "cx", pt[0]);
-					svgP.setAttributeNS(null, "cy", pt[1]);
-					svgP.setAttributeNS(null, "r", 4);
-				}
-				svgg.appendChild(svgP);
-				/*
-				point numbers
-				$(svgg).append(
-					$(SVG("text"))
-						.prop("id", "l-"+p)
-						.addClass("point-label")
-						.attr({x:pt[0],y:-pt[1],transform:"scale(1,-1) translate(5,0)"})
-						.text(p)
-				);
-				*/
-			});
-
-
-
-			// x and y axes
-
-			drawing.appendChild(svg);
-			
-
-			//drawing.appendChild(glyphFull);
-
-		}
-
-		// display the tvts
-
-		glyph.tvts.forEach((tvt, t) => {
-
-			let li = document.createElement("li");
-			li.classList.add("tvt");
-
-			// we mention some stuff about tvt id, then numpoints moved or something, then (aligning with axes in instance panel) an SVG graph for each axis
-			li.style.display = "grid";
-			li.style.gridTemplateColumns = `1.5em 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`
-
-			let tvtId = document.createElement("div");
-			tvtId.innerText = t;
-
-			let tvtDeltas = document.createElement("div");
-			tvtDeltas.innerText = tvt.peak[0]; // JSON.stringify(tvt.deltas);
-
-			let tvtBlank = document.createElement("div");
-			tvtBlank.innerText = "x";
-
-			li.appendChild(tvtId);
-			li.appendChild(tvtDeltas);
-			li.appendChild(tvtBlank);
-
-			// add an svg graph for each axis
-			for (let a=0; a<GLOBAL.vf.axisCount; a++) {
-				let tvtGraphEl = document.createElement("div");
-				let tvtGraph = SVG("svg");
-				let svgg = SVG("g");
-
-				tvtGraph.setAttributeNS(null, "width","50");
-				tvtGraph.setAttributeNS(null, "height","30");
-				svgg.setAttributeNS(null, "transform", `translate(25,25) scale(1,-1)`);
-
-
-				// draw a graph through start, peak, end for each axis
-				let Sx = 20, Sy = 20; // x and y scales
-
-				// draw graph paper
-				let pathG = SVG("path");
-				//let pathD = pathD = `M ${Sx*-1},0 L ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy} L ${Sx*tvt.end[a]},0`;
-				pathG.setAttributeNS(null, "fill", "none");
-				pathG.setAttributeNS(null, "stroke", "darkgrey");
-				pathG.setAttributeNS(null, "stroke-width", "0.5");
-				pathG.setAttributeNS(null, "d", `M ${Sx*-1},0 L ${Sx*1},0 M 0,0 L 0,${Sy*1}`);
-				svgg.appendChild(pathG);
-
-				// draw tuple start, peak, end data
-				if (tvt.peak[a] != 0) { // “When a delta is provided for a region defined by n-tuples that have a peak value of 0 for some axis, then that axis does not factor into scalar calculations.”
-					// typicaly graphs are shown at https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
-					let path = SVG("path");
-					let pathD = `M ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy} L ${Sx*tvt.end[a]},0`;
-					path.setAttributeNS(null, "fill", "none");
-					path.setAttributeNS(null, "stroke", "black");
-					path.setAttributeNS(null, "stroke-width", "2");
-					path.setAttributeNS(null, "d", pathD);
-					svgg.appendChild(path);
-				}
-
-
-				tvtGraph.appendChild(svgg);
-				tvtGraphEl.appendChild(tvtGraph);
-
-				tvtGraphEl.style.textAlign = "right";
-				li.appendChild(tvtGraphEl);
-			}
-			
-
-
-			//panel.innerHTML += JSON.stringify(tvt) + "<br>";
-
-			panel.appendChild(li);
-
-		});
-
+		setActiveGlyph(g);
 
 	}
 
@@ -613,6 +826,7 @@ function dropHandler(ev) {
         var file = ev.dataTransfer.items[i].getAsFile();
         let reader = new FileReader();
         reader.__file__ = file;
+        console.log ("HHHHH", file)
         reader.onload = function (event) {
 
 			//console.log (event.target.result);
@@ -623,6 +837,7 @@ function dropHandler(ev) {
 				arrayBuffer: event.target.result,
 				inFile: this.__file__.name,
 				filesize: this.__file__.size,
+				date: this.__file__.lastModified,  // doesn't retrieve the real file date
 				callback: vfLoaded,
 			});
 		};

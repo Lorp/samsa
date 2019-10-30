@@ -2147,6 +2147,7 @@ function SamsaVF (init, config) {
 
 	// general properties
 	this.dateCreated = new Date();
+	this.date = init.date;
 
 	this.arrayBuffer = init.arrayBuffer;
 	this.url = init.url; // for browser using a VF on a server
@@ -2195,7 +2196,7 @@ function SamsaVF (init, config) {
 			if (this.fd = config.fs.openSync (this.inFile, "r")) {
 				this.stat = config.fs.fstatSync(this.fd);
 				this.filesize = this.stat.size;
-				this.date = this.stat.birthtime;
+				this.date = this.stat.birthtimeMs;
 			}
 			this.parse();
 		}
@@ -2216,7 +2217,6 @@ function SamsaVF (init, config) {
 			};
 			oReq.send();
 		}
-
 	}
 
 	//////////////////////////////////
