@@ -127,8 +127,9 @@ let CONFIG = {
 			votf: "regex:typenetwork",
 		},
 		hoi: "http://underware.nl/case-studies/hoi/",
-	}
+	},
 
+	postscriptNames: [".notdef",".null","nonmarkingreturn","space","exclam","quotedbl","numbersign","dollar","percent","ampersand","quotesingle","parenleft","parenright","asterisk","plus","comma","hyphen","period","slash","zero","one","two","three","four","five","six","seven","eight","nine","colon","semicolon","less","equal","greater","question","at","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","bracketleft","backslash","bracketright","asciicircum","underscore","grave","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","braceleft","bar","braceright","asciitilde","Adieresis","Aring","Ccedilla","Eacute","Ntilde","Odieresis","Udieresis","aacute","agrave","acircumflex","adieresis","atilde","aring","ccedilla","eacute","egrave","ecircumflex","edieresis","iacute","igrave","icircumflex","idieresis","ntilde","oacute","ograve","ocircumflex","odieresis","otilde","uacute","ugrave","ucircumflex","udieresis","dagger","degree","cent","sterling","section","bullet","paragraph","germandbls","registered","copyright","trademark","acute","dieresis","notequal","AE","Oslash","infinity","plusminus","lessequal","greaterequal","yen","mu","partialdiff","summation","product","pi","integral","ordfeminine","ordmasculine","Omega","ae","oslash","questiondown","exclamdown","logicalnot","radical","florin","approxequal","Delta","guillemotleft","guillemotright","ellipsis","nonbreakingspace","Agrave","Atilde","Otilde","OE","oe","endash","emdash","quotedblleft","quotedblright","quoteleft","quoteright","divide","lozenge","ydieresis","Ydieresis","fraction","currency","guilsinglleft","guilsinglright","fi","fl","daggerdbl","periodcentered","quotesinglbase","quotedblbase","perthousand","Acircumflex","Ecircumflex","Aacute","Edieresis","Egrave","Iacute","Icircumflex","Idieresis","Igrave","Oacute","Ocircumflex","apple","Ograve","Uacute","Ucircumflex","Ugrave","dotlessi","circumflex","tilde","macron","breve","dotaccent","ring","cedilla","hungarumlaut","ogonek","caron","Lslash","lslash","Scaron","scaron","Zcaron","zcaron","brokenbar","Eth","eth","Yacute","yacute","Thorn","thorn","minus","multiply","onesuperior","twosuperior","threesuperior","onehalf","onequarter","threequarters","franc","Gbreve","gbreve","Idotaccent","Scedilla","scedilla","Cacute","cacute","Ccaron","ccaron","dcroat"],
 
 };
 
@@ -1400,6 +1401,7 @@ function SamsaVF_parseGlyph (g) {
 	let pt;
 	let glyph = {
 		font: font,
+		name: font.glyphNames[g],
 		id: g,
 		numPoints: 0,
 		numContours: 0,
@@ -1772,6 +1774,24 @@ function SamsaVF_parseSmallTable (tag) {
 				p = p_; // restore pointer ready for the next nameRecord
 			}
 			break;
+
+		case "post":
+
+			font.glyphNames = [];
+			table.format = data.getUint32(p), p+=4;
+			font.italicAngle = data.getInt32(p) / 65536, p+=4;
+			p = font.tables['post'].offset + 32; // jump past header
+
+			if (table.format == 0x00020000) {
+				p+=2;
+				console.log("post table is format 2");
+				for (let g=0; g<font.numGlyphs; g++) {
+					let gni;
+					gni = data.getUint16(p), p+=2;
+					font.glyphNames[g] = gni < 258 ? config.postscriptNames[gni] : "not_yet"; // TODO: parse postscript names 258+
+				}
+			}
+			break;
 		
 
 		case "loca":
@@ -2004,7 +2024,7 @@ function SamsaVF_parse () {
 
 	// parse the short sfnt tables
 	// - avar must precede fvar
-	["maxp", "hhea", "head", "hmtx", "OS/2", "name", "avar", "fvar", "gvar", "loca"].forEach(tag => {
+	["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "loca"].forEach(tag => {
 
 		if (font.tables[tag])
 			font.parseSmallTable(tag);
