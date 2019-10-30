@@ -2458,9 +2458,9 @@ function getGlyphSVGpath(glyph)
 
 
 function instanceApplyVariations (font, instance) {
-	console.log(font);
+	//console.log(font);
 	console.log(instance);
-
+	console.log("instanceApplyVariations")
 	for (let g=0; g<font.numGlyphs; g++) {
 		if (font.glyphs[g].numContours > 0) {
 			instance.glyphs[g] = glyphApplyVariations (font.glyphs[g], instance.tuple);
@@ -2475,6 +2475,7 @@ function glyphApplyVariations (glyph, userTuple) {
 
 	let newGlyph = {
 		instance: true,
+		name: glyph.name,
 		points: [],
 		touched: [],
 		numContours: glyph.numContours,
@@ -2489,7 +2490,7 @@ function glyphApplyVariations (glyph, userTuple) {
 	};
 
 	// validate userTuple (TODO: more validations than the array check)
-	if (typeof userTuple == "object") {
+	if (!Array.isArray(userTuple)) {
 		userTuple = glyph.font.fvsToTuple(userTuple); // userTuple was an fvs type object, but we transform it into a tuple array
 	}
 

@@ -1,0 +1,6 @@
+Gingham.ttf
+IBMPlexSansVar-Italic.ttf
+IBMPlexSansVar-Roman.ttf
+LibreFranklinGX-Italic.ttf
+LibreFranklinGX-Roman.ttf
+MutatorSans.ttf
