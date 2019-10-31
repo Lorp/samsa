@@ -2250,7 +2250,8 @@ function SamsaVF (init, config) {
 		};
 
 
-		console.log ("here is new instance" , instance)
+		//console.log ("here is new instance" , instance)
+		//console.log ("here are axes" , instance.font.axes)
 
 		// assign options
 		//  - possibly we can add an instance pointing to a pre-existing binary in memory or file

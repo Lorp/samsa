@@ -63,12 +63,12 @@
 
 	<div id="glyphs" class="panel">
 		<h2>Glyphs
-			<span class="icon" id="glyphs-rewind">&#xf04a;</span>
+			<!-- <span class="icon" id="glyphs-rewind">&#xf04a;</span> -->
 			<span class="icon" id="glyphs-stepback">&#xf048;</span>
 			<span class="icon" id="glyphs-stop">&#xf04d;</span>
 			<span class="icon" id="glyphs-play">&#xf04b;</span>
 			<span class="icon" id="glyphs-stepforward">&#xf051;</span>
-			<span class="icon" id="glyphs-fastforward">&#xf04e;</span>
+			<!-- <span class="icon" id="glyphs-fastforward">&#xf04e;</span> -->
 		</h2>
 		<div></div>
 	</div>
@@ -85,10 +85,13 @@
 
 let GLOBAL = {
 	vf: null, // maybe allow an array of fonts... select them with a drop down in info panel
+	currentGlyphId: null,
 };
 
 
 function getCurrentFvs() {
+
+	// TODO: store the current values separately from the axes’ value to avoid conversions
 
 	let fvs = {};
 	document.querySelectorAll(".slider").forEach(slider => {
@@ -133,7 +136,9 @@ function appendInstanceEl(instance, select) {
 	let cell0 = document.createElement("div");
 	cell0.style.textAlign = "center";
 	cell0.style.fontFamily = "FontAwesome";
-	cell0.innerHTML = instance.namedInstance ? "&#xf02e;" /* bookmark */ : instance.default ? "&#xf015;" /* home */ : "&#xf1de;" /* sliders */;
+	cell0.innerHTML = "<strong>"
+						+ (instance.namedInstance ? "&#xf02e;" /* bookmark */ : instance.default ? "&#xf015;" /* home */ : "&#xf1de;" /* sliders */)
+						+ "</strong>";
 
 	let cell1 = document.createElement("div");
 	cell1.style.textAlign = "center";
@@ -231,6 +236,7 @@ function vfLoaded (font) {
 		let boxes = document.createElement("label");
 
 		panel.appendChild(slider);
+		slider.addEventListener("input", axisInput);
 
 	});
 
@@ -269,6 +275,21 @@ function vfLoaded (font) {
 }
 
 
+function axisInput() {
+
+	let font = GLOBAL.vf;
+
+	// create instance
+	let instance = font.addInstance(getCurrentFvs()); // { name: "Custom", tuple: [] };
+
+	let glyph = font.glyphs[font.currentGlyphId];
+	let iglyph = glyphApplyVariations(glyph, getCurrentFvs());
+	setActiveGlyph (font.currentGlyphId); // update the SVG
+
+
+	// delete instance?
+
+}
 
 function updateGlyphsPanel(instance) {
 
@@ -399,14 +420,16 @@ function getActiveGlyph () {
 	});
 	return g;
 	// TODO: it would be simpler just to store the active glyph somewhere
+	// return font.currentGlyphId;
 }
 
 
 function setActiveGlyph (g) {
 
 	let font = GLOBAL.vf;
-
 	g *= 1;
+	font.currentGlyphId = g; // TODO: check g < numGlyphs
+
 	document.querySelectorAll(".glyph-thumb").forEach(el => {
 
 		document.querySelector(`#${el.id} .selected`).style.display = "none";
@@ -424,7 +447,7 @@ function setActiveGlyph (g) {
 
 	//event.target.classList.add("selected");
 
-	console.log ("Glyph " + g)
+	//console.log ("Glyph " + g)
 	// clear main window and tvts panel
 	let drawing = document.querySelector("#drawing");
 	drawing.innerHTML = "";
@@ -458,7 +481,7 @@ function setActiveGlyph (g) {
 	svgDefs.appendChild(svgMarker);
 	svg.appendChild(svgDefs);
 
-	for (let L=0; L<5; L++) {
+	for (let L=0; L<6; L++) {
 		let svgPath;
 		let layer = layers[L] = {
 			on: true,
@@ -517,37 +540,69 @@ function setActiveGlyph (g) {
 				break;
 
 			case 3:
+				layer.type = "instance-points";
+				svgg2 = SVG("g");
+				svgg2.setAttributeNS(null, "fill", "none");
+				svgg2.setAttributeNS(null, "stroke-width", "1px");
+				svgg2.setAttributeNS(null, "stroke", GLOBAL.vf.config.ui.arrow.color);
+				iglyph.points.forEach(function (pt, p) {
+					// TODO: use individual SVG elements for each point when we implement dragging of instance points
+					let size = 4; //font.config.ui.point.size;
+					svgPath = SVG("path");
+					svgPath.setAttributeNS(null, "d", `M${pt[0]-size},${pt[1]} L${pt[0]+size},${pt[1]} M${pt[0]},${pt[1]+size} L${pt[0]},${pt[1]-size}`);
+					svgg2.appendChild(svgPath);
+				});
+
+				svgg.appendChild(svgg2);
+				break;
+
+			case 4:
 				layer.type = "arrows";
 
 				svgg2 = SVG("g");
 				svgg2.setAttributeNS(null, "stroke", `${GLOBAL.vf.config.ui.arrow.color}`);
 				svgg2.setAttributeNS(null, "stroke-width", `${GLOBAL.vf.config.ui.arrow.strokeWidth}`);
 
-				console.log(iglyph.touched);
+				//console.log(iglyph.touched);
 
 				glyph.points.forEach((point1, pt) => {
 					let point2 = iglyph.points[pt]; // transformed point
-					let svgLine = SVG("line");
 
 					// we have to truncate each line so that it ends in a nice point (might be more elegant to draw the whole line+arrow as a path)
 					let x1 = point1[0], y1 = point1[1], x2 = point2[0], y2 = point2[1];
-					svgLine.setAttributeNS(null, "x1", x1);
-					svgLine.setAttributeNS(null, "y1", y1);
-					svgLine.setAttributeNS(null, "x2", x2);
-					svgLine.setAttributeNS(null, "y2", y2);
 
-					if (!iglyph.touched[pt]) { // IUP
-						svgLine.setAttributeNS(null, "stroke-dasharray", "1 4");
+					if (x1==x2 && y1==y2) {
+						// same location (now we don’t need to worry about divide-by-zero in the else)
 					}
+					else {
 
-					svgLine.setAttributeNS(null, "marker-end", "url(#arrow)");
-					svgg2.appendChild(svgLine);
+						let svgLine = SVG("line");
+
+						let hypot = Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
+						let dx = 3 * (x2-x1)/hypot;
+						let dy = 3 * (y2-y1)/hypot;
+						
+						svgLine.setAttributeNS(null, "x1", x1);
+						svgLine.setAttributeNS(null, "y1", y1);
+						//svgLine.setAttributeNS(null, "x2", x2-dx); // TODO: This changes where the arrow lands, of course, so is not much use!
+						//svgLine.setAttributeNS(null, "y2", y2-dy); // TODO: This changes where the arrow lands, of course, so is not much use!
+						svgLine.setAttributeNS(null, "x2", x2);
+						svgLine.setAttributeNS(null, "y2", y2);
+
+						if (!iglyph.touched[pt]) { // IUP
+							svgLine.setAttributeNS(null, "stroke-dasharray", "1 4");
+						}
+
+						svgLine.setAttributeNS(null, "marker-end", "url(#arrow)");
+						svgg2.appendChild(svgLine);
+
+					}
 				});										
 
 				svgg.appendChild(svgg2);
 				break;
 
-			case 4:
+			case 5:
 
 				// draw control points, grouped in their own <g>
 				layer.type = "points";
@@ -576,8 +631,7 @@ function setActiveGlyph (g) {
 				});
 
 				svgg.appendChild(svgg2);
-				//svg.appendChild(svgg2);
-
+				break;
 
 		}
 
@@ -732,12 +786,12 @@ document.onclick = function (event) {
 
 		let fauxLink = document.createElement("a");
 		fauxLink.download = GLOBAL.vf.filename;
-		//fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
+		fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
 
-		let str = btoa(instance.static)
-		console.log (typeof str);
-		console.log (str);
-		fauxLink.href = "data:font/ttf;base64," + str;
+		//let str = btoa(instance.static)
+		//console.log (typeof str);
+		//console.log (str);
+		//fauxLink.href = "data:font/ttf;base64," + str;
 		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
 		fauxLink.click();
 		fauxLink.remove();

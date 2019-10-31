@@ -28,7 +28,14 @@
 
 @font-face {
 	font-family: FontAwesome;
+	src: url(fonts/ui/fa-regular-400.woff2) format("woff2");
+	font-weight: normal;
+}
+
+@font-face {
+	font-family: FontAwesome;
 	src: url(fonts/ui/fa-solid-900.woff2) format("woff2");
+	font-weight: bold;
 }
 
 html {
@@ -170,6 +177,10 @@ tt {
 	font-weight: normal;
 	font-size: 75%;
 	cursor: default;
+}
+
+.icon-light {
+	font-family: FontAwesome;
 }
 
 .glyph-thumb>.selected {
