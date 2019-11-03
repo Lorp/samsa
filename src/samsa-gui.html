@@ -71,6 +71,13 @@
 			<!-- <span class="icon" id="glyphs-fastforward">&#xf04e;</span> -->
 		</h2>
 		<div></div>
+	<br clear="all">
+
+	</div>
+
+	<div id="font-list" class="panel">
+		<h2>Fonts ready to load</h2>
+		<div></div>
 	</div>
 
 </div>
@@ -86,7 +93,17 @@
 let GLOBAL = {
 	vf: null, // maybe allow an array of fonts... select them with a drop down in info panel
 	currentGlyphId: null,
+	fontList: [],
 };
+
+
+// shorthands
+function Q (selector) {
+	return document.querySelector(selector);
+}
+function Qall (selector) {
+	return document.querySelectorAll(selector);
+}
 
 
 function getCurrentFvs() {
@@ -479,8 +496,22 @@ function setActiveGlyph (g) {
 	svgMarker.setAttributeNS(null, "refY", "5");
 	svgMarker.appendChild(svgMarkerPath);
 	svgDefs.appendChild(svgMarker);
+
+	/*
+	// filters to use... not yet :)
+	// - https://developer.mozilla.org/en-US/docs/Web/SVG/Element/filter
+	let svgFilter = SVG("filter");
+	svgFilter.setAttributeNS(null, "id","blur");
+	let svgFilterBlur = SVG("feGaussianBlur");
+	svgFilterBlur.setAttributeNS(null, "stdDeviation","5");
+	svgFilter.appendChild(svgFilterBlur);
+	svgDefs.appendChild(svgFilter);
+	*/
+
 	svg.appendChild(svgDefs);
 
+
+	// TODO: we're not yet using the layer idea, but I think it will be useful to allow us to make minimal updates
 	for (let L=0; L<6; L++) {
 		let svgPath;
 		let layer = layers[L] = {
@@ -501,7 +532,6 @@ function setActiveGlyph (g) {
 				svgPath.setAttributeNS(null, "fill", "none");
 
 				svgg.appendChild(svgPath);
-				//svg.appendChild(svgg);
 
 				break;
 
@@ -516,7 +546,6 @@ function setActiveGlyph (g) {
 				svgPath.setAttributeNS(null, "fill", `#eee`);
 				svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
 				svgg.appendChild(svgPath);
-				//svg.appendChild(svgg);
 
 				break;
 
@@ -527,16 +556,16 @@ function setActiveGlyph (g) {
 				svgPath.setAttributeNS(null, "style",`opacity:${opacity}`);
 
 				// draw glyph with variations taken from the current axis settings
-
-				// should we render all active instances in this "layer"?
+				// - should we render all active instances in this "layer"?
 
 				svgPath.setAttributeNS(null, "d", getGlyphSVGpath(iglyph));
 				svgPath.setAttributeNS(null, "stroke", `black`); // make this take a value from the ui config
 				svgPath.setAttributeNS(null, "stroke-width", `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`);
 				svgPath.setAttributeNS(null, "fill", `#00f`);
+				// svgPath.setAttributeNS(null, "filter", "url(#blur)"); not yet :)
+
 
 				svgg.appendChild(svgPath);
-				//svg.appendChild(svgg);
 				break;
 
 			case 3:
@@ -638,8 +667,6 @@ function setActiveGlyph (g) {
 
 
 		// add layer to the view
-
-
 
 		layer.svg = svg;
 
@@ -859,8 +886,19 @@ document.onclick = function (event) {
 
 	}
 
+	else if (target = event.target.closest("#font-list .font-file")) {
 
+		// load font mutator
 
+		let vf = new SamsaVF({
+
+			fontFamily: "FontNameShouldGoHere",
+			url: `fonts/${target.innerText}`,
+			callback: vfLoaded,
+		});
+
+		return false;
+	}
 }
 
 function dropHandler(ev) {
@@ -880,7 +918,6 @@ function dropHandler(ev) {
         var file = ev.dataTransfer.items[i].getAsFile();
         let reader = new FileReader();
         reader.__file__ = file;
-        console.log ("HHHHH", file)
         reader.onload = function (event) {
 
 			//console.log (event.target.result);
@@ -912,6 +949,27 @@ document.querySelector("#font-file").addEventListener("dragover",function(e){
 function SVG(tag) {
     return document.createElementNS('http://www.w3.org/2000/svg', tag);
 }
+
+
+
+// load font list
+let oReq = new XMLHttpRequest();
+oReq.open("GET", "fonts/_fontlist_.json", true);
+oReq.responseType = "json";
+oReq.onload = function(oEvent) {
+	GLOBAL.fontList = this.response;
+	// need to handle onreadystatechange to detect errors
+
+	let panel = Q("#font-list>div");
+	panel.innerHTML = "";
+	//panel.innerHTML += "<ul>";
+	GLOBAL.fontList.forEach(fontFilename => {
+		panel.innerHTML += `<li class="font-file"><a href="">${fontFilename}</a></li>`;
+	});
+
+	//panel.innerHTML += "</ul>";
+};
+oReq.send();
 
 
 
