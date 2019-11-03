@@ -1874,12 +1874,14 @@ function SamsaVF_parseSmallTable (tag) {
 					instance.name = "Default";
 					instance.default = true;
 					instance.namedInstance = false;
+					instance.type = "default"; // TODO: move to this method of identifying instance type, not .default or .namedInstance (type should be one of default, named, custom)
 				}
 				else {
 					if (table.instanceSize == table.axisCount * 4 + 6)
 						instance.postScriptNameID = data.getUint16(p), p+=2;
 					instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed! (TODO: fallback if no name table)
 					instance.namedInstance = true;
+					instance.type = "named"; // TODO: update code in samsa-cli to check this, rather than instance.namedInstance
 				}
 				font.instances.push(instance);
 			}
@@ -2235,7 +2237,8 @@ function SamsaVF (init, config) {
 			glyphs: [],
 			tuple: [], // normalized
 			fvs: {},
-			namedInstance: false, // it’s a custom instance, so not "named" (in the OpenType spec sense)
+			type: "custom",
+			namedInstance: false, // it’s a custom instance, so not "named" (in the OpenType spec sense) TODO: drop this, move to instance.type
 			static: null, // on instantiation, will contain binary data
 
 			// it’s quite possible we’d like to keep the instance binary in memory as well as know where the file is
