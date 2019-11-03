@@ -131,8 +131,9 @@ function appendInstanceEl(instance, select) {
 	// initialize instance if necessary
 	if (instance === undefined) {
 		//instance.fvs = ;
+		//console.log(getCurrentFvs());
 		instance = GLOBAL.vf.addInstance(getCurrentFvs(), { name: "Custom", ui: li }); // { name: "Custom", tuple: [] };
-
+		//console.log("here", instance.fvs["wdth"], instance.fvs["wght"], );
 		/*
 		GLOBAL.vf.axes.forEach((axis, a) => {
 			instance.tuple[a] = GLOBAL.vf.axisNormalize(axis, instance.fvs[axis.tag]);
@@ -303,9 +304,8 @@ function axisInput() {
 	let iglyph = glyphApplyVariations(glyph, getCurrentFvs());
 	setActiveGlyph (font.currentGlyphId); // update the SVG
 
-
-	// delete instance?
-
+	// delete instance? definitely!
+	font.instances.pop();
 }
 
 function updateGlyphsPanel(instance) {
@@ -407,16 +407,15 @@ function setActiveInstance (font, target) {
 
 	document.querySelectorAll(".instance").forEach((el, i) => {
 
-		let instance = font.instances[i];
+		let instance = font.instances[i]; // font.instances[0] is the default "instance"
 
 		// update instance ui
-		if (el == target || (!target && font.instances[i].default)) {
+		if (el == target || (!target && instance.default)) { // allows for future reordering
 			
 			el.classList.add("active");
-			setAxes (font, el.data.instance.fvs);
+			setAxes (font, instance.fvs);
 			instanceApplyVariations (font, instance);
 			updateGlyphsPanel (instance);
-			console.log("Setting active instance");
 		}
 		else {
 			el.classList.remove("active");

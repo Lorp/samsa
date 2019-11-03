@@ -241,8 +241,6 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 		}
 	});
 
-	//console.log (`newNumTables=${newNumTables}`)
-
 	let fileHeaderBuf;
 	let dFileHeaderBuf;
 	if (node) {
@@ -335,13 +333,11 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 
 						if (glyph.numContours < 0) {
 							// composite glyph
-							//console.log(`Glyph #${g} (composite)`);
 							lsbs[g] = 0;
 							aws[g] = 0;
 						}
 						else if (glyph.numContours == 0) {
 							// space glyph
-							//console.log(`Glyph #${g} (---)`);
 							lsbs[g] = 0;
 							aws[g] = 0;
 						}
@@ -1369,7 +1365,6 @@ function SamsaVF_parseTvts(g) {
 				}
 
 			}
-			// console.log(tvt);
 
 			// add the tvt to the tvts array
 			tvts.push(tvt);
@@ -1768,7 +1763,7 @@ function SamsaVF_parseSmallTable (tag) {
 
 		case "post":
 
-			font.glyphNames = [];
+			font.glyphNames = []; // store the names separately because the glyph often has not been loaded
 			table.format = data.getUint32(p), p+=4;
 			font.italicAngle = data.getInt32(p) / 65536, p+=4;
 
@@ -1778,14 +1773,13 @@ function SamsaVF_parseSmallTable (tag) {
 				// parse names data
 				p = font.tables['post'].offset + 32; // jump past header
 				p += 2 + 2 * font.numGlyphs;
-				let len, str="", extraNames = [];
+				let extraNames = [];
 				while (p < font.tables['post'].offset + font.tables['post'].length) {
-					len = data.getUint8(p++); // Pascal style strings: first byte is length, the rest is the string
-					for (let l=0; l<len; l++) {
+					let str="", len=data.getUint8(p++); // Pascal style strings: first byte is length, the rest is the string
+					while (len--) {
 						str += String.fromCharCode(data.getUint8(p++));
 					}
 					extraNames.push(str);
-					str = "";
 				}
 
 				// parse glyphNameIndex array
@@ -1884,7 +1878,7 @@ function SamsaVF_parseSmallTable (tag) {
 				else {
 					if (table.instanceSize == table.axisCount * 4 + 6)
 						instance.postScriptNameID = data.getUint16(p), p+=2;
-					instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed!
+					instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed! (TODO: fallback if no name table)
 					instance.namedInstance = true;
 				}
 				font.instances.push(instance);
@@ -2298,7 +2292,7 @@ function SamsaVF (init, config) {
 		// transforms an fvs object into a normalized tuple
 		let tuple = [];
 		this.axes.forEach((axis,a) => {
-			let val = fvs[axis.tag] === undefined ? axis.default : 1.0 * fvs[axis.tag];
+			let val = (fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
 			tuple[a] = this.axisNormalize(axis, val);
 		});
 		return tuple;
@@ -2465,8 +2459,6 @@ function getGlyphSVGpath(glyph)
 
 function instanceApplyVariations (font, instance) {
 	//console.log(font);
-	console.log(instance);
-	console.log("instanceApplyVariations")
 	for (let g=0; g<font.numGlyphs; g++) {
 		if (font.glyphs[g].numContours > 0) {
 			instance.glyphs[g] = glyphApplyVariations (font.glyphs[g], instance.tuple);
