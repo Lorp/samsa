@@ -50,7 +50,7 @@
 
 	<div id="tvts" class="panel">
 		<h2>Tuple Variations</h2>
-		<div></div>
+		<div style="overflow-x: scroll;"></div>
 	</div>
 
 	<div id="designspace" class="panel">
@@ -754,6 +754,7 @@ function setActiveGlyph (g) {
 		// we mention some stuff about tvt id, then numpoints moved or something, then (aligning with axes in instance panel) an SVG graph for each axis
 		li.style.display = "grid";
 		li.style.gridTemplateColumns = `1.5em 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`
+		li.style.backgroundColor = "lightgrey";
 
 		let tvtId = document.createElement("div");
 		tvtId.innerText = t;
