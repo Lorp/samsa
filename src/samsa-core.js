@@ -40,6 +40,10 @@ let CONFIG = {
 		ignoreIUP: false,
 	},
 
+	defaultGlyph: [
+		"A", "a", "Alpha", "alpha", "afii10017", "A-cy", "afii10065", "a-cy", "zero", // PostScript names: Latin, Russian, Cyrillic (or should we use the cmap? because some fonts lack ps names)
+	],
+
 	sfnt: {
 		maxNumTables: 100,
 		maxSize: 10000000,
@@ -54,6 +58,7 @@ let CONFIG = {
 		maxSize: 50000,
 	},
 
+	// TODO: this should be set up in samsa-gui, not here in samsa-core
 	ui: {
 		arrow: {
 			strokeWidth: 2,
@@ -88,14 +93,9 @@ let CONFIG = {
 			font: "IBM Plex",
 			size: 12,
 		},
-
 	},
 
 	docs: {
-		regex: {
-			microsoft: "https://docs.microsoft.com/en-us/typography/opentype/spec/dvaraxistag_$1",
-			typenetwork: "https://variationsguide.typenetwork.com/#$1",
-		},
 		axes: {
 			wght: "regex:microsoft",
 			wdth: "regex:microsoft",
@@ -125,6 +125,13 @@ let CONFIG = {
 			rsec: "regex:typenetwork",
 			vuid: "regex:typenetwork",
 			votf: "regex:typenetwork",
+			gext: "https://github.com/microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Glyph_Extension_Axis/ProposalSummary.md",
+			hght: "https://github.com/microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Height_Axis/ProposalSummary.md",
+			spac: "https://github.com/Microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Spacing_Axis/ProposalSummary.md",
+		},
+		regex: {
+			microsoft: "https://docs.microsoft.com/en-us/typography/opentype/spec/dvaraxistag_$1",
+			typenetwork: "https://variationsguide.typenetwork.com/#$1",
 		},
 		hoi: "http://underware.nl/case-studies/hoi/",
 	},
@@ -2632,6 +2639,26 @@ function glyphApplyVariations (glyph, userTuple) {
 	return newGlyph;
 }
 
+
+function getDefaultGlyphId(font) {
+	// use config.defaultGlyph array to find the first available representative glyph for this font
+	for (let d=0; d < font.config.defaultGlyph.length; d++) {
+		let g, name = font.config.defaultGlyph[d];
+		if ((g = font.glyphNames.indexOf(name)) != -1) {
+			return g; // inelegantly but concisely quit from the function
+		}
+	}
+
+	// we didn’t find any of the glyphs named in config.defaultGlyph, let’s use the first printable simple glyph
+	// - IMPORTANT: this requires the glyphs to be loaded
+	for (let g=0; g < font.numGlyphs; g++) {
+		if (font.glyphs[g].numContours > 0) {
+			return g; // inelegantly but concisely quit from the function
+		}
+	}
+
+	return 0;
+}
 
 
 function SamsaInstance () {
