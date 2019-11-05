@@ -40,8 +40,10 @@
 
 	<div id="instances" class="panel">
 		<h2>Instances
+			<!--
 			<span class="icon" id="instances-as-grid">&#xf00a;</span>
 			<span class="icon" id="instances-as-list">&#xf0c9;</span>
+			-->
 		</h2>
 		<div></div>
 	</div>
@@ -64,10 +66,10 @@
 	<div id="glyphs" class="panel">
 		<h2>Glyphs
 			<!-- <span class="icon" id="glyphs-rewind">&#xf04a;</span> -->
-			<span class="icon" id="glyphs-stepback">&#xf048;</span>
-			<span class="icon" id="glyphs-stop">&#xf04d;</span>
-			<span class="icon" id="glyphs-play">&#xf04b;</span>
-			<span class="icon" id="glyphs-stepforward">&#xf051;</span>
+			<span class="icon" id="glyphs-stepback" title="Step back">&#xf048;</span>
+			<span class="icon" id="glyphs-stop" title="Stop playing">&#xf04d;</span>
+			<span class="icon" id="glyphs-play" title="Play">&#xf04b;</span>
+			<span class="icon" id="glyphs-stepforward" title="Step forward">&#xf051;</span>
 			<!-- <span class="icon" id="glyphs-fastforward">&#xf04e;</span> -->
 		</h2>
 		<div></div>
@@ -123,23 +125,16 @@ function getCurrentFvs() {
 // - we can assign the ui object in the options argument
 function appendInstanceEl(instance, select) {
 
+	let font = GLOBAL.vf;
 	let panel = document.querySelector("#instances>div");
 
 	// create the instance DOM element
 	let li = document.createElement("div"); // not li?
+	let icon = "-", title;
 
 	// initialize instance if necessary
 	if (instance === undefined) {
-		//instance.fvs = ;
-		//console.log(getCurrentFvs());
-		instance = GLOBAL.vf.addInstance(getCurrentFvs(), { name: "Custom", ui: li }); // { name: "Custom", tuple: [] };
-		//console.log("here", instance.fvs["wdth"], instance.fvs["wght"], );
-		/*
-		GLOBAL.vf.axes.forEach((axis, a) => {
-			instance.tuple[a] = GLOBAL.vf.axisNormalize(axis, instance.fvs[axis.tag]);
-		});
-		GLOBAL.vf.instances.push(instance);
-		*/
+		instance = font.addInstance(getCurrentFvs(), { name: "Custom", ui: li }); // { name: "Custom", tuple: [] };
 	}
 
 	// list view
@@ -147,38 +142,93 @@ function appendInstanceEl(instance, select) {
 	panel.style.minWidth = "100%";
 	panel.style.overflowX = "scroll";
 
+
 	li.classList.add("instance");
 	li.style.display = "grid";
-	li.style.gridTemplateColumns = `30px 30px 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`;
+	li.style.gridTemplateColumns = `30px 30px 100px 30px 30px repeat(${GLOBAL.vf.axisCount}, 70px)`;
 
+	// instance type
+	switch (instance.type) {
+		case "default": icon = "&#xf015;"; title = "Default"; break; // FontAwesome home
+		case "named": icon = "&#xf02e;"; title = "Named instance"; break; // FontAwesome bookmark
+		case "custom": icon = "&#xf1de;"; title = "Custom instance"; break; // FontAwesome sliders
+	}
 	let cell0 = document.createElement("div");
+	cell0.style.cursor = "pointer";
 	cell0.style.textAlign = "center";
 	cell0.style.fontFamily = "FontAwesome";
-	cell0.innerHTML = "<strong>"
-						+ (instance.namedInstance ? "&#xf02e;" /* bookmark */ : instance.default ? "&#xf015;" /* home */ : "&#xf1de;" /* sliders */)
-						+ "</strong>";
+	cell0.innerHTML = `<strong title="${title}">${icon}</strong>`;
 
+	// SVG of the A glyph
+	// - would current glyph be better? ... probably not, as the image serves as a kind of visual label
 	let cell1 = document.createElement("div");
-	cell1.style.textAlign = "center";
-	cell1.style.fontFamily = "FontAwesome";
-	cell1.innerHTML = "&#xf06e"; // eye open f070 eye closed
+	let svg = SVG("svg");
 
+	let glyph = font.glyphs[getDefaultGlyphId(font)];
+	let iglyph = glyphApplyVariations(glyph, instance.tuple);
+
+	if (iglyph && iglyph.numContours > 0) {
+
+		// simple glyph
+		let svgPath = SVG("path");
+		let svgg = SVG("g");
+		let scale = 0.02 * 1000 / font.unitsPerEm;
+		svg.setAttributeNS(null, "width","30");
+		svg.setAttributeNS(null, "height","30");
+		svgg.setAttributeNS(null, "transform", `translate(4,20) scale(${scale},-${scale})`);
+		
+		//svgMarker.attr({markerWidth:20,markerHeight:20);
+
+ 		svgPath.setAttributeNS(null, "d", getGlyphSVGpath(iglyph));
+
+		svg.appendChild(svgg);
+
+		// glyph
+		svgg.appendChild(svgPath);
+
+		// x and y axes
+
+		//glyphThumb.appendChild(svg);
+
+	}
+	else if (glyph && glyph.numContours < 0) {
+
+
+	}
+
+
+	cell1.appendChild(svg);
+
+	// instance name
 	let cell2 = document.createElement("div");
 	cell2.style.textAlign = "center";
 	cell2.innerHTML = `<input value="${instance.name}" ${instance.default ? "readonly " : ""}style="width: 85px">`;
 
+	// visibility
 	let cell3 = document.createElement("div");
-	cell3.classList.add("instantiate");
-	cell3.setAttribute("title", "Download TTF");
+	cell3.setAttribute("title", "Visibility");
 	cell3.style.textAlign = "center";
 	cell3.style.fontFamily = "FontAwesome";
 	cell3.style.cursor = "pointer";
-	cell3.innerHTML = "&#xf358;"; //"&#xf56d;" // download
+	cell3.innerHTML = "&#xf06e"; // eye open f070 eye closed
 
+	// instantiate button
+	let cell4 = document.createElement("div");
+	cell4.classList.add("instantiate");
+	cell4.setAttribute("title", "Download TTF");
+	cell4.style.textAlign = "center";
+	cell4.style.fontFamily = "FontAwesome";
+	cell4.style.cursor = "pointer";
+	cell4.innerHTML = "&#xf358;"; //"&#xf56d;" // download
+
+	// append all the elements so far
 	li.appendChild(cell0);
 	li.appendChild(cell1);
 	li.appendChild(cell2);
 	li.appendChild(cell3);
+	li.appendChild(cell4);
+
+	// all the axis settings
 	GLOBAL.vf.axes.forEach((axis, a) => {
 		let axisCell = document.createElement("div");
 		axisCell.style.fontSize = "75%";
@@ -187,14 +237,7 @@ function appendInstanceEl(instance, select) {
 		li.appendChild(axisCell);
 	});
 
-	/*
-	li.innerHTML += `<input value="${instance.name}"><br>`;
-	li.innerHTML += "[";
-	li.innerHTML += instance.tuple.join();
-	li.innerHTML += "] ";
-	li.innerHTML += JSON.stringify(instance.fvs);
-	*/
-
+	// bind instance data to instance element
 	li.data = { instance: instance };
 
 	// append the instance DOM element
@@ -225,7 +268,6 @@ function vfLoaded (font) {
 	panel.innerHTML += `Full name: ${font.names[4]}<br>`;
 	//panel.innerHTML += `Date: ${Date(font.date).toString()}<br>`;
 
-
 	///////////////////////////////////////////////////////
 	// axis panel
 	///////////////////////////////////////////////////////
@@ -240,6 +282,14 @@ function vfLoaded (font) {
 		let label =  document.createElement("label");
 		//label.innerHTML = `<span style="font-weight: bold; font-family: monospace;">${axis.tag}</span> ${axis.name}`;
 		label.innerHTML = `<tt>${axis.tag}</tt> ${axis.name}`;
+		let docUrl = font.config.docs.axes[axis.tag.toLowerCase()];
+		if (docUrl) {
+			let docParts = docUrl.split(/:(.+)/)
+			if (docUrl && docParts[0] == "regex") {
+				docUrl = font.config.docs.regex[docParts[1]].replace("$1", axis.tag.toLowerCase()); // handles microsoft and typenetwork
+			}
+			label.innerHTML += ` <a href="${docUrl}" class="icon" title="‘${axis.tag}’ axis specification" target="_blank">&#xf02d;</a>`; // book icon, links to the specification of this axis
+		}
 		panel.appendChild(label);
 
 		let slider = document.createElement("input");
@@ -251,7 +301,7 @@ function vfLoaded (font) {
 
 		slider.data = {axis: axis};
 
-		let boxes = document.createElement("label");
+		//let boxes = document.createElement("label");
 
 		panel.appendChild(slider);
 		slider.addEventListener("input", axisInput);
@@ -288,8 +338,15 @@ function vfLoaded (font) {
 	});
 	setActiveInstance(GLOBAL.vf); // without an instance parameter, it sets it to the default
 
+
+	///////////////////////////////////////////////////////
+	// glyphs panel
+	///////////////////////////////////////////////////////
+	GLOBAL.currentGlyphId = getDefaultGlyphId(font);
 	updateGlyphsPanel (); // use default glyphs
 
+
+	Q("body").style.cursor = "default";
 }
 
 
@@ -311,7 +368,6 @@ function axisInput() {
 function updateGlyphsPanel(instance) {
 
 	console.log("Updating glyphs panel");
-
 	let font = GLOBAL.vf;
 
 	///////////////////////////////////////////////////////
@@ -378,7 +434,7 @@ function updateGlyphsPanel(instance) {
 
 	}
 
-	setActiveGlyph(0);
+	setActiveGlyph(GLOBAL.currentGlyphId);
 
 }
 
@@ -443,7 +499,10 @@ function getActiveGlyph () {
 function setActiveGlyph (g) {
 
 	let font = GLOBAL.vf;
+	if (g === undefined)
+		g = 0;
 	g *= 1;
+
 	font.currentGlyphId = g; // TODO: check g < numGlyphs
 
 	document.querySelectorAll(".glyph-thumb").forEach(el => {
@@ -453,7 +512,6 @@ function setActiveGlyph (g) {
 	
 	document.querySelector(`#g-${g} .selected`).style.display = "block";
 	// TODO: wouldn’t this be more elegant setting background-color with a class?
-
 
 
 
@@ -778,7 +836,7 @@ function playGlyphs() {
 // click handlers for all clicks
 document.onclick = function (event) {
 
-
+console.log(event.target);
 	// about target
 	// - via the method of assignment in the if(), target gets the desired element rather than a child (or grandchild) that in fact received the event
 	// - the closest(x) method is great: we find whether event.target happened on something within something selected by x
@@ -792,6 +850,8 @@ document.onclick = function (event) {
 	if (event.target == document.querySelector("#font-file")) {
 	//if (target = event.target.closest("#font-file")) {
 		// debug hack to load MutatorSans easily
+		Q("body").style.cursor = "wait";
+
 		let vf = new SamsaVF({
 
 			fontFamily: "FontNameShouldGoHere",
@@ -835,7 +895,7 @@ document.onclick = function (event) {
 		console.log(event.target.data.point);
 	}
 
-	else if (target = event.target.closest("#glyphs>h2")) { // ordering important
+	else if (target = event.target.closest("#glyphs>h2") && event.target.classList.contains("icon")) { // ordering important
 
 		let g;
 		clearTimeout(GLOBAL.vf.timerGlyphPlayer);
@@ -952,6 +1012,7 @@ function SVG(tag) {
 
 
 // load font list
+// TODO: switch to modern fetch(url)
 let oReq = new XMLHttpRequest();
 oReq.open("GET", "fonts/_fontlist_.json", true);
 oReq.responseType = "json";

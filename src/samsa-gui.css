@@ -179,6 +179,10 @@ tt {
 	cursor: default;
 }
 
+.icon:link, .icon:hover, .icon:visited, .icon:active {
+	color: black;
+}
+
 .icon-light {
 	font-family: FontAwesome;
 }
@@ -196,5 +200,5 @@ tt {
 }
 
 .font-file {
-	
+
 }
