@@ -179,12 +179,12 @@ tt {
 	cursor: default;
 }
 
-.icon:link, .icon:hover, .icon:visited, .icon:active {
-	color: black;
+.bold {
+	font-weight: bold;
 }
 
-.icon-light {
-	font-family: FontAwesome;
+.icon:link, .icon:hover, .icon:visited, .icon:active {
+	color: black;
 }
 
 .glyph-thumb>.selected {

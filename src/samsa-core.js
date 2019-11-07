@@ -356,7 +356,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 							// - this only works in node mode of course, as frontend will normally need the whole font
 
 							// apply the variations
-							let iglyph = glyphApplyVariations(glyph, instance.tuple);
+							let iglyph = glyphApplyVariations(glyph, null, instance);
 							//console.log(`Glyph #${g} (simple)`);
 
 							//console.log(`i length=${glyph.instructionLength}`);
@@ -683,7 +683,7 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 
   		if (tvts.length > 0 && glyph.numContours > 0)
   		{
-			iglyph = glyphApplyVariations (glyph, instance.tuple); // instance.tuple is already normalized
+			iglyph = glyphApplyVariations (glyph, null, instance); // instance.tuple is already normalized
 			iglyph.newLsb = 0;
 			newfont.glyphs[g] = iglyph;
 
@@ -1031,11 +1031,15 @@ function SamsaVF_parseTvts(g) {
 	//console.log (`numContours: ${font.glyphs[g].numContours}`);
 
 	// composite?
+	// TODO: implement composites 2019-11-06
+	// - we reference glyph.numPoints+4 a few times, this must be replaced by glyph.points.length
 	if (font.glyphs[g].numContours == -1) {
 		//console.log("COMPOSITE SO QUIT");
 
 		// TODO: These need to be created with fake points for the components, then 4 phantom points
-		return tvts;
+		
+
+		//return tvts; // deleted 2019-11-07
 	}
 
 	// set up data and pointers
@@ -1094,7 +1098,10 @@ function SamsaVF_parseTvts(g) {
 			//console.log ("tupleNumPoints====" + tupleNumPoints.toString(16));
 			if (tupleNumPoints == 0) { // allPoints: would be better to use the allPoints flag in the tuple
 				impliedAllPoints = true;
-				tupleNumPoints = font.glyphs[g].numPoints + 4; // we don't bother storing their IDs
+				
+				// 2019-11-07 edit
+				//tupleNumPoints = font.glyphs[g].numPoints + 4; // we don't bother storing their IDs
+				tupleNumPoints = font.glyphs[g].points.length; // we don't bother storing their IDs
 			}
 			else {
 				var pointNum = 0;
@@ -1222,7 +1229,11 @@ function SamsaVF_parseTvts(g) {
 
 					//console.log ("We have an 'all points' situation");
 					impliedAllPoints = true;
-					tupleNumPoints = font.glyphs[g].numPoints + 4; // remember that 0 meant "all points" - we just don't bother storing their IDs
+					
+
+					// 2019-11-07
+					//tupleNumPoints = font.glyphs[g].numPoints + 4; // remember that 0 meant "all points" - we just don't bother storing their IDs
+					tupleNumPoints = font.glyphs[g].points.length; // remember that 0 meant "all points" - we just don't bother storing their IDs
 
 					//console.log ("tupleNumPoints (all): " + tupleNumPoints)
 					//pointIds = font.glyphs[g].points.keys(); // experimental, perhaps better handled as an exception to the loop that assings the tvt deltas
@@ -1237,24 +1248,14 @@ function SamsaVF_parseTvts(g) {
 					//console.log("tupleNumPoints: " + tupleNumPoints)
 
 					//console.log ("pointCount = " + tuple.pointCount);
-					while (pc < tupleNumPoints)
-					{
+					while (pc < tupleNumPoints) {
+
 						runLength = data.getUint8(ps), ps++;
 						let pointsAreWords = (runLength & 0x80) ? true : false;
 						runLength = (runLength & 0x7f) +1; // 0x7f = the low 7 bits
-						for (let r=0; r < runLength; r++)
-						{
-
+						for (let r=0; r < runLength; r++) {
 							if (pc + r > tupleNumPoints)
-									break;
-
-							/*
-							if (ps >= font.tables['gvar'].offset + font.tables['gvar'].length)
-							{
-								alert ("OBARD at glyph #" + g + ", nextOffset = " + nextOffset);
-								console.log ("OBARD", tuple, ps, g);
-							}
-							*/
+								break;
 
 							let pointData;
 							if (pointsAreWords)
@@ -1271,16 +1272,6 @@ function SamsaVF_parseTvts(g) {
 							//runLength--;
 						}
 						pc += runLength;
-
-						/*
-						else
-						{
-							runLength++; // the value minus 1 is stored
-							pc += runLength;
-							while (runLength--)
-								gvd.points.push(data.getUint8(p)), p++;
-						}
-						*/
 					}
 
 					// console.log(`pointIds:${pointIds}`);
@@ -1300,7 +1291,7 @@ function SamsaVF_parseTvts(g) {
 			
 
 
-			let tp=0;
+			let tp=0; // delete tp?
 
 			// the all points' situation results in tupleNumPoints = font.glyphs[g].numPoints + 4
 
@@ -1329,7 +1320,7 @@ function SamsaVF_parseTvts(g) {
 					case 2: /*console.log(`@${ps} BPN-2 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(data.getInt16(ps)), ps+=2; break;
 				}
 
-				tp+=runLength;
+				tp+=runLength; // delete tp?
 
 				/*
 				if (ps - (font.tables['gvar'].offset + table.offsetToData + offset + gvd.offsetToSerializedData) > nextOffset)
@@ -1485,6 +1476,8 @@ function SamsaVF_parseGlyph (g) {
 		}
 		
 		// composite glyph
+		// - we DO add points for composite glyphs: one per component, and the 4 extra metrics points
+		// - when we process these glyphs, we look at glyph.numContours and glyph.points, but NOT glyph.numPoints
 		else if (glyph.numContours < 0) {
 
 			let flag;
@@ -1504,10 +1497,11 @@ function SamsaVF_parseGlyph (g) {
 					else {
 						component.offset = [data.getInt8(p), data.getInt8(p+1)], p+=2;
 					}
-
+					glyph.points.push(component.offset); // this is cool, we store the offset as it was a point, then we can treat it as a point when acted on by the tvts
 				}
 
 				// record matched points
+				// - TODO: decide how to handle these (it’s possible they are never used in VFs)
 				else {
 					if (flag & 0x0001) { // ARG_1_AND_2_ARE_WORDS
 						component.matchedPoints = [data.getUint16(p), data.getUint16(p+2)], p+=4;
@@ -1517,7 +1511,8 @@ function SamsaVF_parseGlyph (g) {
 					}
 				}
 
-				// transformation matrix (undefined means identity matrix [1, 0, 0, 1])
+				// transformation matrix
+				// - if component.transform is undefined, it means identity matrix is [1, 0, 0, 1]
 				if (flag & 0x0008) { // WE_HAVE_A_SCALE
 					component.transform = [data.getF2DOT14(p), 0, 0], p+=2;
 					component.transform[3] = component.transform[0];
@@ -1548,6 +1543,8 @@ function SamsaVF_parseGlyph (g) {
 	}
 
 	// glyph metrics: assign 4 phantom points for gvar processing
+	// - works on composites
+	// - works on zero-contour glyphs
 	// TODO: get height from vmtx table (if it exists)
 	glyph.points.push([0,0], [font.widths[g], 0], [0,0], [0,0]);
 
@@ -2401,32 +2398,48 @@ function SVG(tag) {
 
 function getGlyphSVGpath(glyph)
 {
-	let glyphSVG = [];
+	// we either return a path (simple glyph) or an array of paths (composite glyph)
+
+	// composite? handle them recursively
+	// - ok, this could lead to an array of arrays of arrays…
+	// - we’re probably only going to process them 1 level deep, a limitation shared with macOS
+	if (glyph.numContours == -1) {
+		let paths = [];
+		glyph.components.forEach((component, c) => {
+
+			//console.log(`Processing component ${c} (gid ${component.glyphId})`);
+			if (glyph.instance) {
+				let path;
+				if (glyph.instance.glyphs[component.glyphId]) { // we have already instantiated this glyph for this instance
+					//iglyph = 
+				}
+				else {
+					// we must instantiate this glyph
+					//console.log("getGlyphSVGpath: calling glyphApplyVariations");
+					glyph.instance.glyphs[component.glyphId] = glyphApplyVariations(glyph.font.glyphs[component.glyphId], null, glyph.instance); // we must instantiate this glyph for this instance
+				}
+				path = getGlyphSVGpath(glyph.instance.glyphs[component.glyphId]);
+				paths.push(path);
+			}
+			else {
+				//console.log("getGlyphSVGpath with !glyph.instance, glyph = ", glyph);
+				paths.push(getGlyphSVGpath(glyph.font.glyphs[component.glyphId]));
+			}
+		});
+		return paths; // return an array for composites
+	}
+
 	let path = "";
+	let glyphSVG = [];
 	let contourSVG, pt, pt_, c, p;
 	let startPt = 0;
 
 	// convert TT points to an array of points ready for SVG, glyphSVG
-	glyph.endPts.forEach(function (endPt)
-	{
+	glyph.endPts.forEach(function (endPt) {
 		var numPointsInContour = endPt-startPt+1;
 		contourSVG = [];
 
-		/*
-		// this is when flags (on/off curve) are in a separate glyph.flags array
-		for (p=startPt; p<=endPt; p++)
-		{
-			p_ = (p-startPt+1)%numPointsInContour+startPt;
-			pt = glyph.points[p];
-			pt_ = glyph.points[p_];
-			contourSVG.push ([pt[0], pt[1], glyph.flags[p]]);
-			if (glyph.flags[p] == 0 && glyph.flags[p_] == 0)
-				contourSVG.push ([(pt[0]+pt_[0])/2,(pt[1]+pt_[1])/2,1, 1]);
-		}
-		*/
-
-		for (p=startPt; p<=endPt; p++)
-		{
+		for (p=startPt; p<=endPt; p++) {
 			pt = glyph.points[p];
 			pt_ = glyph.points[(p-startPt+1)%numPointsInContour+startPt];
 			contourSVG.push (pt);
@@ -2440,20 +2453,17 @@ function getGlyphSVGpath(glyph)
 	});
 
 	// convert glyphSVG to an actual SVG path
-	// now there are never >1 consecutive off-curve points
-	for (c=0; c<glyphSVG.length; c++)
-	{
+	// - already, there are never >1 consecutive off-curve points
+	for (c=0; c<glyphSVG.length; c++) {
 		contourSVG = glyphSVG[c];
 		for (p=0; p<contourSVG.length; p++)
 		{
 			pt = contourSVG[p];
 			if (p==0)
 				path += "M" + pt[0] + " " + pt[1];
-			else
-			{
-				if (pt[2] == 0)
-				{
-					pt_ = contourSVG[(++p)%contourSVG.length]; // increments loop variable p
+			else {
+				if (pt[2] == 0) {
+					pt_ = contourSVG[(++p) % contourSVG.length]; // increments loop variable p
 					path += "Q" + pt[0] + " " + pt[1] + " " + pt_[0] + " " + pt_[1];
 				}
 				else
@@ -2471,22 +2481,35 @@ function instanceApplyVariations (font, instance) {
 	//console.log(font);
 	for (let g=0; g<font.numGlyphs; g++) {
 		if (font.glyphs[g].numContours > 0) {
-			instance.glyphs[g] = glyphApplyVariations (font.glyphs[g], instance.tuple);
+			instance.glyphs[g] = glyphApplyVariations (font.glyphs[g], null, instance);
 		}
 	}
 }
 
 
-function glyphApplyVariations (glyph, userTuple) {
+function glyphApplyVariations (glyph, userTuple, instance) {
+
+	// create newGlyph, a new glyph object which is the supplied glyph with the variations applied, as specified in instance (or if blank, userTuple)
+	// - TODO: can we move away from using userTuple and always require an instance?
+
+	// generate the glyph (e.g. if it’s needed by a composite)
+	if (glyph === undefined) {
+		console.log ("glyphApplyVariations: glyph is undefined, here is instance.font", instance.font)
+	}
 
 	let config = glyph.font.config;
 
 	let newGlyph = {
-		instance: true,
+		default: glyph,
+		font: glyph.font,
+		//instance: true,
+		instance: instance, // this is still safe for tests that check for (!glyph.instance)
+		type: "instance",
 		name: glyph.name,
 		points: [],
 		touched: [],
 		numContours: glyph.numContours,
+		components: glyph.components,
 		endPts: glyph.endPts,
 		numPoints: glyph.numPoints,
 		xMin: undefined,
@@ -2497,12 +2520,15 @@ function glyphApplyVariations (glyph, userTuple) {
 		flags: glyph.flags, // do we need this?
 	};
 
-	// validate userTuple (TODO: more validations than the array check)
+	// get a good userTuple (TODO: more validations than the array check)
+	// - it is recommended to use the ‘instance’ parameter, since then we preserve a connection between newGlyph and its instance
+	if (userTuple === null && instance)
+		userTuple = instance.tuple;
 	if (!Array.isArray(userTuple)) {
 		userTuple = glyph.font.fvsToTuple(userTuple); // userTuple was an fvs type object, but we transform it into a tuple array
 	}
 
-	// make a duplicate of the default glyph
+	// newGlyph starts off as a duplicate of the default glyph (at least, all of its points)
 	glyph.points.forEach(function (point, p) {
 		newGlyph.points[p] = [point[0], point[1], point[2]];
 	});
@@ -2541,6 +2567,9 @@ function glyphApplyVariations (glyph, userTuple) {
 	                AS = (end - ua) / (end - peak);
 	        }
 	        S *= AS;
+
+	        // TODO: optimize so that we quit the loop if AS == 0
+	        // TODO: get rid of AS and use "S *= " in each of the branches (altho not ideal if we want to record each AS for visualization)
 		});
 
 		// now we can move the points by S * delta
@@ -2548,12 +2577,14 @@ function glyphApplyVariations (glyph, userTuple) {
 
 			tvt.deltas.forEach((delta, pt) => {
 				if (delta !== null) {
-					newGlyph.touched[pt] = touched[pt] = true; // touched[] is just for this tvt; newGlyph.touched[] is for all tvts (in case we want to show in UI)
+					newGlyph.touched[pt] = touched[pt] = true; // touched[] is just for this tvt; newGlyph.touched[] is for all tvts (in case we want to show in UI) 
+					// btw, we don’t need to store touched array for composite or non-printing glyphs - probably a negligible optimization
 					scaledDeltas[pt] = [S * delta[0], S * delta[1]];
 				}
 			});
 
 			// IUP
+			// - TODO: ignore this step for composites (even though it is safe because endPts==[])
 			if (touched.length > 0 && !config.instantiation.ignoreIUP) { // it would be nice to check "touched.length < glyph.points.length" but that won’t work with sparse arrays, and must also think about phantom points
 
 				// for each contour
@@ -2620,6 +2651,7 @@ function glyphApplyVariations (glyph, userTuple) {
 	}); // end of processing the tvts
 
 	// new extremes
+	// - ignore for composites
 	if (glyph.tvts.length) {
 		newGlyph.xMin = newGlyph.yMin = 32767;
 		newGlyph.xMax = newGlyph.yMax = -32768;
@@ -2633,9 +2665,13 @@ function glyphApplyVariations (glyph, userTuple) {
 				newGlyph.yMin = point[1];
 			else if (newGlyph.yMax < point[1])
 				newGlyph.yMax = point[1];
-		};
+		}
 	}
-
+	
+	if (instance) {
+		//console.log(`Saving this transformed glyph in instance.glyphs[${glyph.id}]`);
+		instance.glyphs[glyph.id] = newGlyph;
+	}
 	return newGlyph;
 }
 
@@ -2645,7 +2681,7 @@ function getDefaultGlyphId(font) {
 	for (let d=0; d < font.config.defaultGlyph.length; d++) {
 		let g, name = font.config.defaultGlyph[d];
 		if ((g = font.glyphNames.indexOf(name)) != -1) {
-			return g; // inelegantly but concisely quit from the function
+			return g; // inelegant but concise
 		}
 	}
 
@@ -2653,7 +2689,7 @@ function getDefaultGlyphId(font) {
 	// - IMPORTANT: this requires the glyphs to be loaded
 	for (let g=0; g < font.numGlyphs; g++) {
 		if (font.glyphs[g].numContours > 0) {
-			return g; // inelegantly but concisely quit from the function
+			return g; // inelegant but concise
 		}
 	}
 
