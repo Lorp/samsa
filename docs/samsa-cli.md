@@ -1,21 +1,42 @@
 # Samsa-CLI
 
-The only function currently is instantiation. Command-line arguments define the input font and control which instances will be generated as static fonts.
+Samsa-CLI (samsa-cli.js) is a Node.js command-line utility for performing operations on variable fonts (VFs). It wraps the [Samsa-Core](samsa-core.js) library, i.e. it depends on samsa-
+core.js.
+
+## Execution
 
 Run it using Node.js:
 
 `node samsa-cli.js`  
 
-The command line options are to declare the variable font being used:
+## Options
+
+Define the input and output font files using `--input-font` and `--output-font`:
 
 `--input-font <variable-ttf-file>`  
+`--output-font <variable-ttf-file>`  
 
-This option creates a new non-variable font using the given axis settings:
+Define a variation to be instantiated:
 
-`--variation-settings <axis1> <value1> [,<axis2> <value2>...]`  
+`--variation-settings <axis1> <value1> [<axis2> <value2>...]`  
 
-This creates new non-variable fonts for all the named instances in the variable font:
+If you want all named instances to be instantiated as static fonts:
 
 `--named-instances`  
 
-Initial tests show that it is much faster (approx. 42x) than fontTools at instantiation. Note that the fonts produced are not production ready, lacking support for several variation tables.
+## Examples
+
+```
+node samsa-cli.js --input-font Gingham.ttf --variation-settings wght 634 wdth 5
+node samsa-cli.js --input-font Gingham.ttf --variation-settings wght 300 wdth 75 --named-instances
+```
+
+## Performance
+
+Initial tests show that it is much faster (approx. 42x) than fontTools at instantiation.
+
+## Limitations
+The fonts produced are not production ready. Limitations include:
+
+* no support for GSUB, GPOS, STAT tables.
+* checksums are not performed
