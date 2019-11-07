@@ -27,7 +27,7 @@ There are several ways to try Samsa:
 
 ## Background
 
-The Samsa project grew out of work in 2017 to write a VF browser polyfill (an early version was demo’d at [TYPO Labs](https://www.youtube.com/watch?v=16QIZrRxafY&t=45m16s)) and also to extend [Axis-Praxis](https://www.axis-praxis.org) in order to visualize what happens inside VFs as designspace location changes. The polyfill was itself a development of @Lorp’s TTJS of 2013, a browser app that allowed reading, editing and writing of TrueType fonts. The visualization project took a separate development path from Axis-Praxis, and Samsa was demo’d at TGA Raabs 2017 and TYPO Labs 2018. With support from Google Fonts in 2019, Samsa now has numerous fixes and other improvements including a brand new UI, and is to be released under the Apache-2.0 license.
+The Samsa project grew out of @Lorp’s work in 2017 to write a VF browser polyfill (an early version was demo’d at [TYPO Labs](https://www.youtube.com/watch?v=16QIZrRxafY&t=45m16s)) and also to extend [Axis-Praxis](https://www.axis-praxis.org) in order to visualize what happens inside VFs as designspace location changes. The polyfill was itself a development of @Lorp’s TTJS of 2013, a browser app that allowed reading, visual editing and writing of TrueType fonts. The visualization project took a separate development path from Axis-Praxis, and Samsa was demo’d at TGA Raabs 2017 and TYPO Labs 2018. With support from Google Fonts in 2019, Samsa now has numerous fixes and other improvements including a new UI, and is to be released under the Apache-2.0 license.
 
 ## Contributing
 
