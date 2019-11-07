@@ -6,12 +6,12 @@ Samsa uses the Samsa-Core JavaScript library for processing variable fonts. This
 
 Samsa is written in ES6 JavaScript with no dependencies. It is normally installed on web servers, but can also be run from any folder with no server setup.
 
-Also provided are a command-line utility, Samsa-CLI, and a simple browser VF polyfill, Samsa-Polyfill. They both depend on the Samsa-Core library.
+Also provided are a command-line utility, Samsa-CLI (for execution via Node.js), and a simple browser VF polyfill, Samsa-Polyfill. They both depend on the Samsa-Core library.
 
 ## Detailed documentation
 
 * [**Samsa**](docs/samsa-gui.md) is the main web app.
-* [**Samsa-CLI**](docs/samsa-cli.md) is a command-line utility, executed using Node.js, for generating static instances from VFs.
+* [**Samsa-CLI**](docs/samsa-cli.md) is a command-line utility for generating static instances from VFs. It is executed using Node.js.
 * [**Samsa-Core**](docs/samsa-core.md) is the JavaScript library that powers Samsa-GUI and Samsa-CLI.
 * [**Samsa-Polyfill**](docs/samsa-polyfill.md) is a demo that uses Samsa-Core to implement a VF polyfill in browsers.
 
@@ -19,7 +19,7 @@ Also provided are a command-line utility, Samsa-CLI, and a simple browser VF pol
 
 There are several ways to try Samsa:
 
-* Go to lorp.github.io/samsa for the latest release.
+* Go to lorp.github.io/samsa for the latest release [not yet]
 * Download the repository and double-click `samsa-gui.html`
 	* This works fine for drag-drop usage, but will not allow fonts to be loaded from the server.
 * Download the files and install on a web server
