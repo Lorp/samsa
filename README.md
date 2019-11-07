@@ -1,49 +1,34 @@
 # Samsa
 
-Samsa is a suite of tools for variable font development. It is written in vanilla JavaScript
+Samsa is a web app that visualizes how a variable font (VF) works. Type designers, font developers, front end developers and others can use Samsa to open VFs, then inspect VF glyph outlines and other data as the VF designspace is explored.
 
-Included are *Samsa-GUI*, a front-end font inspector and *Samsa-CLI*, a command-line utility for instantiating variable fonts. Also included is *Samsa-Polyfill*, a demo variable font polyfill for browsers. The library functions are all in *Samsa-Core* (samsa-core.js), see below.
+Samsa uses the Samsa-Core JavaScript library for processing variable fonts. This library implements the [OpenType 1.8 Variations](https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview) specification. Samsa-Core can also output static TrueType (TTF) fonts, and the Samsa web app provides export of static TTFs from any designspace location.
 
-## Samsa-GUI
+Samsa is written in ES6 JavaScript with no dependencies. It is normally installed on web servers, but can also be run from any folder with no server setup.
 
-Undergoing a rewrite. Currently redesigning the UI as well as the interface to Samsa-Core.
+Also provided are a command-line utility, Samsa-CLI, and a simple browser VF polyfill, Samsa-Polyfill. They both depend on the Samsa-Core library.
 
-Old version: ``
+## Detailed documentation
 
-New version: `samsa-gui.html`
+* [**Samsa**](docs/samsa-gui.md) is the main web app.
+* [**Samsa-CLI**](docs/samsa-cli.md) is a command-line utility, executed using Node.js, for generating static instances from VFs.
+* [**Samsa-Core**](docs/samsa-core.md) is the JavaScript library that powers Samsa-GUI and Samsa-CLI.
+* [**Samsa-Polyfill**](docs/samsa-polyfill.md) is a demo that uses Samsa-Core to implement a VF polyfill in browsers.
 
-## Samsa-CLI
+## Try out Samsa
 
-Samsa-CLI is a command-line utility that performs useful functions on variable fonts. It uses the same library as Samsa-GUI: Samsa-Core (samsa-core.js).
+There are several ways to try Samsa:
 
-### Instantiation
-Its only function so far is instantiation. There are command-line arguments to define the input font and to control instantiation.
+* Go to lorp.github.io/samsa for the latest release.
+* Download the repository and double-click `samsa-gui.html`
+	* This works fine for drag-drop usage, but will not allow fonts to be loaded from the server.
+* Download the files and install on a web server
+	* You can make a symbolic link from index.html to samsa-gui.html or simply rename samsa-gui.html to index.html
 
-Run it using Node.js:
+## Background
 
-`node samsa-cli.js`  
+The Samsa project grew out of work in 2017 to write a VF browser polyfill (an early version was demo’d at [TYPO Labs](https://www.youtube.com/watch?v=16QIZrRxafY&t=45m16s)) and also to extend [Axis-Praxis](https://www.axis-praxis.org) in order to visualize what happens inside VFs as designspace location changes. The polyfill was itself a development of @Lorp’s TTJS of 2013, a browser app that allowed reading, editing and writing of TrueType fonts. The visualization project took a separate development path from Axis-Praxis, and Samsa was demo’d at TGA Raabs 2017 and TYPO Labs 2018. With support from Google Fonts in 2019, Samsa now has numerous fixes and other improvements including a brand new UI, and is to be released under the Apache-2.0 license.
 
-The command line options are to declare the variable font being used:
+## Contributing
 
-`--input-font <variable-ttf-file>`  
-
-This option creates a new non-variable font using the given axis settings:
-
-`--variation-settings <axis1> <value1> [,<axis2> <value2>...]`  
-
-This creates new non-variable fonts for all the named instances in the variable font:
-
-`--named-instances`  
-
-It is *much* faster than fontTools at instantiation. However the fonts produced are not production ready, lacking support for several variation tables. In most fonts, handling these extra tables will not slow the utility down significantly.
-
-
-## Samsa-Core
-
-Refactoring during October 2019, moving many functions to Samsa-Core.
-
-
-## Samsa-Polyfill
-
-A demo page of how to set up Samsa for use as a polyfill.
-
+Feedback and contributions (UI ideas, feature ideas, code) are welcome. Please use the GitHub issues system to report bugs and to suggest improvements.
