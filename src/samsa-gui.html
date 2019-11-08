@@ -58,10 +58,12 @@
 		<div></div>
 	</div>
 
+<!--
 	<div id="stat" class="panel">
 		<h2>STAT</h2>
 		<div></div>
 	</div>
+-->
 
 	<div id="glyphs" class="panel">
 		<h2>Glyphs
@@ -358,12 +360,8 @@ function axisInput() {
 	// create instance
 	let instance = font.addInstance(getCurrentFvs()); // { name: "Custom", tuple: [] };
 
-	console.log("GLOBAL.currentGlyphId", GLOBAL.currentGlyphId);
 	let glyph = font.glyphs[GLOBAL.currentGlyphId];
-	console.log("instance", glyph, instance);
-	//let iglyph = glyphApplyVariations(glyph, getCurrentFvs(), instance);
 	let iglyph = glyphApplyVariations(glyph, null, instance);
-	console.log("iglyph", iglyph);
 	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 
 	// delete instance? definitely!
@@ -439,7 +437,7 @@ function updateGlyphsPanel(instance) {
 
 	}
 
-	setActiveGlyph(GLOBAL.currentGlyphId);
+	setActiveGlyph(GLOBAL.currentGlyphId, instance);
 
 }
 
@@ -534,7 +532,6 @@ function setActiveGlyph (g, instance) {
 
 	let glyph = font.glyphs[g];
 
-	console.log("setActiveGlyph instance = ", instance);
 	let iglyph = glyphApplyVariations(glyph, getCurrentFvs(), instance);
 	//setActiveGlyph(g);
 
@@ -821,16 +818,32 @@ function setActiveGlyph (g, instance) {
 		tvtId.innerText = t;
 
 		let tvtDeltas = document.createElement("div");
-		tvtDeltas.innerText = tvt.peak[0]; // JSON.stringify(tvt.deltas);
+		let numDeltas = 0;
+		for (let p=0; p<tvt.deltas.length; p++) {
+			if (tvt.deltas[p] !== null)
+				numDeltas++;
+		}
+		tvtDeltas.innerText = `${numDeltas}/${tvt.deltas.length}`;
+		tvtDeltas.setAttribute("title", `This tuple variation moves ${numDeltas} out of ${tvt.deltas.length} points${ numDeltas==tvt.deltas.length ? " (no IUP)" : ""}`);
 
-		let tvtBlank = document.createElement("div");
-		tvtBlank.innerText = "x";
+		// draw S value as bar graph
+		let sValue = iglyph.sValues[t];
+		let tvtS = document.createElement("div");
+		tvtS.setAttribute("style", `width: ${40 * sValue}px; height: 20px; background-color: red;`);
+		tvtS.setAttribute("title", sValue);
+		if (sValue > 0) {
+			li.style.backgroundColor = "white";
+		}
 
 		li.appendChild(tvtId);
 		li.appendChild(tvtDeltas);
-		li.appendChild(tvtBlank);
+		li.appendChild(tvtS);
 
-		// add an svg graph for each axis
+
+
+		// add a graph for each axis
+		// - each graph is a single SVG element with descendants
+		// - each tuple contains <font.numAxes> graphs representing how this tuple responds to each axis
 		for (let a=0; a<GLOBAL.vf.axisCount; a++) {
 			let tvtGraphEl = document.createElement("div");
 			let tvtGraph = SVG("svg");
@@ -858,13 +871,19 @@ function setActiveGlyph (g, instance) {
 				// typicaly graphs are shown at https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
 				let path = SVG("path");
 				let pathD = `M ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy*1.0} L ${Sx*tvt.end[a]},0`;
-				path.setAttributeNS(null, "fill", "none");
-				path.setAttributeNS(null, "stroke", "black");
-				path.setAttributeNS(null, "stroke-width", "2");
+				path.setAttributeNS(null, "fill", "black");
+				path.setAttributeNS(null, "stroke", "none");
 				path.setAttributeNS(null, "d", pathD);
 				svgg.appendChild(path);
 			}
 
+			// draw current axis position
+			if (iglyph.instance && iglyph.instance.tuple[a] > 0) {
+				let needle = SVG("line");
+				let needleColor = "red";
+				needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: iglyph.instance.tuple[a]*20, y1: 0, x2: iglyph.instance.tuple[a]*20, y2: 20});
+				svgg.appendChild(needle);
+			}
 
 			tvtGraph.appendChild(svgg);
 			tvtGraphEl.appendChild(tvtGraph);
@@ -873,24 +892,29 @@ function setActiveGlyph (g, instance) {
 			li.appendChild(tvtGraphEl);
 		}
 		
-
-
-		//panel.innerHTML += JSON.stringify(tvt) + "<br>";
-
 		panel.appendChild(li);
 
+		tvtDeltas.addEventListener("click", function (event) {
+			let str = "";
+			tvt.deltas.forEach((delta, p) => {
+				str += `${p}: `;
+				if (delta === null)
+					str += "—";
+				else
+					str += `${Math.round(sValue*delta[0])},${Math.round(sValue*delta[1])}`;
+				str += "\n";
+			});
+			alert (str);
+		});
+
 	});
-
-
-
-
 
 }
 
 
 function playGlyphs() {
 	g = getActiveGlyph();
-	setActiveGlyph ((g+1) % GLOBAL.vf.numGlyphs);
+	setActiveGlyph ((g+1) % GLOBAL.vf.numGlyphs, getActiveInstance(GLOBAL.vf));
 	GLOBAL.vf.timerGlyphPlayer = setTimeout (playGlyphs, 500);
 }
 
@@ -961,18 +985,19 @@ console.log(event.target);
 
 		let g;
 		clearTimeout(GLOBAL.vf.timerGlyphPlayer);
+		let instance = getActiveInstance(GLOBAL.vf);
 
 		switch (event.target.id) {
 
 			case "glyphs-stepforward":
 				clearTimeout(GLOBAL.vf.timerGlyphPlayer);
 				g = getActiveGlyph();
-				setActiveGlyph ((g+1) % font.numGlyphs);
+				setActiveGlyph ((g+1) % font.numGlyphs, instance);
 				break;
 			case "glyphs-stepback":
 				clearTimeout(GLOBAL.vf.timerGlyphPlayer);
 				g = getActiveGlyph();
-				setActiveGlyph ((g-1+font.numGlyphs) % font.numGlyphs);
+				setActiveGlyph ((g-1+font.numGlyphs) % font.numGlyphs, instance);
 				break;
 			case "glyphs-play":
 				playGlyphs();
