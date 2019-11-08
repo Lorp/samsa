@@ -2436,7 +2436,7 @@ function getGlyphSVGpath(glyph)
 
 	// convert TT points to an array of points ready for SVG, glyphSVG
 	glyph.endPts.forEach(function (endPt) {
-		var numPointsInContour = endPt-startPt+1;
+		const numPointsInContour = endPt-startPt+1;
 		contourSVG = [];
 
 		for (p=startPt; p<=endPt; p++) {
@@ -2456,18 +2456,17 @@ function getGlyphSVGpath(glyph)
 	// - already, there are never >1 consecutive off-curve points
 	for (c=0; c<glyphSVG.length; c++) {
 		contourSVG = glyphSVG[c];
-		for (p=0; p<contourSVG.length; p++)
-		{
+		for (p=0; p<contourSVG.length; p++) {
 			pt = contourSVG[p];
 			if (p==0)
-				path += "M" + pt[0] + " " + pt[1];
+				path += `M${pt[0]} ${pt[1]}`;
 			else {
 				if (pt[2] == 0) {
 					pt_ = contourSVG[(++p) % contourSVG.length]; // increments loop variable p
-					path += "Q" + pt[0] + " " + pt[1] + " " + pt_[0] + " " + pt_[1];
+					path += `Q${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]}`;
 				}
 				else
-					path += "L" + pt[0] + " " + pt[1];
+					path += `L${pt[0]} ${pt[1]}`;
 				if (p == contourSVG.length-1)
 					path += "Z";
 			}
