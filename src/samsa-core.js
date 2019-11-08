@@ -1565,6 +1565,7 @@ function SamsaVF_parseSmallTable (tag) {
 				{
 					case 1:
 						if (nameRecord.languageID == 0)
+						// TODO: treat 1,0 strings as MacRoman
 							if (nameRecord.encodingID == 0)
 							{
 								while (p < nameRecordEnd)
@@ -1586,14 +1587,13 @@ function SamsaVF_parseSmallTable (tag) {
 									break;
 
 								case 10:
-									//var big = 0;
 									while (p < nameRecordEnd) {
 										// this obtains the Unicode index for codes >= 0x10000
 										str += (String.fromCharCode(data.getUint16(p))), p+=2;
 									}
 									nameRecord.string = str;
 									break; // the sample text in the 2016 Zycon uses this to store an Emoji string
-									// TODO: is this necessary?
+									// TODO: hmm, it’s the same code, because we store them like this in UTF-8
 							}
 
 						}
@@ -1601,7 +1601,6 @@ function SamsaVF_parseSmallTable (tag) {
 
 				// set up working name strings that might be taken from Windows (3) or Macintosh (1) strings
 				// the Windows strings will overwrite the Mac strings, as nameRecords are sorted by platformID as well as nameID
-				// TODO: treat 1,0 strings as MacRoman
 				if (nameRecord.hasOwnProperty('string'))
 					font.names[nameRecord.nameID] = str; // sparse array
 
@@ -2192,7 +2191,6 @@ function SamsaVF (init, config) {
 		// modify t according to the avar for this axis
 		// - see https://docs.microsoft.com/en-us/typography/opentype/spec/avar
 		if (this.avar && this.avar[axis.id]) {
-			//console.log("Processing avar of length " + this.avar.length);
 			let map = this.avar[axis.id];
 			for (let m=0; m<map.length; m++) {
 
@@ -2221,7 +2219,6 @@ function SamsaVF (init, config) {
 
 	// load data if not already loaded
 	if (!this.data && this.url) {
-		//console.log ("loading");
 		this.load(this.url);
 	}
 
@@ -2377,6 +2374,7 @@ function glyphApplyVariations (glyph, userTuple, instance) {
 	});
 
 	// go through each tuple variation table for this glyph
+	newGlyph.sValues = [];
 	glyph.tvts.forEach(function(tvt, t) {
 
 		let scaledDeltas = [];
@@ -2491,6 +2489,11 @@ function glyphApplyVariations (glyph, userTuple, instance) {
 				point[1] += Math.round(scaledDeltas[p][1]);
 			});
 		} // if (S != 0)
+
+		// store S so we can use it in visualization
+		// - maybe we should recalculate multiple AS values and 1 S value in the GUI so we don’t add load to samsa-core
+		newGlyph.sValues.push(S);
+
 	}); // end of processing the tvts
 
 	// new extremes
