@@ -28,18 +28,18 @@
 
 <div id="controls">
 
-	<div id="info" class="panel">
-		<h2>Info</h2>
+	<div id="info" class="panel open">
+		<h2><span class="icon bold reveal">&#xf04b;</span> Info</h2>
 		<div></div>
 	</div>
 
-	<div id="axes" class="panel">
-		<h2>Axes</h2>
+	<div id="axes" class="panel open">
+		<h2><span class="icon bold reveal">&#xf04b;</span> Axes</h2>
 		<div></div>
 	</div>
 
-	<div id="instances" class="panel">
-		<h2>Instances
+	<div id="instances" class="panel open">
+		<h2><span class="icon bold reveal">&#xf04b;</span> Instances
 			<!--
 			<span class="icon" id="instances-as-grid">&#xf00a;</span>
 			<span class="icon" id="instances-as-list">&#xf0c9;</span>
@@ -48,13 +48,13 @@
 		<div></div>
 	</div>
 
-	<div id="tvts" class="panel">
-		<h2>Tuple Variations</h2>
+	<div id="tvts" class="panel open">
+		<h2><span class="icon bold reveal">&#xf04b;</span> Tuple Variations</h2>
 		<div style="overflow-x: scroll;"></div>
 	</div>
 
-	<div id="designspace" class="panel">
-		<h2>Designspace</h2>
+	<div id="designspace" class="panel closed">
+		<h2><span class="icon bold reveal">&#xf04b;</span> Designspace</h2>
 		<div></div>
 	</div>
 
@@ -65,8 +65,8 @@
 	</div>
 -->
 
-	<div id="glyphs" class="panel">
-		<h2>Glyphs
+	<div id="glyphs" class="panel open">
+		<h2><span class="icon bold reveal open">&#xf04b;</span> Glyphs
 			<!-- <span class="icon bold" id="glyphs-rewind">&#xf04a;</span> -->
 			<span class="icon bold" id="glyphs-stepback" title="Step back">&#xf048;</span>
 			<span class="icon bold" id="glyphs-stop" title="Stop playing">&#xf04d;</span>
@@ -79,8 +79,8 @@
 
 	</div>
 
-	<div id="font-list" class="panel">
-		<h2>Fonts ready to load</h2>
+	<div id="font-list" class="panel open">
+		<h2><span class="icon bold reveal open">&#xf04b;</span> Fonts ready to load</h2>
 		<div></div>
 	</div>
 
@@ -340,6 +340,21 @@ function vfLoaded (font) {
 		appendInstanceEl(instance);
 	});
 	setActiveInstance(GLOBAL.vf); // without an instance parameter, it sets it to the default
+
+
+	///////////////////////////////////////////////////////
+	// designspace panel
+	///////////////////////////////////////////////////////
+	panel = Q("#designspace>div");
+	panel.innerText = "coming soon";
+	panel.style.width = "100%";
+	panel.style.height = "360px";
+	panel.style.backgroundColor = "white";
+
+
+
+	if (!panel.parentNode.classList.contains("open"))
+		panel.style.display = "none";		
 
 
 	///////////////////////////////////////////////////////
@@ -894,6 +909,7 @@ function setActiveGlyph (g, instance) {
 		
 		panel.appendChild(li);
 
+		// display the actual deltas for this tuple
 		tvtDeltas.addEventListener("click", function (event) {
 			let str = "";
 			tvt.deltas.forEach((delta, p) => {
@@ -981,7 +997,9 @@ console.log(event.target);
 		console.log(event.target.data.point);
 	}
 
-	else if (target = event.target.closest("#glyphs>h2") && event.target.classList.contains("icon")) { // ordering important
+	else if (target = event.target.closest("#glyphs>h2") 
+			&& event.target.classList.contains("icon")
+			&& !event.target.classList.contains("reveal")) { // this test must be before the other h2 test
 
 		let g;
 		clearTimeout(GLOBAL.vf.timerGlyphPlayer);
@@ -1013,6 +1031,9 @@ console.log(event.target);
 	else if (target = event.target.closest("#controls .panel>h2")) {
 		// toggle display of panel when panel header is clicked
 		let panelDiv = target.parentNode.querySelector("div");
+
+		panelDiv.parentNode.classList.toggle("open");
+
 		console.log (panelDiv);
 		if (panelDiv) {
 			if (panelDiv.style.display == "none") {

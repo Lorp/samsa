@@ -94,6 +94,7 @@ body {
 }
 
 #controls h2 {
+	position: relative;
 	font-size: 1em;
 	font-weight: 500;
 	background-color: darkgrey;
@@ -101,6 +102,7 @@ body {
 	padding-left: 1em;
 	margin: 0;
 	border-bottom: 1px solid black;
+	padding-left: 2em;
 }
 
 .panel>div {
@@ -201,4 +203,16 @@ tt {
 
 .font-file {
 
+}
+
+.reveal {
+	transform: rotate(0turn);
+	position: absolute;
+	left: 1em;
+	top: 0.25em;
+	transition: transform 0.2s ease-out;
+}
+
+.open .reveal {
+	transform: rotate(0.25turn);
 }
