@@ -23,11 +23,6 @@ samsa-core.js
 // - rename it SamsaCONFIG
 // - pass the actual config object along with the font
 let CONFIG = {
-	//MAX_TABLES: 100,
-	//OVERLAP_FLAG_APPLE: true,
-	//MAX_SIZE_FONT: 10000000,
-	//MAX_SIZE_GLYF_TABLE: 10000000,
-	//MAX_SIZE_NAME_TABLE: 50000,
 
 	isNode: (typeof module !== 'undefined' && module.exports),
 	outFileDefault: "samsa-out.ttf",
@@ -259,7 +254,6 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 	else {
 		console.log ("memory method");
 	}
-	//process.exit();
 
 	// sort tableDirectory (we can move this to the end)
 	//console.log(font.tableDirectory);
@@ -269,33 +263,20 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 	// - we later sort them by tag, so that we get nice table indices to update file with new offset and length
 	// - we might consider sorting tables by size here instead: this brings header tables to the front of the file and ensures loca will come before glyf; there was a Microsoft tool that did this
 	newTableDirectory.sort((a,b) => (a.offset > b.offset) ? 1 : -1);
-
-
 	font.tableDirectory.sort((a, b) => (a.offset > b.offset) ? 1 : -1); // sort in order of the original table order in the font, i.e. by offset
-	//console.log("Sorted tables");
-	//console.log(font.tableDirectory);
 
 
 	// [3] write tables (same order as source font)
 	// now the tableDirectory is ordered by original offset
 	//console.log(font.tableDirectory);
 	let tablesNewLocations = {};
-	//font.tableDirectory.forEach (table => {
 
 	// go thru tables in order of their original offset values
-
 	let locaBuf, hmtxBuf;
 	let aws = [], lsbs = []; // metrics, calculated when we instantiate each glyph
 	let newLocas = [0]; // if we write in ULONG format we can write this table before glyf if we want
 
-
-	//console.log(newTableDirectory); //process.exit();
-
-
 	newTableDirectory.forEach (table => {
-
-		//console.log(`Writing ${table.tag} at offset ${position.toString(16)}`);
-
 
 		// TODO: we already checked this...
 		if (font.config.instantiation.skipTables.indexOf(table.tag) == -1) {
@@ -322,11 +303,6 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 					for (let g=0; g<font.numGlyphs; g++) {
 
 						// remember to delete these later!
-						//font.glyphs[g] = font.parseGlyph(g); // glyf data
-						//font.glyphs[g].tvts = font.parseTvts(g); // gvar data
-		
-						//let glyph = font.glyphs[g];
-
 						let glyph = font.glyphs[g] = font.parseGlyph(g); // glyf data
 						glyph.tvts = font.parseTvts(g); // gvar data
 
@@ -363,7 +339,6 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 							let maxNewGlyphSize = 12 + glyph.instructionLength + (glyph.numContours+glyph.instructionLength) * 2 + glyph.numPoints * (2+2+1);
 							maxNewGlyphSize += 256; // safety margin...
 							newGlyphBuf = Buffer.alloc(maxNewGlyphSize);
-							//console.log("Memory " + maxNewGlyphSize );
 
 							let xMin=0,xMax=0,yMin=0,yMax=0;
 							let pt;
@@ -465,19 +440,14 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 								newGlyphBuf.setUint8(p, 0), p++;
 
 							// now p == size of this compiled glyph in bytes
-							//console.log("glyph size: "+ p + ", position: " + position);
 
 							// record our data position
 
-
 							// write this glyph
 							if (node) {
-								//console.log(`position: ${position.toString(16)}`);
 								write (fdw, newGlyphBuf, 0, p, position);
 								position += p;
 							}
-
-							//console.log(`DONE ${g}: @${p.toString(16)}`, newGlyphBuf);
 
 							// store metrics (with node, we soon lose the iglyph)
 							aws[g] = iglyph.points[iglyph.numPoints+1][0]; // the x-coordinate of the numPoints+1 point
@@ -486,25 +456,18 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 
 
 
-						// release memory explicitly
-
+						// release memory explicitly (might be more efficient to leave this to the garbage collector)
 						font.glyphs[g].tvts = undefined;
 						font.glyphs[g] = undefined;
 
 						// store location of *next* loca
-						//console.log (`loop ${g}: set next loca ${g+1} to ${p}`)
 						newLocas[g+1] = newLocas[g] + p;
 						// OPTIMIZE: write this directly to locaBuf
 
 					}
 
-
-					//position = p;
-					//console.log ("LENGTH: ", newLocas.length, font.glyphs.length)
-
 					// update table.length
 					table.length = newLocas[font.numGlyphs];
-					//console.log(`glyf table.length : ${(table.length).toString(16)}`);
 
 					break;
 
@@ -546,8 +509,6 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 
 				default:
 
-					//console.log("simpleTable");
-
 					// allocate memory for table
 					table.length = font.tables[table.tag].length; // new length == old length
 					let tableBuf = Buffer.alloc(table.length);
@@ -581,15 +542,10 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 			}
 		}
 
-
-		//console.log(`Written ${table.tag} at offset ${}`);
-
-
 	}); // end of each table loop
 
 
 	// [4] fix up
-	//console.log("Fixing up...");
 
 	// [4a] write final loca table
 	newLocas.forEach((loca, g) => {
@@ -1023,25 +979,6 @@ function SamsaVF_parseTvts(g) {
 		write = this.config.fs.writeSync;
 	}
 
-	//if (g >= 2)
-	//	return tvts;
-
-	//console.log ("========================================");
-	//console.log ("g="+g);
-	//console.log (`numContours: ${font.glyphs[g].numContours}`);
-
-	// composite?
-	// TODO: implement composites 2019-11-06
-	// - we reference glyph.numPoints+4 a few times, this must be replaced by glyph.points.length
-	if (font.glyphs[g].numContours == -1) {
-		//console.log("COMPOSITE SO QUIT");
-
-		// TODO: These need to be created with fake points for the components, then 4 phantom points
-		
-
-		//return tvts; // deleted 2019-11-07
-	}
-
 	// set up data and pointers
 	if (node) {
 		data = Buffer.alloc(size);
@@ -1053,10 +990,6 @@ function SamsaVF_parseTvts(g) {
 		p = font.tables['gvar'].offset + font.tables['gvar'].data.offsetToData + offset;
 	}
 	tvtsStart = p;
-
-	//console.log("-----------------");
-	//console.log ("Parsing tvts #" + g);
-	//console.log (data);
 
 	// do we have data?
 	if (font.tupleSizes[g] > 0) {
@@ -1070,7 +1003,6 @@ function SamsaVF_parseTvts(g) {
 		tuplesSharePointNums = (tupleCount & 0x8000) ? true : false; // doesn't happen in Skia
 		tupleCount &= 0x0FFF;
 		offsetToSerializedData = data.getUint16(p), p+=2;
-		//console.log ("tupleCount: " + tupleCount, "offset: " + offsetToSerializedData);
 		let sharedPointIds = [];
 		let sharedTupleNumPoints = 0;
 
@@ -1079,28 +1011,17 @@ function SamsaVF_parseTvts(g) {
 
 
 		// [[ 1b ]] get shared points - this is the first part of the serialized data (ps points to it)
-		//console.log(data);
 		if (tuplesSharePointNums) {
 
-			//console.log ("====================\nGETTING sharedPointIds\n====================")
 			let impliedAllPoints = false;
-			//console.log("ps should be 16, but is " + (ps-tvtsStart));
-
-
 			let tupleNumPoints = data.getUint8(ps); ps++;
 			if (tupleNumPoints & 0x80)
 				tupleNumPoints = 0x100 * (tupleNumPoints & 0x7F) + data.getUint8(ps), ps++;
 			else
 				tupleNumPoints &= 0x7F;
 
-			
-			//let tupleNumPoints = data.getUint16(ps); ps+=2;
-			//console.log ("tupleNumPoints====" + tupleNumPoints.toString(16));
 			if (tupleNumPoints == 0) { // allPoints: would be better to use the allPoints flag in the tuple
 				impliedAllPoints = true;
-				
-				// 2019-11-07 edit
-				//tupleNumPoints = font.glyphs[g].numPoints + 4; // we don't bother storing their IDs
 				tupleNumPoints = font.glyphs[g].points.length; // we don't bother storing their IDs
 			}
 			else {
@@ -1123,7 +1044,6 @@ function SamsaVF_parseTvts(g) {
 					}
 					pc += runLength;
 				}
-				//console.log("sharedPointIds: " +sharedPointIds);
 			}
 			sharedTupleNumPoints = tupleNumPoints; // this sharedTupleNumPoints is tested later on (this case would have been better represented directly in the tuple as an all points tuple)
 		}
@@ -1132,10 +1052,7 @@ function SamsaVF_parseTvts(g) {
 		// get the tvt
 		for (var t=0; t < tupleCount; t++) {
 
-			//console.log(`------`);
-			//console.log(`TUPLE ${t}`);
 			let tupleSize, tupleIndex, tupleIntermediate, tuplePrivatePointNumbers, tupleNumPoints, impliedAllPoints;
-			//var tuple = {};
 			let tvt = {
 				peak: [],
 				start: [],
@@ -1146,12 +1063,10 @@ function SamsaVF_parseTvts(g) {
 			// [[ 2a ]] get TupleVariationHeader
 			tupleSize = data.getUint16(p), p+=2;
 			tupleIndex = data.getUint16(p), p+=2;
-			//console.log ("tupleSize, tupleIndex: ", tupleSize, tupleIndex)
 			tupleEmbedded = (tupleIndex & 0x8000) ? true : false; // TODO: get rid of these true/false things
 			tupleIntermediate = (tupleIndex & 0x4000) ? true : false;
 			tuplePrivatePointNumbers = (tupleIndex & 0x2000) ? true : false;
 			tupleIndex &= 0x0fff;
-			//console.log ("tupleSize, tupleIndex: ", tupleSize, tupleIndex)
 
 			let a, c;
 
@@ -1193,61 +1108,30 @@ function SamsaVF_parseTvts(g) {
 			// ps is the pointer inside the serialized data
 			// POINT IDS
 			let pointIds = [];
-
-
-
-			// console.log("+++++++++++++++++++++++++++++++++++");
-			// console.log("@g="+g+",ps="+ps);
-			// console.log(tvt);
-
 			tupleNumPoints = 0;
 
 			// TODO: should be a test for whether private point nums!!!!!!!!!!!!!
 			if (!tuplePrivatePointNumbers) {
-				// populate pointIds from sharedpointdata for this tuple
-				// console.log ("tuplePrivatePointNumbers OFF (so sharing)");
-
-				//get the points from the sharedpointdata for this tuple
+				// get the points from the sharedpointdata for this tuple
 				pointIds = sharedPointIds;
-				// console.log(pointIds);
-
-				// MUCH BETTER!???
-				//tupleNumPoints = sharedPointIds.length;
 				tupleNumPoints = sharedTupleNumPoints; // we could use sharedPointIds.length BUT sharedPointIds is empty (IBMPlexVariable) when the shared record is also an all points record
 			}
 			else {
 				// get the packed point number data for this tuple
-				//console.log ("tuplePrivatePointNumbers ON");
 				tupleNumPoints = data.getUint8(ps), ps++; // 0x00
 				if (tupleNumPoints & 0x80)
 					tupleNumPoints = 0x100 * (tupleNumPoints & 0x7F) + data.getUint8(ps), ps++;
 				else
 					tupleNumPoints &= 0x7F;
-				//console.log ("Expecting " + tupleNumPoints + " points!")
 
-				if (tupleNumPoints == 0) {
-
-					//console.log ("We have an 'all points' situation");
+				if (tupleNumPoints == 0) { // we have an 'all points' situation
 					impliedAllPoints = true;
-					
-
-					// 2019-11-07
-					//tupleNumPoints = font.glyphs[g].numPoints + 4; // remember that 0 meant "all points" - we just don't bother storing their IDs
 					tupleNumPoints = font.glyphs[g].points.length; // remember that 0 meant "all points" - we just don't bother storing their IDs
-
-					//console.log ("tupleNumPoints (all): " + tupleNumPoints)
-					//pointIds = font.glyphs[g].points.keys(); // experimental, perhaps better handled as an exception to the loop that assings the tvt deltas
-					//console.log("YO?");
 				}
 				else {
 					var pointNum = 0;
 					var pc = 0;
 					impliedAllPoints = false;
-
-					//console.log("NEVER?");
-					//console.log("tupleNumPoints: " + tupleNumPoints)
-
-					//console.log ("pointCount = " + tuple.pointCount);
 					while (pc < tupleNumPoints) {
 
 						runLength = data.getUint8(ps), ps++;
@@ -1263,18 +1147,11 @@ function SamsaVF_parseTvts(g) {
 							else
 								pointData = data.getUint8(ps), ps++;
 
-							// console.log ("pointData:",pointData);
 							pointNum += pointData;
-							
-							// console.log(`P ${pointNum}`);
 							pointIds.push(pointNum); // TODO: THIS IS BAD!!!!!!!!!!!!!!!!!!!! typically gives values of 32768, 34179
-
-							//runLength--;
 						}
 						pc += runLength;
 					}
-
-					// console.log(`pointIds:${pointIds}`);
 				}
 			}
 
@@ -1285,57 +1162,24 @@ function SamsaVF_parseTvts(g) {
 			// DELTAS
 			// get the packed delta values for this tuple
 			var unpacked = [];
-
-
-			// console.log("looking for " + tupleNumPoints + " tuple points")
-			
-
-
 			let tp=0; // delete tp?
 
 			// the all points' situation results in tupleNumPoints = font.glyphs[g].numPoints + 4
 
-			// console.log (`p:${p}  ps:${ps} [a]`);
 			while (unpacked.length < tupleNumPoints * 2) // TODO: replace with a for loop
 			//for (tp=0; tp < tupleNumPoints; )
 			{
-				// console.log(`upl:${unpacked.length}`);
 				runLength = data.getUint8(ps), ps++;
 				const bytesPerNum = (runLength & 0x80) ? 0 : (runLength & 0x40) ? 2 : 1;
 				runLength = (runLength & 0x3f) +1;
-				// console.log(`At ps=${ps}, run-length=${runLength} ${runLength & 0x40 ? "w" : "b"}`);
-
-
-
-				// if (tp!=unpacked.length)
-				// 	console.log (`PROBLEM: tp:${tp}, unpacked.length:${unpacked.length}`);
-				// else
-				// 	console.log("good", runLength);
-
 				let r;
-				switch (bytesPerNum)
-				{
+				switch (bytesPerNum) {
 					case 0: /*console.log(`@${ps} BPN-0 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(0); break;
 					case 1: /*console.log(`@${ps} BPN-1 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(data.getInt8(ps)), ps++; break;
 					case 2: /*console.log(`@${ps} BPN-2 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(data.getInt16(ps)), ps+=2; break;
 				}
-
 				tp+=runLength; // delete tp?
-
-				/*
-				if (ps - (font.tables['gvar'].offset + table.offsetToData + offset + gvd.offsetToSerializedData) > nextOffset)
-					console.log ("BAD: g=" + g + ", ps=" + ps + ",start=" + (font.tables['gvar'].offset + table.offsetToData + offset + gvd.offsetToSerializedData) + ", nextOffset="+nextOffset);
-				*/
 			}
-			// console.log (`p:${p}  ps:${ps} [b] :`, unpacked) ;
-
-
-			// if (tupleNumPoints * 2 == unpacked.length)
-			// 	console.log("tupleNumPoints * 2 == unpacked.length (" + unpacked.length + ")");
-			// else
-			// 	console.log("bad unpacked.length: " + unpacked.length + " (should be " + (tupleNumPoints*2)  +  ")");
-
-			// console.log(unpacked.join());
 
 			// tvt method 2019-10-15
 			//  - working nicely for fully populated delta arrays
@@ -1345,8 +1189,6 @@ function SamsaVF_parseTvts(g) {
 			// console.log("pointIds:" + pointIds); // if !PRIVATE_POINT_NUMBERS, what is the state of pointIds?
 
 			if (impliedAllPoints) {
-				// console.log("* impliedAllPoints: ", impliedAllPoints);
-				// console.log(unpacked);
 				for (let pt=0; pt < font.glyphs[g].points.length; pt++) {
 					tvt.deltas[pt] = [unpacked[pt], unpacked[pt + tupleNumPoints]];
 				}
@@ -1369,7 +1211,7 @@ function SamsaVF_parseTvts(g) {
 		}
 	}
 
-	return tvts; // return the tvts array to be added to the glyph
+	return tvts; // return the tvts array for this glyph
 }
 
 
@@ -1404,6 +1246,12 @@ function SamsaVF_parseGlyph (g) {
 	// set up data and pointers
 	if (node) {
 		data = Buffer.alloc(size);
+
+		// we should compare speeds for the best optmization
+		// - reading pieces of data from file when we need it
+		// - reading a whole glyph into memory, then parsing from memory
+		// - reading a block of data from the glyf table, loading more when needed, and parsing from memory
+		// - I think it was a bit faster when we loaded all glyphs in sequence, than the present case where we load a glyph and then its tvts
 		read (fd, data, 0, size, font.tables['glyf'].offset + offset);
 		p = 0;
 	}
@@ -1578,9 +1426,6 @@ function SamsaVF_parseSmallTable (tag) {
 		data = this.data;
 		p = tableOffset = font.tables[tag].offset;
 	}
-
-	//console.log ("parsing table " + tag);
-
 
 	// switch by tag to process each table
 	switch (tag) {
@@ -2028,7 +1873,10 @@ function SamsaVF_parse () {
 	}
 
 	// parse the short sfnt tables
+	// - maxp must be first
 	// - avar must precede fvar
+	// - name must precede fvar
+	// - gvar isn’t short, but we only parse its header here
 	["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "loca"].forEach(tag => {
 
 		if (font.tables[tag])
@@ -2077,14 +1925,14 @@ function SamsaVF_load (url) {
 }
 */
 
-// TODO make SamsaVFInstance a propoer object
+// TODO make SamsaVFInstance a proper object
 function SamsaVFInstance (init) {
 
 
 }
 
 
-// TODO: make SamsaVFGlyph a propoer object
+// TODO: make SamsaVFGlyph a proper object
 function SamsaVFGlyph (init) {
 
 	this.points = [];
@@ -2250,10 +2098,6 @@ function SamsaVF (init, config) {
 			binaryFile: null, // on instantiation, will contain a filename (replaces static) ?
 		};
 
-
-		//console.log ("here is new instance" , instance)
-		//console.log ("here are axes" , instance.font.axes)
-
 		// assign options
 		//  - possibly we can add an instance pointing to a pre-existing binary in memory or file
 		if (typeof options == "object") {
@@ -2402,7 +2246,7 @@ function getGlyphSVGpath(glyph)
 
 	// composite? handle them recursively
 	// - ok, this could lead to an array of arrays of arrays…
-	// - we’re probably only going to process them 1 level deep, a limitation shared with macOS
+	// - we only process them 1 level deep, a limitation shared with macOS
 	if (glyph.numContours == -1) {
 		let paths = [];
 		glyph.components.forEach((component, c) => {
