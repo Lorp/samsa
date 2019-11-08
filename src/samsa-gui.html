@@ -646,9 +646,9 @@ function setActiveGlyph (g, instance) {
 					svgPath = SVG("path"); // give this an id so we can detect clicks
 					svgPath.attrsSVG({
 						d: path,
-						stroke: `black`,
-						"stroke-width": `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`,
-						fill: "#eee",
+						stroke: "none",
+						//"stroke-width": `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`,
+						fill: "#ddd",
 					});
 					if (svgg3) {
 						//svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
@@ -685,15 +685,16 @@ function setActiveGlyph (g, instance) {
 				if (!Array.isArray(paths)) { // composite
 					paths = [paths];
 				}
+				let uiStyle = GLOBAL.vf.config.ui.instanceGlyph;
 				paths.forEach((path, p) => {
 					svgg3 = iglyph.numContours == -1 ? SVG("g") : null; // wrap component paths in a g
 					svgPath = SVG("path"); // give this an id so we can detect clicks
 					svgPath.attrsSVG({
 						d: path,
-						style: `opacity:${opacity}`,
-						stroke: `black`,
-						"stroke-width": `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`,
-						fill: `#00f`,
+						style: `opacity: ${uiStyle.opacity}`,
+						stroke: "black",//`${uiStyle.stroke}`,
+						"stroke-width": `${uiStyle.strokeWidth}px`,
+						fill: `${uiStyle.fill}`,
 						// "filter": "url(#blur)", not yet :)					
 					});
 					if (svgg3) {
@@ -828,6 +829,7 @@ function setActiveGlyph (g, instance) {
 		li.style.display = "grid";
 		li.style.gridTemplateColumns = `1.5em 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`
 		li.style.backgroundColor = "lightgrey";
+		li.style.height = "20px";
 
 		let tvtId = document.createElement("div");
 		tvtId.innerText = t;
@@ -844,7 +846,7 @@ function setActiveGlyph (g, instance) {
 		// draw S value as bar graph
 		let sValue = iglyph.sValues[t];
 		let tvtS = document.createElement("div");
-		tvtS.setAttribute("style", `width: ${40 * sValue}px; height: 20px; background-color: red;`);
+		tvtS.setAttribute("style", `width: ${40 * sValue}px; height: 20px; background-color: ${GLOBAL.vf.config.ui.tupleScalar.fill};`);
 		tvtS.setAttribute("title", sValue);
 		if (sValue > 0) {
 			li.style.backgroundColor = "white";
@@ -865,8 +867,8 @@ function setActiveGlyph (g, instance) {
 			let svgg = SVG("g");
 
 			tvtGraph.setAttributeNS(null, "width","50");
-			tvtGraph.setAttributeNS(null, "height","30");
-			svgg.setAttributeNS(null, "transform", `translate(25,25) scale(1,-1)`);
+			tvtGraph.setAttributeNS(null, "height","21");
+			svgg.setAttributeNS(null, "transform", `translate(20,20) scale(1,-1)`);
 
 
 			// draw a graph through start, peak, end for each axis
@@ -895,7 +897,7 @@ function setActiveGlyph (g, instance) {
 			// draw current axis position
 			if (iglyph.instance && iglyph.instance.tuple[a] > 0) {
 				let needle = SVG("line");
-				let needleColor = "red";
+				let needleColor = GLOBAL.vf.config.ui.tupleNeedle.stroke;
 				needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: iglyph.instance.tuple[a]*20, y1: 0, x2: iglyph.instance.tuple[a]*20, y2: 20});
 				svgg.appendChild(needle);
 			}
@@ -991,7 +993,6 @@ console.log(event.target);
 		setActiveInstance(GLOBAL.vf, target);
 	}
 
-	//else if (target = event.target.closest(".ctrl-pt")) {
 	else if (event.target.classList.contains("ctrl-pt")) {
 		console.log("click pt", event.target);
 		console.log(event.target.data.point);

@@ -72,10 +72,25 @@ let CONFIG = {
 			shapeOffCurve: "●", // ⯅●■
 		},
 
+		tupleNeedle: {
+			stroke: "red",
+		},
+
+		tupleScalar: {
+			fill: "red",
+		},
+
 		glyph: {
-			fillColor: "#404040",
-			strokeColor: "#000000",
-			strokeWidth: 1.5,
+			fill: "#ddd",
+			stroke: "none",
+			strokeWidth: 0,
+		},
+
+		instanceGlyph: {
+			fill: "#00f",
+			stroke: "black",
+			strokeWidth: 2,
+			opacity: 0.6,
 		},
 
 		// ?better as CSS, so we can add italic, weight, border, background-color etc?
