@@ -2547,13 +2547,15 @@ function getDefaultGlyphId(font) {
 	}
 
 	// we didn’t find any of the glyphs named in config.defaultGlyph, let’s use the first printable simple glyph
-	// - IMPORTANT: this requires the glyphs to be loaded
+	// - IMPORTANT: numContours requires the glyphs to be loaded
+	// - TODO: we probably shouldn't avoid returning a composite glyph, but we don't want to return a space glyph
 	for (let g=0; g < font.numGlyphs; g++) {
-		if (font.glyphs[g].numContours > 0) {
+		if (font.glyphs[g].numContours > 0 && g>0 && font.glyphNames[g] != ".notdef") {
 			return g; // inelegant but concise
 		}
 	}
 
+	// we tried to avoid .notdef and glyph 0, but here we are
 	return 0;
 }
 

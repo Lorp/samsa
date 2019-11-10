@@ -163,7 +163,7 @@ function appendInstanceEl(instance, select) {
 	cell0.innerHTML = `<strong title="${title}">${icon}</strong>`;
 
 	// SVG of the A glyph
-	// - would current glyph be better? ... probably not, as the image serves as a kind of visual label
+	// - would current glyph be better? ... the image serves as a kind of visual label, but...
 	let cell1 = document.createElement("div");
 	let svg = SVG("svg");
 
@@ -346,15 +346,110 @@ function vfLoaded (font) {
 	// designspace panel
 	///////////////////////////////////////////////////////
 	panel = Q("#designspace>div");
-	panel.innerText = "coming soon";
 	panel.style.width = "100%";
 	panel.style.height = "360px";
 	panel.style.backgroundColor = "white";
 
+	// build dropdown select elements
+	let xSelect = document.createElement("select");
+	let ySelect = document.createElement("select");
+	let xTitle = document.createElement("option"); xTitle.innerText = "x axis";
+	let yTitle = document.createElement("option"); yTitle.innerText = "y axis";
+	xSelect.appendChild(xTitle); xTitle.setAttribute("disabled", true);
+	ySelect.appendChild(yTitle); yTitle.setAttribute("disabled", true);
+	GLOBAL.vf.axes.forEach(axis => {
+		xEl = document.createElement("option"); xEl.innerText = axis.tag;
+		yEl = document.createElement("option"); yEl.innerText = axis.tag;
+		xSelect.appendChild(xEl);
+		ySelect.appendChild(yEl);
+	});
+	panel.appendChild(xSelect);
+	panel.appendChild(ySelect);
+
+	let cbxMultiple = document.createElement("input");
+	let cbxMultipleLabel = document.createElement("label");
+	cbxMultiple.setAttribute("type", "checkbox");
+	cbxMultiple.id = "dsAxesMultiple";
+	cbxMultipleLabel.innerText = "allow multiple VF axes per Cartesian axis"
+	cbxMultipleLabel.setAttribute("for", cbxMultiple.id);
+	panel.appendChild(cbxMultiple);
+	panel.appendChild(cbxMultipleLabel);
+
+	// TODO: hmm, this doesn’t work
+	cbxMultiple.addEventListener("click", function (event) {
+		if (cbxMultiple.value) {
+			xSelect.setAttribute("multiple", true);
+			ySelect.setAttribute("multiple", true);
+		}
+		else {
+			xSelect.removeAttribute("multiple");
+			ySelect.removeAttribute("multiple");
+		}
+	});
+
+	// select different axes for x amd y
+
+
+
+	panel.innerHTML += "<p>coming soon</p>";
+
+
+	// TODO: .designspace export - is this useful?
+	if (false) {
+
+		let exportEl = document.createElement("button");
+		exportEl.innerText = "Export as .designspace";
+		exportEl.id = "instance-add";
+		panel.appendChild(exportEl);
+
+		/*
+		<designspace format="3">
+			<axes>
+				<!-- define axes here -->
+				<axis../>
+				</axes>
+			<sources>
+				<!-- define masters here -->
+				<source../>
+			</sources>
+			<instances>
+				<!-- define instances here -->
+				<instance../>
+			</instances>
+		</designspace>
+		*/
+
+		let designspace = document.createElement("designspace");
+		designspace.setAttribute("format", 3);
+		let dsAxes = document.createElement("axes");
+		let dsSources = document.createElement("sources");
+		let dsInstances = document.createElement("instances");
+		GLOBAL.vf.axes.forEach(axis => {
+			let dsAxis = document.createElement("axis");
+			dsAxis.setAttribute("name", axis.name);
+			dsAxis.setAttribute("tag", axis.tag);
+			dsAxis.setAttribute("minimum", axis.min);
+			dsAxis.setAttribute("default", axis.default);
+			dsAxis.setAttribute("maximum", axis.max);
+			dsAxes.appendChild(dsAxis);
+		})
+		// what to do about sources?
+		GLOBAL.vf.instances.forEach(instance => {
+			let dsInst = document.createElement("instance");
+			//dsInstances.appendChild(dsInst);
+		})
+		designspace.appendChild(dsAxes);
+		designspace.appendChild(dsSources);
+		designspace.appendChild(dsInstances);
+		console.log ("<?xml version='1.0' encoding='utf-8'?>\n" + designspace.outerHTML);
+	}
+
+
+
 
 
 	if (!panel.parentNode.classList.contains("open"))
-		panel.style.display = "none";		
+		panel.style.display = "none";
 
 
 	///////////////////////////////////////////////////////
@@ -827,7 +922,7 @@ function setActiveGlyph (g, instance) {
 
 		// we mention some stuff about tvt id, then numpoints moved or something, then (aligning with axes in instance panel) an SVG graph for each axis
 		li.style.display = "grid";
-		li.style.gridTemplateColumns = `1.5em 100px 1.5em repeat(${GLOBAL.vf.axisCount}, 70px)`
+		li.style.gridTemplateColumns = `1.5em 80px 45px repeat(${GLOBAL.vf.axisCount}, 45px)`
 		li.style.backgroundColor = "lightgrey";
 		li.style.height = "20px";
 
