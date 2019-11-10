@@ -55,11 +55,18 @@ let CONFIG = {
 
 	// TODO: this should be set up in samsa-gui, not here in samsa-core
 	ui: {
+
+		cartesianAxes: {
+			stroke: "lightblue",
+			strokeWidth: 1,
+		},
+
 		arrow: {
-			strokeWidth: 2,
+			strokeWidth: 3,
 			tipLength: 10,
 			tipWidth: 6,
-			color: "#0044ee",
+			//color: "#0044ee",
+			color: "orange",
 		},
 
 		tuple: {
@@ -81,16 +88,21 @@ let CONFIG = {
 		},
 
 		glyph: {
-			fill: "#ddd",
+			//fill: "#ddd",
+			fill: "#555",
 			stroke: "none",
 			strokeWidth: 0,
+			backgroundColor: "black",
 		},
 
 		instanceGlyph: {
-			fill: "#00f",
-			stroke: "black",
+			//fill: "#00f",
+			//fill: "#ddd",
+			fill: "white",
+			//stroke: "white",
 			strokeWidth: 2,
-			opacity: 0.6,
+			//opacity: 0.6,
+			opacity: 0.8,
 		},
 
 		glyphThumb: {

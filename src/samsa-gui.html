@@ -53,7 +53,7 @@
 		<div style="overflow-x: scroll;"></div>
 	</div>
 
-	<div id="designspace" class="panel closed">
+	<div id="designspace" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Designspace</h2>
 		<div></div>
 	</div>
@@ -346,6 +346,7 @@ function vfLoaded (font) {
 	// designspace panel
 	///////////////////////////////////////////////////////
 	panel = Q("#designspace>div");
+	panel.innerText = "";
 	panel.style.width = "100%";
 	panel.style.height = "360px";
 	panel.style.backgroundColor = "white";
@@ -353,10 +354,16 @@ function vfLoaded (font) {
 	// build dropdown select elements
 	let xSelect = document.createElement("select");
 	let ySelect = document.createElement("select");
-	let xTitle = document.createElement("option"); xTitle.innerText = "x axis";
-	let yTitle = document.createElement("option"); yTitle.innerText = "y axis";
+	xSelect.id = "xSelect";
+	ySelect.id = "ySelect";
+	xSelect.setAttribute("multiple", true);
+	ySelect.setAttribute("multiple", true);
+	let xTitle = document.createElement("option"); xTitle.innerText = "X";
+	let yTitle = document.createElement("option"); yTitle.innerText = "Y";
 	xSelect.appendChild(xTitle); xTitle.setAttribute("disabled", true);
 	ySelect.appendChild(yTitle); yTitle.setAttribute("disabled", true);
+
+
 	GLOBAL.vf.axes.forEach(axis => {
 		xEl = document.createElement("option"); xEl.innerText = axis.tag;
 		yEl = document.createElement("option"); yEl.innerText = axis.tag;
@@ -366,6 +373,7 @@ function vfLoaded (font) {
 	panel.appendChild(xSelect);
 	panel.appendChild(ySelect);
 
+	/*
 	let cbxMultiple = document.createElement("input");
 	let cbxMultipleLabel = document.createElement("label");
 	cbxMultiple.setAttribute("type", "checkbox");
@@ -374,10 +382,18 @@ function vfLoaded (font) {
 	cbxMultipleLabel.setAttribute("for", cbxMultiple.id);
 	panel.appendChild(cbxMultiple);
 	panel.appendChild(cbxMultipleLabel);
+	*/
 
+	// TODO: normalized checkbox
+
+
+	updateDesignspace();
+/*
 	// TODO: hmm, this doesn’t work
-	cbxMultiple.addEventListener("click", function (event) {
-		if (cbxMultiple.value) {
+	//console.log(cbxMultiple)
+	cbxMultiple.onchange = function (event) {
+		alert ("click");
+		if (cbxMultiple.checked) {
 			xSelect.setAttribute("multiple", true);
 			ySelect.setAttribute("multiple", true);
 		}
@@ -385,8 +401,8 @@ function vfLoaded (font) {
 			xSelect.removeAttribute("multiple");
 			ySelect.removeAttribute("multiple");
 		}
-	});
-
+	};
+*/
 	// select different axes for x amd y
 
 
@@ -476,6 +492,57 @@ function axisInput() {
 
 	// delete instance? definitely!
 	font.instances.pop();
+}
+
+function updateDesignspace() {
+
+	let cb = Q("#dsAxesMultiple");
+	let xSelect = Q("#xSelect");
+	let ySelect = Q("#ySelect");
+
+	/*
+	if (cb.checked) {
+		xSelect.setAttribute("multiple", true);
+		ySelect.setAttribute("multiple", true);
+	}
+	else {
+		xSelect.removeAttribute("multiple");
+		ySelect.removeAttribute("multiple");
+	}
+	*/
+
+	// draw cartesian axes
+
+	let svg = SVG("svg");
+	let svgg = SVG("g"); // this transforms everything inside it
+	let svgPath;
+	let scale = -0.1;
+	svg.setAttributeNS(null, "width","360");
+	svg.setAttributeNS(null, "height","360");
+	svgg.setAttributeNS(null, "transform", `translate(0,260) scale(${scale},-${scale})`);
+
+
+	svgPath = SVG("path");
+
+	svgPath.setAttributeNS(null, "d", "M-10000,0 L10000,0 M0,-10000 L0,10000");
+	svgPath.setAttributeNS(null, "stroke", `lightblue`);
+	svgPath.setAttributeNS(null, "stroke-width", `1`);
+	svgPath.setAttributeNS(null, "fill", "none");
+	svgg.appendChild(svgPath);
+
+
+
+
+	// draw some glyphs
+
+
+
+	// capture mouse
+
+
+
+	// consider 1d view
+
 }
 
 function updateGlyphsPanel(instance) {
@@ -680,9 +747,12 @@ function setActiveGlyph (g, instance) {
 	let svgDefs = SVG("defs")
 	let svgMarker = SVG("marker")
 	let svgMarkerPath = SVG("path")
-	svg.setAttributeNS(null, "width","1000");
-	svg.setAttributeNS(null, "height","1000");
-	svgg.setAttributeNS(null, "transform", `translate(30,500) scale(${scale},-${scale})`);
+	svg.attrsSVG( {
+		width: 1000,
+		height: 1000,
+		style: `background-color: ${GLOBAL.vf.config.ui.glyph.backgroundColor};`,
+	});
+	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
 
 	// define marker
 	svgMarker.setAttributeNS(null, "id","arrow");
@@ -720,14 +790,14 @@ function setActiveGlyph (g, instance) {
 
 		switch (L) {
 
-			// coordinate grid
+			// cartesian axes, grid
 			case 0:
 				layer.type = "grid";
 				svgPath = SVG("path");
 
 				svgPath.setAttributeNS(null, "d", "M-10000,0 L10000,0 M0,-10000 L0,10000");
-				svgPath.setAttributeNS(null, "stroke", `lightblue`);
-				svgPath.setAttributeNS(null, "stroke-width", `1`);
+				svgPath.setAttributeNS(null, "stroke", GLOBAL.vf.config.ui.cartesianAxes.stroke );
+				svgPath.setAttributeNS(null, "stroke-width", GLOBAL.vf.config.ui.cartesianAxes.strokeWidth + "px");
 				svgPath.setAttributeNS(null, "fill", "none");
 
 				svgg.appendChild(svgPath);
@@ -757,9 +827,9 @@ function setActiveGlyph (g, instance) {
 					svgPath = SVG("path"); // give this an id so we can detect clicks
 					svgPath.attrsSVG({
 						d: path,
-						stroke: "none",
-						//"stroke-width": `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`,
-						fill: "#ddd",
+						stroke: GLOBAL.vf.config.ui.glyph.stroke,
+						"stroke-width": `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`,
+						fill: GLOBAL.vf.config.ui.glyph.fill,
 					});
 					if (svgg3) {
 						//svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
@@ -820,24 +890,31 @@ function setActiveGlyph (g, instance) {
 					}
 				});
 
-				//svgg.appendChild(svgPath);
 				break;
 
 			case 3:
 				// TODO: decide how to show "points" for composites… origin, so we see translations?
 				layer.type = "instance-points";
 				svgg2 = SVG("g");
-				svgg2.attrsSVG({
-					"fill": "none",
-					"stroke-width": "1px",
-					"stroke": GLOBAL.vf.config.ui.arrow.color,
-				});
+
 				iglyph.points.forEach(function (pt, p) {
-					// TODO: use individual SVG elements for each point when we implement dragging of instance points
-					let size = 4; //font.config.ui.point.size;
-					svgPath = SVG("path");
-					svgPath.attrsSVG({"d": `M${pt[0]-size},${pt[1]} L${pt[0]+size},${pt[1]} M${pt[0]},${pt[1]+size} L${pt[0]},${pt[1]-size}`});
-					svgg2.appendChild(svgPath);
+					let size = font.config.ui.point.size;
+					let svgP;
+					if (pt[2]) {
+						svgP = SVG("rect"); // on-curve
+						svgP.classList.add("ctrl-pt");
+						svgP.attrsSVG({
+							x: pt[0]-size, y: pt[1]-size,
+							width: 2*size, height: 2*size,
+						});
+					}
+					else {
+						svgP = SVG("circle"); // off-curve
+						svgP.classList.add("ctrl-pt");
+						svgP.attrsSVG({ cx: pt[0], cy: pt[1], r: 4 });
+					}
+					svgP.data = { point: pt };
+					svgg2.appendChild(svgP);
 				});
 
 				svgg.appendChild(svgg2);
@@ -883,25 +960,17 @@ function setActiveGlyph (g, instance) {
 				// draw control points, grouped in their own <g>
 				layer.type = "points";
 				svgg2 = SVG("g");
-
+				svgg2.attrsSVG({
+					"fill": "none",
+					"stroke-width": "1px",
+					"stroke": GLOBAL.vf.config.ui.arrow.color,
+				});
 				glyph.points.forEach(function (pt, p) {
-					let size = font.config.ui.point.size;
-					let svgP;
-					if (pt[2]) {
-						svgP = SVG("rect"); // on-curve
-						svgP.classList.add("ctrl-pt");
-						svgP.attrsSVG({
-							x: pt[0]-size, y: pt[1]-size,
-							width: 2*size, height: 2*size,
-						});
-					}
-					else {
-						svgP = SVG("circle"); // off-curve
-						svgP.classList.add("ctrl-pt");
-						svgP.attrsSVG({ cx: pt[0], cy: pt[1], r: 4 });
-					}
-					svgP.data = { point: pt };
-					svgg2.appendChild(svgP);
+					// TODO: use individual SVG elements for each point when we implement dragging of instance points
+					let size = 4; //font.config.ui.point.size;
+					svgPath = SVG("path");
+					svgPath.attrsSVG({"d": `M${pt[0]-size},${pt[1]} L${pt[0]+size},${pt[1]} M${pt[0]},${pt[1]+size} L${pt[0]},${pt[1]-size}`});
+					svgg2.appendChild(svgPath);
 				});
 
 				svgg.appendChild(svgg2);
@@ -1054,7 +1123,7 @@ function playGlyphs() {
 // click handlers for all clicks
 document.onclick = function (event) {
 
-console.log(event.target);
+	console.log(event.target);
 	// about target
 	// - via the method of assignment in the if(), target gets the desired element rather than a child (or grandchild) that in fact received the event
 	// - the closest(x) method is great: we find whether event.target happened on something within something selected by x
@@ -1076,6 +1145,10 @@ console.log(event.target);
 			url: "fonts/MutatorSans.ttf",
 			callback: vfLoaded,
 		});
+	}
+
+	else if (event.target.id == "dsAxesMultiple") {
+		updateDesignspace();
 	}
 
 	else if (target = event.target.closest("#controls .panel .instantiate")) {
@@ -1181,6 +1254,9 @@ console.log(event.target);
 
 		return false;
 	}
+
+	//return false;
+
 }
 
 function dropHandler(ev) {
