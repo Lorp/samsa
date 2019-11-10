@@ -500,29 +500,45 @@ function updateGlyphsPanel(instance) {
 		glyphThumb.setAttribute("id", `g-${g}`);
 
 
-		if (glyph && glyph.numContours > 0) {
+		//if (glyph && glyph.numContours > 0) {
+		if (glyph) {
 
 			// simple glyph
 			let svg = SVG("svg");
-			let svgPath = SVG("path");
 			let svgg = SVG("g");
 
 			svg.setAttributeNS(null, "width","90");
 			svg.setAttributeNS(null, "height","90");
 			svgg.setAttributeNS(null, "transform", `translate(20,60) scale(${scale},-${scale})`);
 			
-			//svgMarker.attr({markerWidth:20,markerHeight:20);
-
-			svgPath.setAttributeNS(null, "d", getGlyphSVGpath(glyph));
+			let paths = getGlyphSVGpath(glyph);
+			if (glyph.id == 29)
+				console.log(paths);
+			if (!Array.isArray(paths)) { // composite
+				paths = [paths];
+			}
+			paths.forEach((path, p) => {
+				let svgPath;
+				let svgg3 = glyph.numContours == -1 ? SVG("g") : null; // wrap component paths in a g so they can be transformed
+				svgPath = SVG("path"); // give this an id so we can detect clicks
+				svgPath.attrsSVG({
+					d: path,
+					stroke: GLOBAL.vf.config.ui.glyphThumb.stroke,
+					"stroke-width": `${GLOBAL.vf.config.ui.glyphThumb.strokeWidth}px`,
+					fill: GLOBAL.vf.config.ui.glyphThumb.fill,
+				});
+				if (svgg3) {
+					svgg3.setAttributeNS(null, "transform", `translate(${glyph.points[p][0]},${glyph.points[p][1]})`);
+					svgg3.appendChild(svgPath);
+					svgg.appendChild(svgg3);
+				}
+				else {
+					svgg.id = `g${glyph.id}`;
+					svgg.appendChild(svgPath);
+				}
+			});
 
 			svg.appendChild(svgg);
-
-
-			// glyph
-			svgg.appendChild(svgPath);
-
-			// x and y axes
-
 			glyphThumb.appendChild(svg);
 
 			glyphName = glyph.name;
@@ -793,12 +809,15 @@ function setActiveGlyph (g, instance) {
 						// "filter": "url(#blur)", not yet :)					
 					});
 					if (svgg3) {
+						//svgPath.id = `g${iglyph.id}-c${p}`; // "g27-c2" means component #2 of glyph #27
 						svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
 						svgg3.appendChild(svgPath);
 						svgg.appendChild(svgg3);
 					}
-					else
+					else {
+						//svgg3.id = `g${iglyph.id}`; // "g27" means glyph 27
 						svgg.appendChild(svgPath);
+					}
 				});
 
 				//svgg.appendChild(svgPath);

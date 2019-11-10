@@ -93,6 +93,12 @@ let CONFIG = {
 			opacity: 0.6,
 		},
 
+		glyphThumb: {
+			fill: "black",
+			stroke: "none",
+			strokeWidth: 0,
+		},
+
 		// ?better as CSS, so we can add italic, weight, border, background-color etc?
 		text: {
 			font: "IBM Plex",
@@ -2357,6 +2363,7 @@ function glyphApplyVariations (glyph, userTuple, instance) {
 	let newGlyph = {
 		default: glyph,
 		font: glyph.font,
+		id: glyph.id,
 		//instance: true,
 		instance: instance, // this is still safe for tests that check for (!glyph.instance)
 		type: "instance",
