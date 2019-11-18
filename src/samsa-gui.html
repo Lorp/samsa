@@ -347,9 +347,15 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	panel = Q("#designspace>div");
 	panel.innerText = "";
-	panel.style.width = "100%";
-	panel.style.height = "360px";
+	//panel.style.width = "100%";
+	//panel.style.height = "360px";
 	panel.style.backgroundColor = "white";
+
+	// build cartesian area
+	let cartesian = document.createElement("div");
+	cartesian.id = "ds-cartesian";
+	cartesian.setAttribute("style", "width: 100%; height: 360px;");
+	panel.appendChild(cartesian);
 
 	// build dropdown select elements
 	let xSelect = document.createElement("select");
@@ -364,30 +370,26 @@ function vfLoaded (font) {
 	ySelect.appendChild(yTitle); yTitle.setAttribute("disabled", true);
 
 
-	GLOBAL.vf.axes.forEach(axis => {
+	GLOBAL.vf.axes.forEach((axis,a) => {
 		xEl = document.createElement("option"); xEl.innerText = axis.tag;
 		yEl = document.createElement("option"); yEl.innerText = axis.tag;
 		xSelect.appendChild(xEl);
 		ySelect.appendChild(yEl);
+		switch (a) {
+			case 0: xEl.setAttribute("selected", true); break;
+			case 1: yEl.setAttribute("selected", true); break;
+		}
 	});
 	panel.appendChild(xSelect);
 	panel.appendChild(ySelect);
 
-	/*
-	let cbxMultiple = document.createElement("input");
-	let cbxMultipleLabel = document.createElement("label");
-	cbxMultiple.setAttribute("type", "checkbox");
-	cbxMultiple.id = "dsAxesMultiple";
-	cbxMultipleLabel.innerText = "allow multiple VF axes per Cartesian axis"
-	cbxMultipleLabel.setAttribute("for", cbxMultiple.id);
-	panel.appendChild(cbxMultiple);
-	panel.appendChild(cbxMultipleLabel);
-	*/
 
-	// TODO: normalized checkbox
-
+	// TODO: consider user/normalized option
 
 	updateDesignspace();
+
+
+
 /*
 	// TODO: hmm, this doesn’t work
 	//console.log(cbxMultiple)
@@ -403,11 +405,6 @@ function vfLoaded (font) {
 		}
 	};
 */
-	// select different axes for x amd y
-
-
-
-	panel.innerHTML += "<p>coming soon</p>";
 
 
 	// TODO: .designspace export - is this useful?
@@ -476,6 +473,54 @@ function vfLoaded (font) {
 
 
 	Q("body").style.cursor = "default";
+
+	// designspace: handle mousemove
+	Q("#ds-cartesian").addEventListener("mousemove", e => {
+
+		let rect = e.target.getBoundingClientRect();
+		let x = e.clientX - rect.left;
+		let y = e.clientY - rect.top;
+		x = x/180-1;
+		y = 1-y/180;
+
+		//console.log(x, y);
+
+		// initialize tuple
+		let tuple = [];
+		for (let a=0; a < GLOBAL.vf.axes.length; a++) {
+			tuple.push(0); // default is 0 by definition
+		}
+			
+		// what is current x axis?
+		Qall("#xSelect option").forEach(option => {
+			if (option.selected) {			
+				let indices = GLOBAL.vf.axisIndices(option.value); // get axis indices for this axis tag
+				indices.forEach(index => {
+					tuple[index] = x;
+				});
+			}
+		});
+
+		// what is current y axis?
+		Qall("#ySelect option").forEach(option => {
+			if (option.selected) {			
+				let indices = GLOBAL.vf.axisIndices(option.value); // get axis indices for this axis tag
+				indices.forEach(index => {
+					tuple[index] = y;
+				});
+			}
+		});
+
+		// now update the glyph in the drawing
+		let instance = font.addInstance(null, {tuple: tuple});
+		let glyph = font.glyphs[GLOBAL.currentGlyphId];
+		let iglyph = glyphApplyVariations(glyph, null, instance);
+		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+		font.instances.pop();
+
+	});
+
+
 }
 
 
@@ -485,6 +530,7 @@ function axisInput() {
 
 	// create instance
 	let instance = font.addInstance(getCurrentFvs()); // { name: "Custom", tuple: [] };
+	console.log(instance);
 
 	let glyph = font.glyphs[GLOBAL.currentGlyphId];
 	let iglyph = glyphApplyVariations(glyph, null, instance);
@@ -512,28 +558,32 @@ function updateDesignspace() {
 	*/
 
 	// draw cartesian axes
+	let cartesian = Q("#ds-cartesian");
 
 	let svg = SVG("svg");
 	let svgg = SVG("g"); // this transforms everything inside it
 	let svgPath;
-	let scale = -0.1;
+	let scale = 360/2; // 360 is the width & height of the cartesian space in px, 2 is the width & height of the cartesian space in normalized units (-1 to +1)
 	svg.setAttributeNS(null, "width","360");
 	svg.setAttributeNS(null, "height","360");
-	svgg.setAttributeNS(null, "transform", `translate(0,260) scale(${scale},-${scale})`);
-
+	svgg.setAttributeNS(null, "transform", `translate(180,180) scale(${scale},-${scale})`);
 
 	svgPath = SVG("path");
-
-	svgPath.setAttributeNS(null, "d", "M-10000,0 L10000,0 M0,-10000 L0,10000");
-	svgPath.setAttributeNS(null, "stroke", `lightblue`);
-	svgPath.setAttributeNS(null, "stroke-width", `1`);
-	svgPath.setAttributeNS(null, "fill", "none");
+	svgPath.attrsSVG({
+		//d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
+		d: "M-1 0 L1 0 M0 -1 L0 1",
+		stroke: `lightblue`,
+		"stroke-width": `${1/scale}px`,
+		fill: "none",
+	});
 	svgg.appendChild(svgPath);
 
+	svg.appendChild(svgg);
+
+	cartesian.appendChild(svg);
 
 
-
-	// draw some glyphs
+	// draw some glyphs (at named instance locations)
 
 
 
@@ -579,8 +629,6 @@ function updateGlyphsPanel(instance) {
 			svgg.setAttributeNS(null, "transform", `translate(20,60) scale(${scale},-${scale})`);
 			
 			let paths = getGlyphSVGpath(glyph);
-			if (glyph.id == 29)
-				console.log(paths);
 			if (!Array.isArray(paths)) { // composite
 				paths = [paths];
 			}
@@ -722,10 +770,11 @@ function setActiveGlyph (g, instance) {
 	// TODO: wouldn’t this be more elegant setting background-color with a class?
 
 
-
 	let glyph = font.glyphs[g];
+	
 
-	let iglyph = glyphApplyVariations(glyph, getCurrentFvs(), instance);
+	//let iglyph = glyphApplyVariations(glyph, getCurrentFvs(), instance);
+	let iglyph = glyphApplyVariations(glyph, null, instance);
 	//setActiveGlyph(g);
 
 	//event.target.classList.add("selected");
@@ -790,16 +839,16 @@ function setActiveGlyph (g, instance) {
 
 		switch (L) {
 
-			// cartesian axes, grid
+			// cartesian axes, the grid
 			case 0:
 				layer.type = "grid";
 				svgPath = SVG("path");
-
-				svgPath.setAttributeNS(null, "d", "M-10000,0 L10000,0 M0,-10000 L0,10000");
-				svgPath.setAttributeNS(null, "stroke", GLOBAL.vf.config.ui.cartesianAxes.stroke );
-				svgPath.setAttributeNS(null, "stroke-width", GLOBAL.vf.config.ui.cartesianAxes.strokeWidth + "px");
-				svgPath.setAttributeNS(null, "fill", "none");
-
+				svgPath.attrsSVG({
+					d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
+					stroke: GLOBAL.vf.config.ui.cartesianAxes.stroke,
+					"stroke-width": GLOBAL.vf.config.ui.cartesianAxes.strokeWidth + "px",
+					fill: "none",
+				});
 				svgg.appendChild(svgPath);
 
 				break;
@@ -1029,9 +1078,10 @@ function setActiveGlyph (g, instance) {
 		// draw S value as bar graph
 		let sValue = iglyph.sValues[t];
 		let tvtS = document.createElement("div");
-		tvtS.setAttribute("style", `width: ${40 * sValue}px; height: 20px; background-color: ${GLOBAL.vf.config.ui.tupleScalar.fill};`);
+		let vizWidth = Math.max(0.25, 40 * sValue); // minimum of 0.25px
 		tvtS.setAttribute("title", sValue);
 		if (sValue > 0) {
+			tvtS.setAttribute("style", `width: ${vizWidth}px; height: 20px; background-color: ${GLOBAL.vf.config.ui.tupleScalar.fill};`);
 			li.style.backgroundColor = "white";
 		}
 
@@ -1063,7 +1113,7 @@ function setActiveGlyph (g, instance) {
 			pathG.setAttributeNS(null, "fill", "none");
 			pathG.setAttributeNS(null, "stroke", "darkgrey");
 			pathG.setAttributeNS(null, "stroke-width", "0.5");
-			pathG.setAttributeNS(null, "d", `M ${Sx*-1},0 L ${Sx*1},0 M 0,0 L 0,${Sy*1}`);
+			pathG.setAttributeNS(null, "d", `M ${Sx*-1} 0 L ${Sx*1} 0 M 0 0 L 0 ${Sy*1}`);
 			svgg.appendChild(pathG);
 
 			// draw tuple start, peak, end data
@@ -1075,15 +1125,17 @@ function setActiveGlyph (g, instance) {
 				path.setAttributeNS(null, "stroke", "none");
 				path.setAttributeNS(null, "d", pathD);
 				svgg.appendChild(path);
+
+				// draw current axis position
+				if (iglyph.instance && iglyph.instance.tuple[a] > 0) {
+					let needle = SVG("line");
+					let needleColor = GLOBAL.vf.config.ui.tupleNeedle.stroke;
+					needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: iglyph.instance.tuple[a]*20, y1: 0, x2: iglyph.instance.tuple[a]*20, y2: 20});
+					svgg.appendChild(needle);
+				}
+
 			}
 
-			// draw current axis position
-			if (iglyph.instance && iglyph.instance.tuple[a] > 0) {
-				let needle = SVG("line");
-				let needleColor = GLOBAL.vf.config.ui.tupleNeedle.stroke;
-				needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: iglyph.instance.tuple[a]*20, y1: 0, x2: iglyph.instance.tuple[a]*20, y2: 20});
-				svgg.appendChild(needle);
-			}
 
 			tvtGraph.appendChild(svgg);
 			tvtGraphEl.appendChild(tvtGraph);
@@ -1123,7 +1175,7 @@ function playGlyphs() {
 // click handlers for all clicks
 document.onclick = function (event) {
 
-	console.log(event.target);
+	//console.log(event.target);
 	// about target
 	// - via the method of assignment in the if(), target gets the desired element rather than a child (or grandchild) that in fact received the event
 	// - the closest(x) method is great: we find whether event.target happened on something within something selected by x
@@ -1147,9 +1199,9 @@ document.onclick = function (event) {
 		});
 	}
 
-	else if (event.target.id == "dsAxesMultiple") {
-		updateDesignspace();
-	}
+	// else if (event.target.id == "dsAxesMultiple") {
+	// 	updateDesignspace();
+	// }
 
 	else if (target = event.target.closest("#controls .panel .instantiate")) {
 
@@ -1305,39 +1357,63 @@ Q("#font-file").addEventListener("dragover",function(e){
 
 
 function SVG(tag) {
+
     return document.createElementNS('http://www.w3.org/2000/svg', tag);
 }
 
 
+
+
 // method to attach multiple SVG attributes at once
 // - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
-Object.prototype.attrsSVG = function (attrs) {
+// - TODO: this is really nasty, we should only apply it to SVG objects
+
+/*Object.prototype.attrsSVG = function (attrs) {
 	for (const prop in attrs) {
 		this.setAttributeNS(null, prop, attrs[prop]);
 	}
 }
+*/
+
+//let tempSVG = document.createElementNS('http://www.w3.org/2000/svg', "SVG");
+/*
+document.createElementNS.prototype.attrsSVG = function (attrs) {
+	for (const prop in attrs) {
+		this.setAttributeNS(null, prop, attrs[prop]);
+	}
+};
+*/
+SVGElement.prototype.attrsSVG = function (attrs) {
+	for (const prop in attrs) {
+		this.setAttributeNS(null, prop, attrs[prop]);
+	}
+};
+
 
 
 // load font list
-// TODO: switch to modern fetch(url)
-let oReq = new XMLHttpRequest();
-oReq.open("GET", "fonts/_fontlist_.json", true);
-oReq.responseType = "json";
-oReq.onload = function(oEvent) {
-	GLOBAL.fontList = this.response;
-	// need to handle onreadystatechange to detect errors
+// - only if we are in http: or https: (it’s not supported in file:)
+// - TODO: switch to modern fetch(url)
+if (["http:", "https:"].includes(window.location.protocol)) {
 
+	let oReq = new XMLHttpRequest();
+	oReq.open("GET", "fonts/_fontlist_.json", true);
+	oReq.responseType = "json";
+	oReq.onload = function(oEvent) {
+		GLOBAL.fontList = this.response;
+		// TODO: handle onreadystatechange to detect errors
+		let panel = Q("#font-list>div");
+		panel.innerHTML = "";
+		GLOBAL.fontList.forEach(fontFilename => {
+			panel.innerHTML += `<li class="font-file"><a href="">${fontFilename}</a></li>`;
+		});
+	};
+	oReq.send();
+}
+else {
 	let panel = Q("#font-list>div");
-	panel.innerHTML = "";
-	//panel.innerHTML += "<ul>";
-	GLOBAL.fontList.forEach(fontFilename => {
-		panel.innerHTML += `<li class="font-file"><a href="">${fontFilename}</a></li>`;
-	});
-
-	//panel.innerHTML += "</ul>";
-};
-oReq.send();
-
+	panel.innerHTML = `<div>Remote file loading is not available for protocol “${window.location.protocol}”</div>`;
+}
 
 
 </script>
