@@ -2142,7 +2142,6 @@ function SamsaVF (init, config) {
 		// should we allow instances to be added by tuple?
 		// - I think so
 		if (fvs) {
-			console.log("ok we are here");		
 			this.axes.forEach((axis,a) => {
 				if (fvs[axis.tag] !== undefined) {
 					instance.fvs[axis.tag] = 1.0 * fvs[axis.tag];

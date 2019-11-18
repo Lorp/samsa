@@ -520,6 +520,27 @@ function vfLoaded (font) {
 
 	});
 
+	Q("#xSelect").addEventListener("input", dsAxisSelectValidate);
+	Q("#ySelect").addEventListener("input", dsAxisSelectValidate);
+
+}
+
+
+function dsAxisSelectValidate (e) {
+
+	let xItems = [], yItems = [], valid = true;
+	Qall("#xSelect>option:checked").forEach(option => {
+		xItems.push(option.value);
+	});
+	Qall("#ySelect>option:checked").forEach(option => {
+		yItems.push(option.value);
+	});
+	xItems.forEach(tag => {
+		if (yItems.includes(tag))
+			valid = false;
+	});
+
+	xSelect.style.backgroundColor = ySelect.style.backgroundColor = valid ? "inherit" : "red";
 
 }
 
