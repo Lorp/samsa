@@ -2131,22 +2131,28 @@ function SamsaVF (init, config) {
 		};
 
 		// assign options
-		//  - possibly we can add an instance pointing to a pre-existing binary in memory or file
+		// - possibly we can add an instance pointing to a pre-existing binary in memory or file
+		// - we can set instance.tuple here, by passing options.tuple to the method
 		if (typeof options == "object") {
 			Object.keys(options).forEach(k => {
 				instance[k] = options[k];
 			});
 		}
 
-		this.axes.forEach((axis,a) => {
-			if (fvs[axis.tag] !== undefined) {
-				instance.fvs[axis.tag] = 1.0 * fvs[axis.tag];
-			}
-			else {
-				instance.fvs[axis.tag] = axis.default;
-			}
-			instance.tuple[a] = this.axisNormalize(axis, instance.fvs[axis.tag]);
-		});
+		// should we allow instances to be added by tuple?
+		// - I think so
+		if (fvs) {
+			console.log("ok we are here");		
+			this.axes.forEach((axis,a) => {
+				if (fvs[axis.tag] !== undefined) {
+					instance.fvs[axis.tag] = 1.0 * fvs[axis.tag];
+				}
+				else {
+					instance.fvs[axis.tag] = axis.default;
+				}
+				instance.tuple[a] = this.axisNormalize(axis, instance.fvs[axis.tag]);
+			});
+		}
 		this.instances.push(instance);
 		return instance;
 	}
@@ -2175,10 +2181,29 @@ function SamsaVF (init, config) {
 		// transforms an fvs object into a normalized tuple
 		let tuple = [];
 		this.axes.forEach((axis,a) => {
-			let val = (fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
+			let val = (!fvs || fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
 			tuple[a] = this.axisNormalize(axis, val);
 		});
 		return tuple;
+	}
+
+
+	//////////////////////////////////
+	//  axisIndices()
+	//////////////////////////////////
+	this.axisIndices = tag => {
+		// returns an array containing the axis indicies for this axis tag
+		// - normally the array will have only one element
+		// - HOI fonts may contain multiple axes with identical tags
+		// - an empty array means the axis tag is not in this font
+		// - it would be better to precalculate these if we use this function intensively
+
+		let indices = [];
+		this.axes.forEach((axis,a) => {
+			if (axis.tag == tag)
+				indices.push(a);
+		});
+		return indices;
 	}
 
 
@@ -2265,6 +2290,7 @@ function SamsaVF (init, config) {
 }
 
 
+// object instantiatr
 function SVG(tag) {
     return document.createElementNS('http://www.w3.org/2000/svg', tag);
 }
