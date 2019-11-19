@@ -26,7 +26,7 @@
 	&lt;drop a variable font here&gt;
 </div>
 
-<div id="controls">
+<div id="controls" style="overflow-y: scroll;">
 
 	<div id="info" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Info</h2>
@@ -256,11 +256,12 @@ function appendInstanceEl(instance, select) {
 function vfLoaded (font) {
 
 	GLOBAL.vf = font;
-
+	GLOBAL.vf.config.visualization = true;
+	console.log(GLOBAL.vf.config);
 	let panel;
 
 	///////////////////////////////////////////////////////
-	// info panel
+	// Info panel
 	///////////////////////////////////////////////////////
 	panel = Q("#info>div");
 	panel.innerText = "";
@@ -272,7 +273,7 @@ function vfLoaded (font) {
 	//panel.innerHTML += `Date: ${Date(font.date).toString()}<br>`;
 
 	///////////////////////////////////////////////////////
-	// axis panel
+	// Axes panel
 	///////////////////////////////////////////////////////
 	panel = Q("#axes>div");
 	panel.innerText = "";
@@ -325,7 +326,7 @@ function vfLoaded (font) {
 
 
 	///////////////////////////////////////////////////////
-	// instances panel
+	// Instances panel
 	///////////////////////////////////////////////////////
 	panel = Q("#instances>div");
 	panel.innerText = "";
@@ -343,12 +344,10 @@ function vfLoaded (font) {
 
 
 	///////////////////////////////////////////////////////
-	// designspace panel
+	// Designspace panel
 	///////////////////////////////////////////////////////
 	panel = Q("#designspace>div");
 	panel.innerText = "";
-	//panel.style.width = "100%";
-	//panel.style.height = "360px";
 	panel.style.backgroundColor = "white";
 
 	// build cartesian area
@@ -358,18 +357,32 @@ function vfLoaded (font) {
 	panel.appendChild(cartesian);
 
 	// build dropdown select elements
-	let xSelect = document.createElement("select");
+	let htmlX = `<select id="xSelect" multiple>`;
+	let htmlY = `<select id="ySelect" multiple>`;
+	GLOBAL.vf.axes.forEach((axis,a) => {
+		htmlX += `<option${a==0 ? " selected" : ""}>${axis.tag}</option>`;
+		htmlY += `<option${a==1 ? " selected" : ""}>${axis.tag}</option>`;
+	});
+	htmlX += `</select>`;
+	htmlY += `</select>`;
+	panel.innerHTML += `<div class="cartesian-axis-row"><div>X</div>${htmlX}<div id="xValue"></div></div>`;
+	panel.innerHTML += `<div class="cartesian-axis-row"><div>Y</div>${htmlY}<div id="yValue"></div></div>`;
+	;
+	/*let xSelect = document.createElement("select");
 	let ySelect = document.createElement("select");
 	xSelect.id = "xSelect";
 	ySelect.id = "ySelect";
 	xSelect.setAttribute("multiple", true);
 	ySelect.setAttribute("multiple", true);
-	let xTitle = document.createElement("option"); xTitle.innerText = "X";
-	let yTitle = document.createElement("option"); yTitle.innerText = "Y";
-	xSelect.appendChild(xTitle); xTitle.setAttribute("disabled", true);
-	ySelect.appendChild(yTitle); yTitle.setAttribute("disabled", true);
+*/
+
+	//let xTitle = document.createElement("option"); xTitle.innerText = "X";
+	//let yTitle = document.createElement("option"); yTitle.innerText = "Y";
+	//xSelect.appendChild(xTitle); xTitle.setAttribute("disabled", true);
+	//ySelect.appendChild(yTitle); yTitle.setAttribute("disabled", true);
 
 
+/*
 	GLOBAL.vf.axes.forEach((axis,a) => {
 		xEl = document.createElement("option"); xEl.innerText = axis.tag;
 		yEl = document.createElement("option"); yEl.innerText = axis.tag;
@@ -382,7 +395,7 @@ function vfLoaded (font) {
 	});
 	panel.appendChild(xSelect);
 	panel.appendChild(ySelect);
-
+*/
 
 	// TODO: consider user/normalized option
 
@@ -466,7 +479,7 @@ function vfLoaded (font) {
 
 
 	///////////////////////////////////////////////////////
-	// glyphs panel
+	// Glyphs panel
 	///////////////////////////////////////////////////////
 	GLOBAL.currentGlyphId = getDefaultGlyphId(font);
 	updateGlyphsPanel (); // use default glyphs
@@ -476,14 +489,18 @@ function vfLoaded (font) {
 
 	// designspace: handle mousemove
 	Q("#ds-cartesian").addEventListener("mousemove", e => {
+		// requires pointer-events:none on all grid lines
 
+		//console.log(e.target.id);
 		let rect = e.target.getBoundingClientRect();
 		let x = e.clientX - rect.left;
 		let y = e.clientY - rect.top;
 		x = x/180-1;
 		y = 1-y/180;
 
-		//console.log(x, y);
+		// update the visual designspace location
+		Q("#svgXVal").setAttributeNS(null, "d", `M${x} -1 L${x} 1`);
+		Q("#svgYVal").setAttributeNS(null, "d", `M-1 ${y} L1 ${y}`);
 
 		// initialize tuple
 		let tuple = [];
@@ -511,7 +528,16 @@ function vfLoaded (font) {
 			}
 		});
 
+		// update the text fields
+		Q("#xValue").innerText = x;
+		Q("#yValue").innerText = y;
+
+		// set the axes in the Axes panel
+		let fvs = GLOBAL.vf.tupleToFvs(tuple);
+		setAxes (GLOBAL.vf, fvs);
+
 		// now update the glyph in the drawing
+		// - should we do this simply by setting the axes in the Axes panel
 		let instance = font.addInstance(null, {tuple: tuple});
 		let glyph = font.glyphs[GLOBAL.currentGlyphId];
 		let iglyph = glyphApplyVariations(glyph, null, instance);
@@ -563,6 +589,7 @@ function axisInput() {
 
 function updateDesignspace() {
 
+	console.log("updateDesignspace");
 	let cb = Q("#dsAxesMultiple");
 	let xSelect = Q("#xSelect");
 	let ySelect = Q("#ySelect");
@@ -583,22 +610,45 @@ function updateDesignspace() {
 
 	let svg = SVG("svg");
 	let svgg = SVG("g"); // this transforms everything inside it
-	let svgPath;
+	let svgXYAxes, svgXVal, svgYVal;
 	let scale = 360/2; // 360 is the width & height of the cartesian space in px, 2 is the width & height of the cartesian space in normalized units (-1 to +1)
 	svg.setAttributeNS(null, "width","360");
 	svg.setAttributeNS(null, "height","360");
 	svgg.setAttributeNS(null, "transform", `translate(180,180) scale(${scale},-${scale})`);
 
-	svgPath = SVG("path");
-	svgPath.attrsSVG({
+	svgXYAxes = SVG("path");
+	svgXYAxes.attrsSVG({
 		//d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
 		d: "M-1 0 L1 0 M0 -1 L0 1",
 		stroke: `lightblue`,
 		"stroke-width": `${1/scale}px`,
 		fill: "none",
+		"pointer-events": "none",
 	});
-	svgg.appendChild(svgPath);
 
+	svgXVal = SVG("path");
+	svgXVal.id = "svgXVal";
+	svgXVal.attrsSVG({
+		d: "M0 -1 L0 1",
+		stroke: `blue`,
+		"stroke-width": `${1/scale}px`,
+		fill: "none",
+		"pointer-events": "none",
+	});
+
+	svgYVal = SVG("path");
+	svgYVal.id = "svgYVal";
+	svgYVal.attrsSVG({
+		d: "M-1 0 L1 0",
+		stroke: `lightgreen`,
+		"stroke-width": `${1/scale}px`,
+		fill: "none",
+		"pointer-events": "none",
+	});
+
+	svgg.appendChild(svgXVal);
+	svgg.appendChild(svgYVal);
+	svgg.appendChild(svgXYAxes);
 	svg.appendChild(svgg);
 
 	cartesian.appendChild(svg);
@@ -777,6 +827,7 @@ function setActiveGlyph (g, instance) {
 	// instance may be undefined
 
 	let font = GLOBAL.vf;
+	let ui = font.config.ui;
 	if (g === undefined)
 		g = 0;
 	g *= 1;
@@ -820,19 +871,21 @@ function setActiveGlyph (g, instance) {
 	svg.attrsSVG( {
 		width: 1000,
 		height: 1000,
-		style: `background-color: ${GLOBAL.vf.config.ui.glyph.backgroundColor};`,
+		style: `background-color: ${ui.glyph.backgroundColor};`,
 	});
 	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
 
 	// define marker
-	svgMarker.setAttributeNS(null, "id","arrow");
-	svgMarker.setAttributeNS(null, "markerWidth","20");
-	svgMarker.setAttributeNS(null, "markerHeight","20");
+	svgMarker.id = "arrow";
+	svgMarker.attrsSVG({
+		markerWidth: 20,
+		markerHeight: 20,
+		fill: ui.arrow.color,
+		orient: "auto",
+		refX: 10,
+		refY: 5,
+	});
 	svgMarkerPath.setAttributeNS(null, "d", "M 10 5 L 3 2 L 3 8 z");
-	svgMarker.setAttributeNS(null, "fill", `${GLOBAL.vf.config.ui.arrow.color}`);
-	svgMarker.setAttributeNS(null, "orient", "auto");
-	svgMarker.setAttributeNS(null, "refX", "10");
-	svgMarker.setAttributeNS(null, "refY", "5");
 	svgMarker.appendChild(svgMarkerPath);
 	svgDefs.appendChild(svgMarker);
 
@@ -851,7 +904,8 @@ function setActiveGlyph (g, instance) {
 
 
 	// TODO: we're not yet using the layer idea, but I think it will be useful to allow us to make minimal updates
-	for (let L=0; L<6; L++) {
+	[0,1,2,3,5,6].forEach(L => {
+	//for (let L=0; L<7; L++) {
 		let svgPath, svgg3, paths;
 		let layer = layers[L] = {
 			on: true,
@@ -866,8 +920,8 @@ function setActiveGlyph (g, instance) {
 				svgPath = SVG("path");
 				svgPath.attrsSVG({
 					d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
-					stroke: GLOBAL.vf.config.ui.cartesianAxes.stroke,
-					"stroke-width": GLOBAL.vf.config.ui.cartesianAxes.strokeWidth + "px",
+					stroke: ui.cartesianAxes.stroke,
+					"stroke-width": ui.cartesianAxes.strokeWidth + "px",
 					fill: "none",
 				});
 				svgg.appendChild(svgPath);
@@ -897,9 +951,9 @@ function setActiveGlyph (g, instance) {
 					svgPath = SVG("path"); // give this an id so we can detect clicks
 					svgPath.attrsSVG({
 						d: path,
-						stroke: GLOBAL.vf.config.ui.glyph.stroke,
-						"stroke-width": `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`,
-						fill: GLOBAL.vf.config.ui.glyph.fill,
+						stroke: ui.glyph.stroke,
+						"stroke-width": `${ui.glyph.strokeWidth}px`,
+						fill: ui.glyph.fill,
 					});
 					if (svgg3) {
 						//svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
@@ -936,7 +990,7 @@ function setActiveGlyph (g, instance) {
 				if (!Array.isArray(paths)) { // composite
 					paths = [paths];
 				}
-				let uiStyle = GLOBAL.vf.config.ui.instanceGlyph;
+				let uiStyle = ui.instanceGlyph;
 				paths.forEach((path, p) => {
 					svgg3 = iglyph.numContours == -1 ? SVG("g") : null; // wrap component paths in a g
 					svgPath = SVG("path"); // give this an id so we can detect clicks
@@ -968,7 +1022,7 @@ function setActiveGlyph (g, instance) {
 				svgg2 = SVG("g");
 
 				iglyph.points.forEach(function (pt, p) {
-					let size = font.config.ui.point.size;
+					let size = ui.point.size;
 					let svgP;
 					if (pt[2]) {
 						svgP = SVG("rect"); // on-curve
@@ -995,8 +1049,8 @@ function setActiveGlyph (g, instance) {
 
 				svgg2 = SVG("g");
 				svgg2.attrsSVG({
-					"stroke": `${GLOBAL.vf.config.ui.arrow.color}`,
-					"stroke-width": `${GLOBAL.vf.config.ui.arrow.strokeWidth}`,
+					"stroke": `${ui.arrow.color}`,
+					"stroke-width": `${ui.arrow.strokeWidth}`,
 				});
 
 				glyph.points.forEach((point1, pt) => {
@@ -1033,7 +1087,7 @@ function setActiveGlyph (g, instance) {
 				svgg2.attrsSVG({
 					"fill": "none",
 					"stroke-width": "1px",
-					"stroke": GLOBAL.vf.config.ui.arrow.color,
+					"stroke": ui.arrow.color,
 				});
 				glyph.points.forEach(function (pt, p) {
 					// TODO: use individual SVG elements for each point when we implement dragging of instance points
@@ -1041,6 +1095,80 @@ function setActiveGlyph (g, instance) {
 					svgPath = SVG("path");
 					svgPath.attrsSVG({"d": `M${pt[0]-size},${pt[1]} L${pt[0]+size},${pt[1]} M${pt[0]},${pt[1]+size} L${pt[0]},${pt[1]-size}`});
 					svgg2.appendChild(svgPath);
+				});
+
+				svgg.appendChild(svgg2);
+				break;
+
+
+			case 6:
+
+				layer.type = "arrows-broken";
+				svgg2 = SVG("g");
+				svgg2.attrsSVG({
+					"fill": "none",
+					"stroke-width": "3px",
+					"stroke": "green",
+				});
+
+				glyph.points.forEach((point1, pt) => {
+					//let point2 = iglyph.points[pt]; // transformed point
+
+					// TODO: handle movements for IUP points
+
+					let x1 = point1[0], y1 = point1[1];
+					let x2, y2;
+					glyph.tvts.forEach((tvt, t) => {
+						let sValue = iglyph.tvtsVisualization[t].S;
+						let delta = tvt.deltas[pt];
+						let lineColor = ui.tuple.colors[t % ui.tuple.colors.length];
+
+						let svgLine = SVG("line");
+						if (delta === null) { // IUP
+							x2 = x1 + iglyph.tvtsVisualization[t].scaledDeltas[pt][0];
+							y2 = y1 + iglyph.tvtsVisualization[t].scaledDeltas[pt][1];
+							svgLine.attrsSVG({ "stroke-dasharray": "4" });
+						}
+						else {							
+							x2 = x1 + delta[0] * sValue;
+							y2 = y1 + delta[1] * sValue;
+						}
+
+						let svgArrowHead = SVG("path");
+						let angle = Math.atan2(y2-y1, x2-x1);
+						let len;
+						let newX2=x2, newY2=y2;
+						if (x2==x1 && y2==y1)
+							len = 0;
+						else {
+							let tipWidth = ui.arrow.tipWidth * font.unitsPerEm/1000;
+							let tipLength = ui.arrow.tipLength * font.unitsPerEm/1000;
+
+							len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+							newX2 = x1 + (x2-x1) * (len-tipLength)/len; // 10 = arrowLength
+							newY2 = y1 + (y2-y1) * (len-tipLength)/len; // 10 = arrowLength
+							let arrowBackX = (y2-y1) * tipWidth/2/len;
+							let arrowBackY = (x2-x1) * tipWidth/2/len;
+
+							svgArrowHead.attrsSVG({
+								//d: `M${x2} ${y2}l${newX2+arrowBackX} ${newY2+arrowBackY}l${newY2-arrowBackX} ${newY2-arrowBackY}Z`,
+								d: `M${x2} ${y2}L${newX2+arrowBackX} ${newY2-arrowBackY}L${newX2-arrowBackX} ${newY2+arrowBackY}Z`,
+								fill: lineColor,
+								stroke: "none",
+							})
+						}
+
+						svgLine.attrsSVG({
+							//x1: x1, y1: y1, x2: x2, y2: y2,
+							x1: x1, y1: y1, x2: newX2, y2: newY2,
+							stroke: lineColor, // get the t’th colour in the array, wrapping round to the start when we run out of colours
+							"stroke-width": ui.arrow.strokeWidth * font.unitsPerEm/1000,
+						});
+						svgg2.appendChild(svgLine);
+						svgg2.appendChild(svgArrowHead);
+						x1 = x2;
+						y1 = y2;
+					});
 				});
 
 				svgg.appendChild(svgg2);
@@ -1054,7 +1182,8 @@ function setActiveGlyph (g, instance) {
 
 		layer.svg = svg;
 
-	}
+	//}
+	});
 
 
 	svg.appendChild(svgg);
@@ -1086,6 +1215,10 @@ function setActiveGlyph (g, instance) {
 
 		let tvtId = document.createElement("div");
 		tvtId.innerText = t;
+		tvtId.style.backgroundColor = ui.tuple.colors[t % ui.tuple.colors.length];
+		tvtId.style.color = "white";
+		tvtId.style.fontWeight = "bold";
+		tvtId.style.textAlign = "center";
 
 		let tvtDeltas = document.createElement("div");
 		let numDeltas = 0;
@@ -1097,19 +1230,18 @@ function setActiveGlyph (g, instance) {
 		tvtDeltas.setAttribute("title", `This tuple variation moves ${numDeltas} out of ${tvt.deltas.length} points${ numDeltas==tvt.deltas.length ? " (no IUP)" : ""}`);
 
 		// draw S value as bar graph
-		let sValue = iglyph.sValues[t];
+		let sValue = iglyph.tvtsVisualization[t].S;
 		let tvtS = document.createElement("div");
 		let vizWidth = Math.max(0.25, 40 * sValue); // minimum of 0.25px
 		tvtS.setAttribute("title", sValue);
 		if (sValue > 0) {
-			tvtS.setAttribute("style", `width: ${vizWidth}px; height: 20px; background-color: ${GLOBAL.vf.config.ui.tupleScalar.fill};`);
+			tvtS.setAttribute("style", `width: ${vizWidth}px; height: 20px; background-color: ${ui.tupleScalar.fill};`);
 			li.style.backgroundColor = "white";
 		}
 
 		li.appendChild(tvtId);
 		li.appendChild(tvtDeltas);
 		li.appendChild(tvtS);
-
 
 
 		// add a graph for each axis
@@ -1150,7 +1282,7 @@ function setActiveGlyph (g, instance) {
 				// draw current axis position
 				if (iglyph.instance && iglyph.instance.tuple[a] > 0) {
 					let needle = SVG("line");
-					let needleColor = GLOBAL.vf.config.ui.tupleNeedle.stroke;
+					let needleColor = ui.tupleNeedle.stroke;
 					needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: iglyph.instance.tuple[a]*20, y1: 0, x2: iglyph.instance.tuple[a]*20, y2: 20});
 					svgg.appendChild(needle);
 				}
@@ -1409,6 +1541,40 @@ SVGElement.prototype.attrsSVG = function (attrs) {
 		this.setAttributeNS(null, prop, attrs[prop]);
 	}
 };
+
+
+
+function getArrowPathForLine(x1, y1, x2, y2, width, arrowLength, arrowWidth) {
+	// returns a string suitable for use as the SVG path "d" attribute
+	// it solves two problem of SVG lines when used with a pointed arrow:
+	// 1. the line is printed on top of the arrow-head, making the tip blunt
+	// 2. markers have colour in themselves, which is not useful when each line needs a custom colour
+
+	// for a line pointing due east, we start at the bottom left corner and go anticlockwise
+	// - Hmmm, this won’t work with dash-array for dotted lines
+
+/*
+	if (x1==x2 && y1==y2)
+		return "M0 0Z";
+
+	let path = `M${x1} ${y1}`;
+	let angle = Math.atan2(y2-y1, x2-x1);
+	let len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+	let anglePerp = angle - Math.PI;
+	let xn = (x2-x1)/len;
+	let yn = (y2-y1)/len;
+	let c = y2-y1, x2-x1
+	path += `l${yn*width/2} ${xn*width/2}`;
+	path += `l${x2-x1-arrowLength*xn} ${y2-y1-arrowLength*yn}`;
+	path += `l${yn*(arrowWidth-width)/2} ${xn*(arrowWidth-width)/2}`;
+	path += `L${x1} ${y2}`; // now we are at the tip
+	//path += `l${yn*(arrowWidth-width)/2} ${xn*(arrowWidth-width)/2}`;`;
+	//path += `l`;
+	//path += `l`;
+	path += "z";
+*/
+	return path;
+}
 
 
 

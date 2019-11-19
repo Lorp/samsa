@@ -63,14 +63,15 @@ let CONFIG = {
 
 		arrow: {
 			strokeWidth: 3,
-			tipLength: 10,
-			tipWidth: 6,
+			tipLength: 20,
+			tipWidth: 15,
 			//color: "#0044ee",
 			color: "orange",
 		},
 
 		tuple: {
-			colors: ["#0044ee", "#110033"],
+			//colors: ["#269d78", "#d7601c","#7571b1","#e5318a","#68a42c","#e5aa27","#a57528"], // "ColorBrewer Dark2" palette from https://serialmentor.com/dataviz/color-basics.html
+			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
 		},
 
 		point: {
@@ -84,7 +85,7 @@ let CONFIG = {
 		},
 
 		tupleScalar: {
-			fill: "red",
+			fill: "black",
 		},
 
 		glyph: {
@@ -379,15 +380,11 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 							let instructionLength = 0;
 
 							// we always have >0 points in a simple glyph
-							if (points && points[0])
-							{
+							if (points && points[0]) {
 								[xMin,yMin] = [xMax,yMax] = points[0];
 								
-								let P,Q;
-								for (pt=1; pt<iglyph.numPoints; pt++)
-								{
-									P = points[pt][0];
-									Q = points[pt][1];
+								for (pt=1; pt<iglyph.numPoints; pt++) {
+									const P = points[pt][0], Q = points[pt][1];
 									if (P<xMin) xMin=P;
 									else if (P>xMax) xMax=P;
 									if (Q<yMin) yMin=Q;
@@ -398,8 +395,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 								yMin = Math.round(yMin);
 								yMax = Math.round(yMax);
 							}
-							else
-							{
+							else {
 								// TODO: COMPOSITES and SPACE GLYPHS
 							}
 							iglyph.newLsb = xMin;
@@ -422,8 +418,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 
 							// compress points
 							let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
-							for (pt=0; pt<iglyph.numPoints; pt++)
-							{
+							for (pt=0; pt<iglyph.numPoints; pt++) {
 								X = dx[pt] = Math.round(points[pt][0]) - cx;
 								Y = dy[pt] = Math.round(points[pt][1]) - cy;
 								f = points[pt][2]; // on-curve = 1, off-curve = 0
@@ -449,8 +444,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 								newGlyphBuf.setUint8(p, flags[pt]), p++; // compress this a bit more later if optimizing for space, not speed
 
 							// write point coordinates
-							for (pt=0; pt<iglyph.numPoints; pt++)
-							{
+							for (pt=0; pt<iglyph.numPoints; pt++) {
 								if (dx[pt] == 0)
 									continue;
 								if (dx[pt] >= -255 && dx[pt] <= 255)
@@ -1744,9 +1738,9 @@ function SamsaVF_parseSmallTable (tag) {
 				font.axes.forEach((axis, a) => {
 					instance.tuple[a] = axis.default;
 					if (i==0)
-						instance.tuple[a] = axis.default;
+						instance.tuple[a] = axis.default; // user-facing value
 					else
-						instance.tuple[a] = data.getInt32(p)/65536, p+=4;
+						instance.tuple[a] = data.getInt32(p)/65536, p+=4; // user-facing value
 					instance.fvs[axis.tag] = instance.tuple[a];
 					instance.tuple[a] = font.axisNormalize(axis, instance.tuple[a]);
 				});
@@ -2188,6 +2182,49 @@ function SamsaVF (init, config) {
 
 
 	//////////////////////////////////
+	//  tupleToFvs()
+	//////////////////////////////////
+	this.tupleToFvs = tuple => {
+
+		// transforms a normalized tuple into an fvs object
+		let fvs = {};
+		//let tupleNormalized = []; // this is not yet normalized
+		this.axes.forEach((axis,a) => {
+			let n = tuple[a];
+
+			// avar detransformation
+			if (this.avar && this.avar[a]) {
+
+				let map = this.avar[a];
+				for (let m=0; m<map.length; m++) {
+
+					if (map[m][1] >= n) {
+						if (map[m][1] == n) {
+							n = map[m][0]; // covers the -1, 0 and +1 cases (and, I think, the many to one mappings)
+						}
+						else {
+							if (map[m][1] == map[m-1][1])
+								n = map[m-1][0];
+							else
+								n = map[m-1][0] + (map[m][0] - map[m-1][0]) * ( ( n - map[m-1][1] ) / ( map[m][1] - map[m-1][1] ) )
+						}
+					}
+				}
+			}
+
+			// basic denormalization
+			fvs[axis.tag] = axis.default;
+			if (n > 0)
+			 	fvs[axis.tag] += (axis.max - axis.default) * n;
+			else if (tuple[a] < 0)
+			 	fvs[axis.tag] += (axis.default - axis.min) * n;
+
+		});
+		return fvs;
+	}
+
+
+	//////////////////////////////////
 	//  axisIndices()
 	//////////////////////////////////
 	this.axisIndices = tag => {
@@ -2232,6 +2269,7 @@ function SamsaVF (init, config) {
 		}
 
 
+		// basic normalization
 		if (t == axis.default)
 			n = 0;
 		else if (t > axis.default)
@@ -2245,7 +2283,7 @@ function SamsaVF (init, config) {
 			else
 				n = axis.min==axis.default? 0 : (axis.default-t)/(axis.min-axis.default);
 
-		// modify t according to the avar for this axis
+		// "avar" table transformation
 		// - see https://docs.microsoft.com/en-us/typography/opentype/spec/avar
 		if (this.avar && this.avar[axis.id]) {
 			let map = this.avar[axis.id];
@@ -2419,6 +2457,9 @@ function glyphApplyVariations (glyph, userTuple, instance) {
 		flags: glyph.flags, // do we need this?
 	};
 
+	if (config.visualization)
+		newGlyph.tvtsVisualization = [];
+
 	// get a good userTuple (TODO: more validations than the array check)
 	// - it is recommended to use the ‘instance’ parameter, since then we preserve a connection between newGlyph and its instance
 	if (userTuple === null && instance)
@@ -2543,15 +2584,24 @@ function glyphApplyVariations (glyph, userTuple, instance) {
 
 			// add the net deltas to the glyph
 			// TODO: Try to avoid this step for points that were not moved
+			// TODO: Verify that we are rounding correctly. The spec implies we should maybe NOT round here
+			// - https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
 			newGlyph.points.forEach(function (point, p) {
 				point[0] += Math.round(scaledDeltas[p][0]);
 				point[1] += Math.round(scaledDeltas[p][1]);
 			});
 		} // if (S != 0)
 
-		// store S so we can use it in visualization
+		
+		// store S and scaledDeltas so we can use them in visualization
 		// - maybe we should recalculate multiple AS values and 1 S value in the GUI so we don’t add load to samsa-core
-		newGlyph.sValues.push(S);
+		if (config.visualization) {
+			//newGlyph.sValues.push(S);
+			newGlyph.tvtsVisualization.push({
+				S: S,
+				scaledDeltas: scaledDeltas,
+			});
+		}
 
 	}); // end of processing the tvts
 

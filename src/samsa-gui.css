@@ -91,6 +91,7 @@ body {
 
 #controls {
 	background-color: beige;
+	overflow-y: scroll;
 }
 
 #controls h2 {
@@ -102,6 +103,7 @@ body {
 	padding-left: 1em;
 	margin: 0;
 	border-bottom: 1px solid black;
+	
 	padding-left: 2em;
 }
 
@@ -215,4 +217,9 @@ tt {
 
 .open .reveal {
 	transform: rotate(0.25turn);
+}
+
+.cartesian-axis-row {
+	display: grid;
+	grid-template-columns: 2em 4em auto;
 }
