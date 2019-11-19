@@ -26,10 +26,15 @@
 	&lt;drop a variable font here&gt;
 </div>
 
-<div id="controls" style="overflow-y: scroll;">
+<div id="controls">
 
 	<div id="info" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Info</h2>
+		<div></div>
+	</div>
+
+	<div id="ui" class="panel closed">
+		<h2><span class="icon bold reveal">&#xf04b;</span> UI</h2>
 		<div></div>
 	</div>
 
@@ -260,6 +265,12 @@ function vfLoaded (font) {
 	console.log(GLOBAL.vf.config);
 	let panel;
 
+	// set up global tuple, the current designspace location
+	GLOBAL.tuple = [];
+	font.axes.forEach(() => {
+		GLOBAL.tuple.push(0);
+	});
+
 	///////////////////////////////////////////////////////
 	// Info panel
 	///////////////////////////////////////////////////////
@@ -271,6 +282,29 @@ function vfLoaded (font) {
 	panel.innerHTML += `${font.filename} (${font.filesize || "<em>n</em>"} bytes)<br>`;
 	panel.innerHTML += `Full name: ${font.names[4]}<br>`;
 	//panel.innerHTML += `Date: ${Date(font.date).toString()}<br>`;
+
+
+	///////////////////////////////////////////////////////
+	// UI Panel
+	///////////////////////////////////////////////////////
+	panel = Q("#ui>div");
+	panel.innerText = "";
+
+	panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox"><label for="arrows-split">split arrows</label><br>`;
+	panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox" checked><label for="arrows-total">total arrows</label>`;
+	//panel.innerHTML += `Full name: ${font.names[4]}<br>`;
+
+	Qall(".ui-arrows").forEach(el => {
+		el.addEventListener("change", e => {
+			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+			let glyph = font.glyphs[GLOBAL.currentGlyphId];
+			let iglyph = glyphApplyVariations(glyph, null, instance);
+			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+			font.instances.pop();
+		});
+	});
+
+
 
 	///////////////////////////////////////////////////////
 	// Axes panel
@@ -821,6 +855,32 @@ function getActiveGlyph () {
 	// return font.currentGlyphId;
 }
 
+function getArrowParams (x1, y1, x2, y2) {
+
+	let arrow;
+	let newX2, newY2;
+	let len;
+	const ui = GLOBAL.vf.config.ui;
+
+	if (x2!=x1 || y2!=y1) {
+		let tipWidth = ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000;
+		let tipLength = ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000;
+		len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+		let arrowBackX = (y2-y1) * tipWidth/2/len;
+		let arrowBackY = (x2-x1) * tipWidth/2/len;
+
+		arrow = {
+			newX2: newX2 = x1 + (x2-x1) * (len-tipLength)/len, // assignement helps 2 lines on
+			newY2: newY2 = y1 + (y2-y1) * (len-tipLength)/len, // assignement helps 2 lines on
+			arrowX1: newX2+arrowBackX,
+			arrowY1: newY2-arrowBackY,
+			arrowX2: newX2-arrowBackX,
+			arrowY2: newY2+arrowBackY,
+		};
+	}
+	return arrow;
+}
+
 
 function setActiveGlyph (g, instance) {
 
@@ -848,6 +908,8 @@ function setActiveGlyph (g, instance) {
 	//let iglyph = glyphApplyVariations(glyph, getCurrentFvs(), instance);
 	let iglyph = glyphApplyVariations(glyph, null, instance);
 	//setActiveGlyph(g);
+	if (instance)
+		GLOBAL.tuple = instance.tuple;
 
 	//event.target.classList.add("selected");
 
@@ -904,8 +966,19 @@ function setActiveGlyph (g, instance) {
 
 
 	// TODO: we're not yet using the layer idea, but I think it will be useful to allow us to make minimal updates
-	[0,1,2,3,5,6].forEach(L => {
-	//for (let L=0; L<7; L++) {
+	let layerIds = [];
+	layerIds.push(0);
+	layerIds.push(1);
+	layerIds.push(2);
+	layerIds.push(3);
+	if (Q("#arrows-total").checked)
+		layerIds.push(4);
+	layerIds.push(5);
+	if (Q("#arrows-split").checked)
+		layerIds.push(6);
+
+	layerIds.forEach(L => {
+
 		let svgPath, svgg3, paths;
 		let layer = layers[L] = {
 			on: true,
@@ -1045,11 +1118,11 @@ function setActiveGlyph (g, instance) {
 				break;
 
 			case 4:
-				layer.type = "arrows";
+				layer.type = "arrows-total";
 
 				svgg2 = SVG("g");
 				svgg2.attrsSVG({
-					"stroke": `${ui.arrow.color}`,
+					"stroke": ui.arrow.color,
 					"stroke-width": `${ui.arrow.strokeWidth}`,
 				});
 
@@ -1060,19 +1133,24 @@ function setActiveGlyph (g, instance) {
 						// same location so no line (now we can ignore divide-by-zero in the else{}
 					}
 					else {
-						// truncate each line so that it ends in a nice point; this shortens the line so that the arrow is properly pointed
-						// - ignore for now, because this of course moves where the arrow head sits…
-						// - probably best to draw the whole line+arrow as a path
-						// let hypot = Math.sqrt((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1));
-						// let dx = 3 * (x2-x1)/hypot; 
-						// let dy = 3 * (y2-y1)/hypot;
-
+						// get the arrow parameters so we can draw a truncated line (maybe dotted) plus arrow head
+						let arrow = getArrowParams (x1, y1, x2, y2);
 						let svgLine = SVG("line");
-						svgLine.attrsSVG({ x1: x1, y1: y1, x2: x2, y2: y2, "marker-end": "url(#arrow)" });
+						let svgArrowHead = SVG("path");
+						svgLine.attrsSVG({ x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2 });
+						svgArrowHead.attrsSVG({
+							d: `M${x2} ${y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
+							fill: ui.arrow.color,
+							stroke: "none",
+						});
+
 						if (!iglyph.touched[pt]) {
-							svgLine.attrsSVG({ "stroke-dasharray": "1 4" }); // IUP implicit movement
+							svgLine.attrsSVG({ "stroke-dasharray": 4 * font.unitsPerEm/1000 }); // IUP implicit movement
 						}
+
 						svgg2.appendChild(svgLine);
+						svgg2.appendChild(svgArrowHead);
+
 					}
 				});										
 
@@ -1103,7 +1181,7 @@ function setActiveGlyph (g, instance) {
 
 			case 6:
 
-				layer.type = "arrows-broken";
+				layer.type = "arrows-split";
 				svgg2 = SVG("g");
 				svgg2.attrsSVG({
 					"fill": "none",
@@ -1121,9 +1199,11 @@ function setActiveGlyph (g, instance) {
 					glyph.tvts.forEach((tvt, t) => {
 						let sValue = iglyph.tvtsVisualization[t].S;
 						let delta = tvt.deltas[pt];
-						let lineColor = ui.tuple.colors[t % ui.tuple.colors.length];
+						let lineColor = ui.tuple.colors[t % ui.tuple.colors.length]; // get the t’th colour in the array, wrapping round to the start when we run out of colours
 
 						let svgLine = SVG("line");
+						let svgArrowHead = SVG("path");
+
 						if (delta === null) { // IUP
 							x2 = x1 + iglyph.tvtsVisualization[t].scaledDeltas[pt][0];
 							y2 = y1 + iglyph.tvtsVisualization[t].scaledDeltas[pt][1];
@@ -1134,38 +1214,25 @@ function setActiveGlyph (g, instance) {
 							y2 = y1 + delta[1] * sValue;
 						}
 
-						let svgArrowHead = SVG("path");
-						let angle = Math.atan2(y2-y1, x2-x1);
-						let len;
-						let newX2=x2, newY2=y2;
-						if (x2==x1 && y2==y1)
-							len = 0;
-						else {
-							let tipWidth = ui.arrow.tipWidth * font.unitsPerEm/1000;
-							let tipLength = ui.arrow.tipLength * font.unitsPerEm/1000;
+						let arrow = getArrowParams (x1, y1, x2, y2);
+						if (x2!=x1 || y2!=y1) {
 
-							len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
-							newX2 = x1 + (x2-x1) * (len-tipLength)/len; // 10 = arrowLength
-							newY2 = y1 + (y2-y1) * (len-tipLength)/len; // 10 = arrowLength
-							let arrowBackX = (y2-y1) * tipWidth/2/len;
-							let arrowBackY = (x2-x1) * tipWidth/2/len;
+							svgLine.attrsSVG({
+								x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2,
+								stroke: lineColor,
+								"stroke-width": ui.arrow.strokeWidth * font.unitsPerEm/1000,
+							});
 
 							svgArrowHead.attrsSVG({
-								//d: `M${x2} ${y2}l${newX2+arrowBackX} ${newY2+arrowBackY}l${newY2-arrowBackX} ${newY2-arrowBackY}Z`,
-								d: `M${x2} ${y2}L${newX2+arrowBackX} ${newY2-arrowBackY}L${newX2-arrowBackX} ${newY2+arrowBackY}Z`,
+								d: `M${x2} ${y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
 								fill: lineColor,
 								stroke: "none",
-							})
+							});
+
+							svgg2.appendChild(svgLine);
+							svgg2.appendChild(svgArrowHead);
 						}
 
-						svgLine.attrsSVG({
-							//x1: x1, y1: y1, x2: x2, y2: y2,
-							x1: x1, y1: y1, x2: newX2, y2: newY2,
-							stroke: lineColor, // get the t’th colour in the array, wrapping round to the start when we run out of colours
-							"stroke-width": ui.arrow.strokeWidth * font.unitsPerEm/1000,
-						});
-						svgg2.appendChild(svgLine);
-						svgg2.appendChild(svgArrowHead);
 						x1 = x2;
 						y1 = y2;
 					});
@@ -1177,12 +1244,10 @@ function setActiveGlyph (g, instance) {
 		}
 
 
-
 		// add layer to the view
 
 		layer.svg = svg;
 
-	//}
 	});
 
 
@@ -1424,17 +1489,11 @@ document.onclick = function (event) {
 	else if (target = event.target.closest("#controls .panel>h2")) {
 		// toggle display of panel when panel header is clicked
 		let panelDiv = target.parentNode.querySelector("div");
-
 		panelDiv.parentNode.classList.toggle("open");
-
-		console.log (panelDiv);
-		if (panelDiv) {
-			if (panelDiv.style.display == "none") {
-				panelDiv.style.display = "block";
-			}
-			else if (panelDiv.style.display = "block")
-				panelDiv.style.display = "none";	
-		}
+		if (panelDiv.parentNode.classList.contains("open"))
+			panelDiv.style.display = "block";
+		else
+			panelDiv.style.display = "none";
 	}
 
 	else if (target = event.target.closest(".glyph-thumb")) {
