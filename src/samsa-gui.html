@@ -116,6 +116,7 @@ function Qall (selector) {
 }
 
 
+// TODO: specify that this gets the current fvs from sliders
 function getCurrentFvs() {
 
 	// TODO: store the current values separately from the axes’ value to avoid conversions
@@ -271,17 +272,23 @@ function vfLoaded (font) {
 		GLOBAL.tuple.push(0);
 	});
 
+
+	///////////////////////////////////////////////////////
+	// Filename box
+	///////////////////////////////////////////////////////
+	Q("#font-file").innerText = font.filename; // or font.names[6];
+
+
+
 	///////////////////////////////////////////////////////
 	// Info panel
 	///////////////////////////////////////////////////////
 	panel = Q("#info>div");
 	panel.innerText = "";
-
-	Q("#font-file").innerText = font.filename;
-
 	panel.innerHTML += `${font.filename} (${font.filesize || "<em>n</em>"} bytes)<br>`;
 	panel.innerHTML += `Full name: ${font.names[4]}<br>`;
 	//panel.innerHTML += `Date: ${Date(font.date).toString()}<br>`;
+
 
 
 	///////////////////////////////////////////////////////
@@ -292,7 +299,6 @@ function vfLoaded (font) {
 
 	panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox"><label for="arrows-split">split arrows</label><br>`;
 	panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox" checked><label for="arrows-total">total arrows</label>`;
-	//panel.innerHTML += `Full name: ${font.names[4]}<br>`;
 
 	Qall(".ui-arrows").forEach(el => {
 		el.addEventListener("change", e => {
@@ -312,12 +318,52 @@ function vfLoaded (font) {
 	panel = Q("#axes>div");
 	panel.innerText = "";
 
-	Q("#font-file").innerText = font.filename; // or font.names[6];
+
+	let liH = document.createElement("li");
+	liH.classList.add("header");
+	liH.style.display = "grid";
+	liH.style.gridTemplateColumns = `35px 20px 45px 45px 45px 45px 45px 1fr`;
+	liH.innerHTML = `<label>Tag</label><label class="icon bold">&#xf129;</label><label>Name</label><label class="min icon bold" style="text-align:right;">&#xf13a;</label><label class="default icon bold" style="text-align:right;">&#xf015;</label><label class="max icon bold" style="text-align:right;">&#xf139;</label><label class="icon bold" style="text-align:right;">&#xf007;</label>`;
+
+	liH.innerHTML += `<select id="axis-value-format"><option>dec</option><option>hex</option><option>norm</option><option>normhex</option></select>`;
+	//GLOBAL.vf.axes.forEach(axis => {
+	//	liH.innerHTML += `<label style="width:100%; text-align:right;"><tt>${axis.tag}</tt></label>`;
+	//});
+	panel.appendChild(liH);
 
 	// add each axis
 	font.axes.forEach((axis, a) => {
 
+		let li = document.createElement("li");
+		li.id = `axis-${a}`;
+		li.style.display = "grid";
+		li.style.gridTemplateColumns = `35px 20px 45px 45px 45px 45px 45px 1fr`;
+		li.style.listStyleType = "none";
+
+		li.innerHTML = `<label><tt>${axis.tag}</tt></label>`;
+
+		let docStr = "", docUrl = font.config.docs.axes[axis.tag.toLowerCase()];
+		if (docUrl) {
+			let docParts = docUrl.split(/:(.+)/)
+			if (docUrl && docParts[0] == "regex") {
+				docUrl = font.config.docs.regex[docParts[1]].replace("$1", axis.tag.toLowerCase()); // handles microsoft and typenetwork
+			}
+			docStr = `<a href="${docUrl}" class="icon bold" title="‘${axis.tag}’ axis specification" target="_blank">&#xf05a;</a>`; // book icon, links to the specification of this axis
+		}
+		li.innerHTML += `<div>${docStr}</div>`;
+
+		li.innerHTML += `<label>${axis.name}</label>`;
+
+		li.innerHTML += `<input class="axis-min" value="${axis.min}" readonly style="text-align:right;">`;
+		li.innerHTML += `<input class="axis-default" value="${axis.default}" readonly style="text-align:right;">`;
+		li.innerHTML += `<input class="axis-max" value="${axis.max}" readonly style="text-align:right;">`;
+		li.innerHTML += `<input class="axis-current" value="${axis.default}" style="text-align:right;">`; // current
+
+		panel.appendChild(li);
+
+		/*
 		let label =  document.createElement("label");
+
 		//label.innerHTML = `<span style="font-weight: bold; font-family: monospace;">${axis.tag}</span> ${axis.name}`;
 		label.innerHTML = `<tt>${axis.tag}</tt> ${axis.name}`;
 		let docUrl = font.config.docs.axes[axis.tag.toLowerCase()];
@@ -329,6 +375,7 @@ function vfLoaded (font) {
 			label.innerHTML += ` <a href="${docUrl}" class="icon bold" title="‘${axis.tag}’ axis specification" target="_blank">&#xf02d;</a>`; // book icon, links to the specification of this axis
 		}
 		panel.appendChild(label);
+		*/
 
 		let slider = document.createElement("input");
 		slider.classList.add("slider");
@@ -357,6 +404,18 @@ function vfLoaded (font) {
 		appendInstanceEl(undefined, true);
 	});
 
+	Q("#axis-value-format").addEventListener("change", ()=>{
+
+		//let fvs = font.tupleToFvs(GLOBAL.tuple);
+		font.axes.forEach((axis,a) => {
+			Q(`#axis-${a}>.axis-min`).value = numberFormat(axis.min, axis);
+			Q(`#axis-${a}>.axis-default`).value = numberFormat(axis.default, axis);
+			Q(`#axis-${a}>.axis-max`).value = numberFormat(axis.max, axis);
+			//let currentVal = fvs[axis.tag] === undefined ? axis.default : fvs[axis.tag];
+			Q(`#axis-${a}>.axis-current`).value = numberFormat(GLOBAL.tuple[a], axis);
+		});
+
+	});
 
 
 	///////////////////////////////////////////////////////
@@ -375,6 +434,7 @@ function vfLoaded (font) {
 		appendInstanceEl(instance);
 	});
 	setActiveInstance(GLOBAL.vf); // without an instance parameter, it sets it to the default
+
 
 
 	///////////////////////////////////////////////////////
@@ -578,6 +638,8 @@ function vfLoaded (font) {
 		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 		font.instances.pop();
 
+		axesUpdateValues();
+
 	});
 
 	Q("#xSelect").addEventListener("input", dsAxisSelectValidate);
@@ -604,6 +666,51 @@ function dsAxisSelectValidate (e) {
 
 }
 
+function numberFormat(val, axis) {
+
+	let V;
+	switch (Q("#axis-value-format").value) {
+		case "dec":
+			V = val;
+			break;
+
+		case "hex":
+			V = Math.round(val * 0x10000);
+			if (V<0)
+				V += 0x100000000;
+			V = V.toString(16);
+			for (let p=V.length; p<8; p++)
+				V = `0${V}`;
+			break;
+
+		case "norm":
+			V = GLOBAL.vf.axisNormalize(axis, val);
+			break;
+
+		case "normhex":
+			V = GLOBAL.vf.axisNormalize(axis, val);
+			V = Math.round(V * 0x4000);
+			if (V<0)
+				V += 0x10000;
+			V = V.toString(16);
+			for (let p=V.length; p<4; p++)
+				V = `0${V}`;
+			break;
+
+	}
+	return V;
+}
+
+
+function axesUpdateValues () {
+	// update axis values
+	let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
+	GLOBAL.vf.axes.forEach((axis,a) => {
+		let currentVal = fvs[axis.tag] === undefined ? axis.default : fvs[axis.tag];
+		Q(`#axis-${a}>.axis-current`).value = numberFormat(currentVal, axis);
+	});
+}
+
 
 function axisInput() {
 
@@ -611,11 +718,12 @@ function axisInput() {
 
 	// create instance
 	let instance = font.addInstance(getCurrentFvs()); // { name: "Custom", tuple: [] };
-	console.log(instance);
 
 	let glyph = font.glyphs[GLOBAL.currentGlyphId];
 	let iglyph = glyphApplyVariations(glyph, null, instance);
 	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+	
+	axesUpdateValues();
 
 	// delete instance? definitely!
 	font.instances.pop();
@@ -738,6 +846,12 @@ function updateGlyphsPanel(instance) {
 				paths = [paths];
 			}
 			paths.forEach((path, p) => {
+
+				if (Array.isArray(path))
+				{
+					console.log("OH DEAR " + glyph.name);
+				}
+
 				let svgPath;
 				let svgg3 = glyph.numContours == -1 ? SVG("g") : null; // wrap component paths in a g so they can be transformed
 				svgPath = SVG("path"); // give this an id so we can detect clicks
@@ -832,6 +946,7 @@ function setActiveInstance (font, target) {
 			setAxes (font, instance.fvs);
 			instanceApplyVariations (font, instance);
 			updateGlyphsPanel (instance);
+			axesUpdateValues();
 		}
 		else {
 			el.classList.remove("active");
@@ -913,10 +1028,17 @@ function setActiveGlyph (g, instance) {
 
 	//event.target.classList.add("selected");
 
-	//console.log ("Glyph " + g)
 	// clear main window and tvts panel
 	let drawing = Q("#drawing");
 	drawing.innerHTML = "";
+
+
+
+	///////////////////////////////////////////////////////
+	// Tuples panel
+	///////////////////////////////////////////////////////
+
+	// TODO: we shouldn’t be doing all this for each glyph refresh
 	let panel = Q("#tvts>div");
 	panel.innerHTML = "";
 
@@ -1265,9 +1387,23 @@ function setActiveGlyph (g, instance) {
 	// default glyph
 
 
+
 	// display the tvts
 
 	glyph.tvts.forEach((tvt, t) => {
+
+		// header row
+		if (t==0) {
+			let liH = document.createElement("li");
+			liH.style.display = "grid";
+			liH.style.gridTemplateColumns = `1.5em 80px 45px repeat(${GLOBAL.vf.axisCount}, 45px)`
+			liH.innerHTML = `<label>TVT</label><label>IUP</label><label>Scalar</label>`;
+			GLOBAL.vf.axes.forEach(axis => {
+				liH.innerHTML += `<label style="width:100%; text-align:right;"><tt>${axis.tag}</tt></label>`;
+			});
+			
+			panel.appendChild(liH);
+		}
 
 		let li = document.createElement("li");
 		li.classList.add("tvt");
@@ -1291,8 +1427,8 @@ function setActiveGlyph (g, instance) {
 			if (tvt.deltas[p] !== null)
 				numDeltas++;
 		}
-		tvtDeltas.innerText = `${numDeltas}/${tvt.deltas.length}`;
-		tvtDeltas.setAttribute("title", `This tuple variation moves ${numDeltas} out of ${tvt.deltas.length} points${ numDeltas==tvt.deltas.length ? " (no IUP)" : ""}`);
+		tvtDeltas.innerText = `${tvt.deltas.length-numDeltas}`;
+		tvtDeltas.setAttribute("title", `This tuple variation moves ${tvt.deltas.length-numDeltas} points via IUP.`);
 
 		// draw S value as bar graph
 		let sValue = iglyph.tvtsVisualization[t].S;
@@ -1448,6 +1584,36 @@ document.onclick = function (event) {
 	else if (target = event.target.closest(".instance")) {
 
 		setActiveInstance(GLOBAL.vf, target);
+	}
+
+	else if (target = event.target.closest("#axes .header .icon")) {
+
+		let fvs = {};
+		if (target.classList.contains("default")) {
+			GLOBAL.vf.axes.forEach((axis,a) => {
+				fvs[axis.tag] = axis.default;
+			});
+		}
+		else if (target.classList.contains("min")) {
+			GLOBAL.vf.axes.forEach((axis,a) => {
+				fvs[axis.tag] = axis.min;
+			});
+		}
+		else if (target.classList.contains("max")) {
+			GLOBAL.vf.axes.forEach((axis,a) => {
+				fvs[axis.tag] = axis.max;
+			});
+		}
+
+		GLOBAL.tuple = GLOBAL.vf.fvsToTuple(fvs);
+		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		let glyph = font.glyphs[GLOBAL.currentGlyphId];
+		let iglyph = glyphApplyVariations(glyph, null, instance);
+		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+		font.instances.pop();
+
+		axesUpdateValues();
+
 	}
 
 	else if (event.target.classList.contains("ctrl-pt")) {
@@ -1660,6 +1826,15 @@ else {
 	let panel = Q("#font-list>div");
 	panel.innerHTML = `<div>Remote file loading is not available for protocol “${window.location.protocol}”</div>`;
 }
+
+
+document.addEventListener("keydown", e => {
+
+	if (e.key == " ") {
+
+	}
+
+});
 
 
 </script>

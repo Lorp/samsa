@@ -136,8 +136,8 @@ body {
 .tvt {
 	background-color: white;
 	_border: 1px solid black;
-	padding: 4px;
-	margin: 4px;
+	_padding: 4px;
+	margin-bottom: 4px;
 }
 
 .glyph-thumb {
@@ -176,8 +176,8 @@ body {
 tt {
 	font-family: IBMPlexMono;
 	font-weight: bold;
-	background-color: black;
-	color: white;
+	_background-color: black;
+	_color: white;
 }
 
 .icon {
@@ -193,6 +193,7 @@ tt {
 
 .icon:link, .icon:hover, .icon:visited, .icon:active {
 	color: black;
+	text-decoration: none;
 }
 
 .glyph-thumb>.selected {
