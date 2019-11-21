@@ -59,9 +59,7 @@ Shows fonts stored on the server. This list comes from `fonts/_fontlist_.json`.
 
 This is useful to understand what happens with intermediate masters and corner masters. Try MuybridgeGX.ttf, and watch the tuple combinations vary as you drag the TIME slider.
 
-Observe the multiplication of tuples in corner masters. In other words, note that two axes set to 0.5 (normalized) will cause the tuple that represents the deltas at that corner master to have a scalar of 0.5 * 0.5 = 0.25.
-
-Try any font with corner masters and note how the corner tuple progresses with the multiplication of the normalized axis values, thus more slowly and at the square root of their individual values if they are equal (e.g. when wght=0.5, wdth=0.5).
+Observe the multiplication of tuples in corner masters. In other words, note that a tuple representing the corner of a 2D designspace with both axes set to 0.5 (normalized) will have a scalar of 0.5 * 0.5 = 0.25. The corner tuple of a 3-axis font, with all axes at 0.5, has a scalar of 0.5³ = 0.125.
 
 ### Designspace panel
 
