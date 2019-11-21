@@ -2,7 +2,7 @@
 
 Samsa is a web app that visualizes how variable fonts (VF) work. Type designers, font developers, front end developers and others can use Samsa to open VFs, then inspect VF glyph outlines and other data as they explore the VF designspace using sliders and other UI controls.
 
-![Mutator](/screenshots/20191119 Mutator S.png?raw=true)
+![Mutator](screenshots/20191119%20Mutator%20S.png?raw=true)
 
 Samsa uses the [Samsa-Core](docs/samsa-core.md) JavaScript library for processing variable fonts. The library implements much of the [OpenType 1.8 Variations](https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview) specification. Samsa-Core can also output static TrueType (TTF) fonts, and the Samsa web app provides export of static TTFs from any designspace location.
 
@@ -41,7 +41,7 @@ The visualization project took a separate development path from Axis-Praxis, and
 
 With support from Google Fonts in 2019, Samsa now has numerous fixes and other improvements including a new UI, and is released under the Apache-2.0 license.
 
-
+	
 ## Contributing
 
 Feedback and contributions (UI ideas, feature ideas, code) are welcome. Please use the GitHub issues system to report bugs and to suggest improvements.
