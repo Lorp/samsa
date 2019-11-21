@@ -406,13 +406,13 @@ function vfLoaded (font) {
 
 	Q("#axis-value-format").addEventListener("change", ()=>{
 
-		//let fvs = font.tupleToFvs(GLOBAL.tuple);
+		let fvs = font.tupleToFvs(GLOBAL.tuple);
 		font.axes.forEach((axis,a) => {
 			Q(`#axis-${a}>.axis-min`).value = numberFormat(axis.min, axis);
 			Q(`#axis-${a}>.axis-default`).value = numberFormat(axis.default, axis);
 			Q(`#axis-${a}>.axis-max`).value = numberFormat(axis.max, axis);
-			//let currentVal = fvs[axis.tag] === undefined ? axis.default : fvs[axis.tag];
-			Q(`#axis-${a}>.axis-current`).value = numberFormat(GLOBAL.tuple[a], axis);
+			let currentVal = fvs[axis.tag] === undefined ? axis.default : fvs[axis.tag];
+			Q(`#axis-${a}>.axis-current`).value = numberFormat(currentVal, axis);
 		});
 
 	});
@@ -670,6 +670,7 @@ function numberFormat(val, axis) {
 
 	let V;
 	switch (Q("#axis-value-format").value) {
+
 		case "dec":
 			V = val;
 			break;
