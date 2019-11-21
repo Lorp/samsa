@@ -1,7 +1,6 @@
 # Samsa-CLI
 
-Samsa-CLI (samsa-cli.js) is a Node.js command-line utility for performing operations on variable fonts (VFs). It uses the [Samsa-Core](samsa-core.js) library, so it requires samsa-
-core.js.
+Samsa-CLI (samsa-cli.js) is a Node.js command-line utility for performing operations on variable fonts (VFs). It uses the [Samsa-Core](samsa-core.js) library, so it requires samsa-core.js.
 
 ## Execution
 
@@ -16,7 +15,7 @@ The library file `samsa-core.js` must be in the same directory.
 Define the input and output font files using `--input-font` and `--output-font`:
 
 `--input-font <variable-ttf-file>`  
-`--output-font <variable-ttf-file>` (default = `samsa-out.ttf`)
+`--output-font <static-ttf-file>` (default = `samsa-out.ttf`)
 
 Define a variation to be instantiated:
 
@@ -35,7 +34,7 @@ node samsa-cli.js --input-font Gingham.ttf --variation-settings wght 300 wdth 75
 
 ## Performance
 
-Initial tests show that it is much faster (approx. 42x) than fontTools at instantiation. Improvements are dependent on improvements in samsa-core.js.
+Initial tests indicate that it is much faster (approx. 40x) than fontTools at instantiation.
 
 ## Limitations
 The fonts produced are not production ready. Limitations include:
