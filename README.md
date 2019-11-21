@@ -2,10 +2,11 @@
 
 Samsa is a web app that visualizes how variable fonts (VF) work. Type designers, font developers, front end developers and others can use Samsa to open VFs, then inspect VF glyph outlines and other data as they explore the VF designspace using sliders and other UI controls.
 
-![Mutator S](/screenshots/20191119 Mutator S.png)
+![Mutator](screenshots/20191119%20Mutator%20S.png?raw=true)
 
+Samsa uses the [Samsa-Core](docs/samsa-core.md) JavaScript library for processing variable fonts. The library implements much of the [OpenType 1.8 Variations](https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview) specification.
 
-Samsa uses the [Samsa-Core](docs/samsa-core.md) JavaScript library for processing variable fonts. The library implements much of the [OpenType 1.8 Variations](https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview) specification. Samsa-Core can also output static TrueType (TTF) fonts, and the Samsa web app provides export of static TTFs from any designspace location.
+Samsa-Core can also output static TrueType (TTF) fonts, and the Samsa web app provides export of static TTFs from any designspace location. (Note: These are not production ready.)
 
 Samsa is written in ES6 JavaScript with no dependencies. It is normally installed on web servers, but can also be run from any folder with no server setup by double-clicking `samsa-gui.html`.
 
@@ -36,13 +37,11 @@ The Samsa project grew out of:
 * 2017 work to write a VF browser polyfill
 * 2017–2018 work to extend [Axis-Praxis](https://www.axis-praxis.org) in order to visualize what happens inside VFs as designspace location changes
 
-An early version of the VF polyfill was demo’d at TYPO Labs 2017 [[video](https://www.youtube.com/watch?v=16QIZrRxafY&t=45m16s)].
-
-The visualization project took a separate development path from Axis-Praxis, and an early version of Samsa was demo’d at TGA Raabs 2017 and TYPO Labs 2018.
+An early version of the VF polyfill was demo’d at TYPO Labs 2017 [[video](https://www.youtube.com/watch?v=16QIZrRxafY&t=45m16s)]. The visualization project took a separate development path from Axis-Praxis, and an early version of Samsa was demo’d at TGA Raabs 2017 and TYPO Labs 2018.
 
 With support from Google Fonts in 2019, Samsa now has numerous fixes and other improvements including a new UI, and is released under the Apache-2.0 license.
 
-
+	
 ## Contributing
 
 Feedback and contributions (UI ideas, feature ideas, code) are welcome. Please use the GitHub issues system to report bugs and to suggest improvements.
