@@ -2129,12 +2129,7 @@ function SamsaVF (init, config) {
 		// - I think so
 		if (fvs) {
 			this.axes.forEach((axis,a) => {
-				if (fvs[axis.tag] !== undefined) {
-					instance.fvs[axis.tag] = 1.0 * fvs[axis.tag];
-				}
-				else {
-					instance.fvs[axis.tag] = axis.default;
-				}
+				instance.fvs[axis.tag] = (fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
 				instance.tuple[a] = this.axisNormalize(axis, instance.fvs[axis.tag]);
 			});
 		}
