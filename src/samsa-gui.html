@@ -830,8 +830,6 @@ function updateGlyphsPanel(instance) {
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
 
-
-		//if (glyph && glyph.numContours > 0) {
 		if (glyph) {
 
 			// simple glyph
@@ -884,18 +882,13 @@ function updateGlyphsPanel(instance) {
 
 		}
 
-		let selected = document.createElement("div");
-		selected.classList.add("selected");
-		glyphThumb.appendChild(selected);
-		panel.appendChild(glyphThumb);
-
-
+		// set the label for the glyph thumb
 		let label = document.createElement("label");
-
 		label.innerText = glyphName ? glyphName : `#${g}`; // TODO: implement a toggle so we see glyph id when we want to
 
+		// append the elements
 		glyphThumb.appendChild(label);
-
+		panel.appendChild(glyphThumb);
 	}
 
 	setActiveGlyph(GLOBAL.currentGlyphId, instance);
@@ -959,14 +952,13 @@ function setActiveInstance (font, target) {
 
 function getActiveGlyph () {
 
-	let g = 0;
-	Qall(".glyph-thumb .selected").forEach(el => {
-		if (el.style.display == "block") {
-			let comps = el.parentNode.id.split("-");
-			g = 1 * comps[1];
-		}
-	});
+	let g=0, el;
+	if (el = Q(".glyph-thumb.active")) {
+		let comps = el.id.split("-");
+		g = 1*comps[1];
+	}
 	return g;
+
 	// TODO: it would be simpler just to store the active glyph somewhere
 	// return font.currentGlyphId;
 }
@@ -1009,30 +1001,21 @@ function setActiveGlyph (g, instance) {
 	g *= 1;
 
 	GLOBAL.currentGlyphId = g; // hmm, should be part of the font, not GLOBAL … TODO: check g < numGlyphs
-
-	Qall(".glyph-thumb").forEach(el => {
-		Q(`#${el.id} .selected`).style.display = "none";
-	});
-	
-	Q(`#g-${g} .selected`).style.display = "block";
-	// TODO: wouldn’t this be more elegant setting background-color with a class?
-
-
 	let glyph = font.glyphs[g];
-	
 
-	//let iglyph = glyphApplyVariations(glyph, getCurrentFvs(), instance);
+	// highlight active glyph thumbnail (first, unhighlight all of them)
+	Qall(".glyph-thumb").forEach(el => {
+		el.classList.remove("active");
+	});
+	Q(`#g-${g}`).classList.add("active");
+
 	let iglyph = glyphApplyVariations(glyph, null, instance);
-	//setActiveGlyph(g);
 	if (instance)
 		GLOBAL.tuple = instance.tuple;
-
-	//event.target.classList.add("selected");
 
 	// clear main window and tvts panel
 	let drawing = Q("#drawing");
 	drawing.innerHTML = "";
-
 
 
 	///////////////////////////////////////////////////////
