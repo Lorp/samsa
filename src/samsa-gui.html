@@ -43,7 +43,7 @@
 		<div></div>
 	</div>
 
-	<div id="instances" class="panel open">
+	<div id="instances" class="panel closed">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Instances
 			<!--
 			<span class="icon" id="instances-as-grid">&#xf00a;</span>
@@ -53,12 +53,12 @@
 		<div></div>
 	</div>
 
-	<div id="tvts" class="panel open">
+	<div id="tvts" class="panel closed">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Tuple Variations</h2>
 		<div style="overflow-x: scroll;"></div>
 	</div>
 
-	<div id="designspace" class="panel open">
+	<div id="designspace" class="panel closed">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Designspace</h2>
 		<div></div>
 	</div>
@@ -211,7 +211,7 @@ function appendInstanceEl(instance, select) {
 	// instance name
 	let cell2 = document.createElement("div");
 	cell2.style.textAlign = "center";
-	cell2.innerHTML = `<input value="${instance.name}" ${instance.default ? "readonly " : ""}style="width: 85px">`;
+	cell2.innerHTML = `<input value="${instance.name}" ${instance.type == "default" ? "readonly " : ""}style="width: 85px">`;
 
 	// visibility
 	let cell3 = document.createElement("div");
@@ -266,7 +266,7 @@ function vfLoaded (font) {
 	console.log(GLOBAL.vf.config);
 	let panel;
 
-	// set up global tuple, the current designspace location
+	// set up initial global tuple, the default designspace location
 	GLOBAL.tuple = [];
 	font.axes.forEach(() => {
 		GLOBAL.tuple.push(0);
@@ -325,7 +325,7 @@ function vfLoaded (font) {
 	liH.style.gridTemplateColumns = `35px 20px 45px 45px 45px 45px 45px 1fr`;
 	liH.innerHTML = `<label>Tag</label><label class="icon bold">&#xf129;</label><label>Name</label><label class="min icon bold" style="text-align:right;">&#xf13a;</label><label class="default icon bold" style="text-align:right;">&#xf015;</label><label class="max icon bold" style="text-align:right;">&#xf139;</label><label class="icon bold" style="text-align:right;">&#xf007;</label>`;
 
-	liH.innerHTML += `<select id="axis-value-format"><option>dec</option><option>hex</option><option>norm</option><option>normhex</option></select>`;
+	liH.innerHTML += `<select id="axis-value-format"><option>user</option><option>userhex</option><option>norm</option><option>normhex</option></select>`;
 	//GLOBAL.vf.axes.forEach(axis => {
 	//	liH.innerHTML += `<label style="width:100%; text-align:right;"><tt>${axis.tag}</tt></label>`;
 	//});
@@ -566,8 +566,6 @@ function vfLoaded (font) {
 
 
 
-
-
 	if (!panel.parentNode.classList.contains("open"))
 		panel.style.display = "none";
 
@@ -576,7 +574,7 @@ function vfLoaded (font) {
 	// Glyphs panel
 	///////////////////////////////////////////////////////
 	GLOBAL.currentGlyphId = getDefaultGlyphId(font);
-	updateGlyphsPanel (); // use default glyphs
+	updateGlyphsPanel (font.instances[0]); // use default glyphs
 
 
 	Q("body").style.cursor = "default";
@@ -671,11 +669,11 @@ function numberFormat(val, axis) {
 	let V;
 	switch (Q("#axis-value-format").value) {
 
-		case "dec":
+		case "user":
 			V = val;
 			break;
 
-		case "hex":
+		case "userhex":
 			V = Math.round(val * 0x10000);
 			if (V<0)
 				V += 0x100000000;
@@ -891,7 +889,14 @@ function updateGlyphsPanel(instance) {
 		panel.appendChild(glyphThumb);
 	}
 
+	console.log("updateGlyphsPanel end");
+
+
+	//let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+
+	console.log(instance);
 	setActiveGlyph(GLOBAL.currentGlyphId, instance);
+	//font.instances.pop();
 
 }
 
@@ -924,6 +929,7 @@ function getActiveInstance (font) {
 			instance = el.data.instance;
 		}
 	});
+
 	return instance;
 }
 
@@ -934,7 +940,7 @@ function setActiveInstance (font, target) {
 		let instance = font.instances[i]; // font.instances[0] is the default "instance"
 
 		// update instance ui
-		if (el == target || (!target && instance.default)) { // allows for future reordering
+		if (el == target || (!target && instance.type == "default")) { // allows for future reordering
 			
 			el.classList.add("active");
 			setAxes (font, instance.fvs);
@@ -1010,8 +1016,16 @@ function setActiveGlyph (g, instance) {
 	Q(`#g-${g}`).classList.add("active");
 
 	let iglyph = glyphApplyVariations(glyph, null, instance);
-	if (instance)
-		GLOBAL.tuple = instance.tuple;
+	console.log("HEre is instance", instance);
+	console.log("sagTuple", g, instance.tuple);
+	console.log("sagTuple", g, instance.tuple[0], instance.tuple[1]);
+	if (instance) {
+		GLOBAL.tuple = [];
+		instance.tuple.forEach((v,i) => {
+			GLOBAL.tuple[i] = v; // deep copy
+		})
+		//GLOBAL.tuple = instance.tuple; // hmm, shallow copy should be ok, because if won’t be garbage collected
+	}
 
 	// clear main window and tvts panel
 	let drawing = Q("#drawing");
@@ -1504,8 +1518,10 @@ function setActiveGlyph (g, instance) {
 
 
 function playGlyphs() {
-	g = getActiveGlyph();
-	setActiveGlyph ((g+1) % GLOBAL.vf.numGlyphs, getActiveInstance(GLOBAL.vf));
+	let g = (getActiveGlyph()+1) % GLOBAL.vf.numGlyphs;
+	let instance = GLOBAL.vf.addInstance(null, {tuple: GLOBAL.tuple});
+	setActiveGlyph (g, instance);
+	GLOBAL.vf.instances.pop();
 	GLOBAL.vf.timerGlyphPlayer = setTimeout (playGlyphs, 500);
 }
 
@@ -1591,8 +1607,8 @@ document.onclick = function (event) {
 
 		GLOBAL.tuple = GLOBAL.vf.fvsToTuple(fvs);
 		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
-		let glyph = font.glyphs[GLOBAL.currentGlyphId];
-		let iglyph = glyphApplyVariations(glyph, null, instance);
+		//let glyph = font.glyphs[GLOBAL.currentGlyphId];
+		//let iglyph = glyphApplyVariations(glyph, null, instance);
 		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 		font.instances.pop();
 
@@ -1610,29 +1626,39 @@ document.onclick = function (event) {
 			&& !event.target.classList.contains("reveal")) { // this test must be before the other h2 test
 
 		let g;
-		clearTimeout(GLOBAL.vf.timerGlyphPlayer);
-		let instance = getActiveInstance(GLOBAL.vf);
-
+		let step = false;
+		clearTimeout(font.timerGlyphPlayer);
+		
 		switch (event.target.id) {
 
 			case "glyphs-stepforward":
-				clearTimeout(GLOBAL.vf.timerGlyphPlayer);
-				g = getActiveGlyph();
-				setActiveGlyph ((g+1) % font.numGlyphs, instance);
+				g = getActiveGlyph()+1;
+				step = true;
 				break;
 			case "glyphs-stepback":
-				clearTimeout(GLOBAL.vf.timerGlyphPlayer);
-				g = getActiveGlyph();
-				setActiveGlyph ((g-1+font.numGlyphs) % font.numGlyphs, instance);
+				g = getActiveGlyph()-1+font.numGlyphs;
+				step = true;
 				break;
 			case "glyphs-play":
 				playGlyphs();
 				break;
 			case "glyphs-stop":
-				clearTimeout(GLOBAL.vf.timerGlyphPlayer);
-				GLOBAL.vf.timerGlyphPlayer = undefined;
+				clearTimeout(font.timerGlyphPlayer);
+				font.timerGlyphPlayer = undefined;
 				break;
 		}
+
+		if (step) {
+			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+			g %= font.numGlyphs;
+			clearTimeout(font.timerGlyphPlayer);
+			setActiveGlyph (g, instance);
+			font.instances.pop();
+		}
+
+		// let glyph = font.glyphs[GLOBAL.currentGlyphId];
+		// let iglyph = glyphApplyVariations(glyph, null, instance);
+		// setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 
 	}
 
@@ -1651,7 +1677,9 @@ document.onclick = function (event) {
 		let comps = target.id.split("-");
 		let g = comps[1];
 
-		setActiveGlyph(g, getActiveInstance(GLOBAL.vf));
+		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		setActiveGlyph(g, instance);
+		font.instances.pop();
 
 	}
 
