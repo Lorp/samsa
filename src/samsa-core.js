@@ -1052,8 +1052,7 @@ function SamsaVF_parseTvts(g) {
 				tupleNumPoints = font.glyphs[g].points.length; // we don't bother storing their IDs
 			}
 			else {
-				var pointNum = 0;
-				var pc = 0;
+				let pointNum = 0, pc = 0;
 				while (pc < tupleNumPoints) {
 					runLength = data.getUint8(ps), ps++;
 					let pointsAreWords = (runLength & 0x80) ? true : false;
@@ -1077,7 +1076,7 @@ function SamsaVF_parseTvts(g) {
 
 		// [[ 2 ]] get each tvt
 		// get the tvt
-		for (var t=0; t < tupleCount; t++) {
+		for (let t=0; t < tupleCount; t++) {
 
 			let tupleSize, tupleIndex, tupleIntermediate, tuplePrivatePointNumbers, tupleNumPoints, impliedAllPoints;
 			let tvt = {
@@ -1156,8 +1155,7 @@ function SamsaVF_parseTvts(g) {
 					tupleNumPoints = font.glyphs[g].points.length; // remember that 0 meant "all points" - we just don't bother storing their IDs
 				}
 				else {
-					var pointNum = 0;
-					var pc = 0;
+					let pointNum = 0, pc = 0;
 					impliedAllPoints = false;
 					while (pc < tupleNumPoints) {
 
@@ -1188,13 +1186,9 @@ function SamsaVF_parseTvts(g) {
 
 			// DELTAS
 			// get the packed delta values for this tuple
-			var unpacked = [];
-			let tp=0; // delete tp?
-
-			// the all points' situation results in tupleNumPoints = font.glyphs[g].numPoints + 4
-
+			// note that "all points" means tupleNumPoints = font.glyphs[g].numPoints + 4
+			let unpacked = [];
 			while (unpacked.length < tupleNumPoints * 2) // TODO: replace with a for loop
-			//for (tp=0; tp < tupleNumPoints; )
 			{
 				runLength = data.getUint8(ps), ps++;
 				const bytesPerNum = (runLength & 0x80) ? 0 : (runLength & 0x40) ? 2 : 1;
@@ -1205,7 +1199,6 @@ function SamsaVF_parseTvts(g) {
 					case 1: /*console.log(`@${ps} BPN-1 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(data.getInt8(ps)), ps++; break;
 					case 2: /*console.log(`@${ps} BPN-2 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(data.getInt16(ps)), ps+=2; break;
 				}
-				tp+=runLength; // delete tp?
 			}
 
 			// tvt method 2019-10-15
@@ -1230,7 +1223,6 @@ function SamsaVF_parseTvts(g) {
 						pc++;
 					}
 				}
-
 			}
 
 			// add the tvt to the tvts array
