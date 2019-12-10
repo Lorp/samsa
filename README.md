@@ -23,6 +23,7 @@ Also provided are a command-line utility, Samsa-CLI (`samsa-cli.js`, for executi
 
 There are several ways to try Samsa:
 
+* Visit [www.axis-praxis.org/samsa](https://www.axis-praxis.org/samsa/)
 * Download the repository and double-click `samsa-gui.html`
 	* This works fine for drag-drop usage, but does not allow fonts to be loaded from a server.
 * Download the files and install on a web server
@@ -40,6 +41,8 @@ The Samsa project grew out of:
 An early version of the VF polyfill was demo’d at TYPO Labs 2017 [[video](https://www.youtube.com/watch?v=16QIZrRxafY&t=45m16s)]. The visualization project took a separate development path from Axis-Praxis, and an early version of Samsa was demo’d at TGA Raabs 2017 and TYPO Labs 2018.
 
 With support from Google Fonts in 2019, Samsa now has numerous fixes and other improvements including a new UI, and is released under the Apache-2.0 license.
+
+The name Samsa comes from [Gregor Samsa](https://en.wikipedia.org/wiki/The_Metamorphosis#Gregor_Samsa), the protagonist of Franz Kafka’s story, *The Metamorphosis*.
 
 	
 ## Contributing
