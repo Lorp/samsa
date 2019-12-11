@@ -105,6 +105,119 @@ let GLOBAL = {
 	fontList: [],
 };
 
+CONFIG.visualization = true;
+CONFIG.ui = {
+
+	cartesianAxes: {
+		stroke: "lightblue",
+		strokeWidth: 1,
+	},
+
+	arrow: {
+		strokeWidth: 3,
+		tipLength: 20,
+		tipWidth: 15,
+		//color: "#0044ee",
+		color: "orange",
+	},
+
+	tuple: {
+		//colors: ["#269d78", "#d7601c","#7571b1","#e5318a","#68a42c","#e5aa27","#a57528"], // "ColorBrewer Dark2" palette from https://serialmentor.com/dataviz/color-basics.html
+		colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
+	},
+
+	point: {
+		size: 7,
+		shapeOnCurve: "■", // one of ⯅●■
+		shapeOffCurve: "●", // ⯅●■
+	},
+
+	tupleNeedle: {
+		stroke: "red",
+	},
+
+	tupleScalar: {
+		fill: "black",
+	},
+
+	glyph: {
+		//fill: "#ddd",
+		fill: "#555",
+		stroke: "none",
+		strokeWidth: 0,
+		backgroundColor: "black",
+	},
+
+	instanceGlyph: {
+		//fill: "#00f",
+		//fill: "#ddd",
+		fill: "white",
+		//stroke: "white",
+		strokeWidth: 2,
+		//opacity: 0.6,
+		opacity: 0.8,
+	},
+
+	glyphThumb: {
+		fill: "black",
+		stroke: "none",
+		strokeWidth: 0,
+	},
+
+	// ?better as CSS, so we can add italic, weight, border, background-color etc?
+	text: {
+		font: "IBM Plex",
+		size: 18,
+	},
+
+	label: {
+		font: "IBM Plex",
+		size: 12,
+	},
+};
+
+CONFIG.docs = {
+	axes: {
+		wght: "regex:microsoft",
+		wdth: "regex:microsoft",
+		opsz: "regex:microsoft",
+		ital: "regex:microsoft",
+		slnt: "regex:microsoft",
+		xtra: "regex:typenetwork",
+		xopq: "regex:typenetwork",
+		ytra: "regex:typenetwork",
+		yopq: "regex:typenetwork",
+		ytlc: "regex:typenetwork",
+		ytuc: "regex:typenetwork",
+		ytde: "regex:typenetwork",
+		ytas: "regex:typenetwork",
+		xtab: "regex:typenetwork",
+		vrot: "regex:typenetwork",
+		udln: "regex:typenetwork",
+		shdw: "regex:typenetwork",
+		refl: "regex:typenetwork",
+		otln: "regex:typenetwork",
+		engr: "regex:typenetwork",
+		embo: "regex:typenetwork",
+		ytch: "regex:typenetwork",
+		xtch: "regex:typenetwork",
+		rxad: "regex:typenetwork",
+		ryad: "regex:typenetwork",
+		rsec: "regex:typenetwork",
+		vuid: "regex:typenetwork",
+		votf: "regex:typenetwork",
+		gext: "https://github.com/microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Glyph_Extension_Axis/ProposalSummary.md",
+		hght: "https://github.com/microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Height_Axis/ProposalSummary.md",
+		spac: "https://github.com/Microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Spacing_Axis/ProposalSummary.md",
+	},
+	regex: {
+		microsoft: "https://docs.microsoft.com/en-us/typography/opentype/spec/dvaraxistag_$1",
+		typenetwork: "https://variationsguide.typenetwork.com/#$1",
+	},
+	hoi: "http://underware.nl/case-studies/hoi/",
+};
+
+
 
 // shorthands
 function Q (selector) {
@@ -262,8 +375,6 @@ function appendInstanceEl(instance, select) {
 function vfLoaded (font) {
 
 	GLOBAL.vf = font;
-	GLOBAL.vf.config.visualization = true;
-	console.log(GLOBAL.vf.config);
 	let panel;
 
 	// set up initial global tuple, the default designspace location
@@ -450,33 +561,18 @@ function vfLoaded (font) {
 	cartesian.setAttribute("style", "width: 100%; height: 360px;");
 	panel.appendChild(cartesian);
 
-	// build dropdown select elements
-
+	// checkboxes for X and Y axis assignment
 	let htmlX, htmlY;
-	if (0) {
-		htmlX = `<select id="xSelect" multiple>`;
-		htmlY = `<select id="ySelect" multiple>`;
-		GLOBAL.vf.axes.forEach((axis,a) => {
-			htmlX += `<option${a==0 ? " selected" : ""}>${axis.tag}</option>`;
-			htmlY += `<option${a==1 ? " selected" : ""}>${axis.tag}</option>`;
-		});
-		htmlX += `</select>`;
-		htmlY += `</select>`;
-	}
-	else {
-		htmlX = `<div id="xSelect" class="ds-axis-group">`;
-		htmlY = `<div id="ySelect" class="ds-axis-group">`;
-		GLOBAL.vf.axes.forEach((axis,a) => {
-			htmlX += `<div><input type="checkbox" id="x-${axis.tag}" value="${axis.tag}"${a==0 ? " checked" : ""}><label for="x-${axis.tag}">${axis.tag}</label></div>`;
-			htmlY += `<div><input type="checkbox" id="y-${axis.tag}" value="${axis.tag}"${a==1 ? " checked" : ""}><label for="y-${axis.tag}">${axis.tag}</label></div>`;
-		});
-		htmlX += `</div>`;
-		htmlY += `</div>`;
-	}
-
-
-	panel.innerHTML += `<div class="cartesian-axis-row"><div>X</div>${htmlX}<div id="xValue"></div></div>`;
-	panel.innerHTML += `<div class="cartesian-axis-row"><div>Y</div>${htmlY}<div id="yValue"></div></div>`;
+	htmlX = `<div id="xSelect" class="ds-axis-group">`;
+	htmlY = `<div id="ySelect" class="ds-axis-group">`;
+	GLOBAL.vf.axes.forEach((axis,a) => {
+		htmlX += `<div><input type="checkbox" id="x-${axis.tag}" value="${axis.tag}"${a==0 ? " checked" : ""}><label for="x-${axis.tag}">${axis.tag}</label></div>`;
+		htmlY += `<div><input type="checkbox" id="y-${axis.tag}" value="${axis.tag}"${a==1 ? " checked" : ""}><label for="y-${axis.tag}">${axis.tag}</label></div>`;
+	});
+	htmlX += `</div>`;
+	htmlY += `</div>`;
+	panel.innerHTML += `<div class="cartesian-axis-row"><div>X=<span id="xValue">0</span></div>${htmlX}</div>`;
+	panel.innerHTML += `<div class="cartesian-axis-row"><div>Y=<span id="yValue">0</span></div>${htmlY}</div>`;
 	
 	// attach change events to each checkbox
 	Qall(".ds-axis-group input").forEach(el => {
@@ -1533,7 +1629,7 @@ document.onclick = function (event) {
 
 	else if (target = event.target.closest("#axes .header .icon")) {
 
-		let fvs = {};
+		let fvs = {}, redraw = true;
 		if (target.classList.contains("default")) {
 			GLOBAL.vf.axes.forEach((axis,a) => {
 				fvs[axis.tag] = axis.default;
@@ -1549,16 +1645,16 @@ document.onclick = function (event) {
 				fvs[axis.tag] = axis.max;
 			});
 		}
+		else
+			redraw = false;
 
-		GLOBAL.tuple = GLOBAL.vf.fvsToTuple(fvs);
-		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
-		//let glyph = font.glyphs[GLOBAL.currentGlyphId];
-		//let iglyph = glyphApplyVariations(glyph, null, instance);
-		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-		font.instances.pop();
-
-		axesUpdateValues();
-
+		if (redraw) {		
+			GLOBAL.tuple = GLOBAL.vf.fvsToTuple(fvs);
+			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+			font.instances.pop();
+			axesUpdateValues();
+		}
 	}
 
 	else if (event.target.classList.contains("ctrl-pt")) {

@@ -17,8 +17,6 @@ samsa-core.js
 
 
 
-// this is the 
-
 // TODO:
 // - rename it SamsaCONFIG
 // - pass the actual config object along with the font
@@ -51,118 +49,6 @@ let CONFIG = {
 
 	name: {
 		maxSize: 50000,
-	},
-
-	// TODO: this should be set up in samsa-gui, not here in samsa-core
-	ui: {
-
-		cartesianAxes: {
-			stroke: "lightblue",
-			strokeWidth: 1,
-		},
-
-		arrow: {
-			strokeWidth: 3,
-			tipLength: 20,
-			tipWidth: 15,
-			//color: "#0044ee",
-			color: "orange",
-		},
-
-		tuple: {
-			//colors: ["#269d78", "#d7601c","#7571b1","#e5318a","#68a42c","#e5aa27","#a57528"], // "ColorBrewer Dark2" palette from https://serialmentor.com/dataviz/color-basics.html
-			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
-		},
-
-		point: {
-			size: 7,
-			shapeOnCurve: "■", // one of ⯅●■
-			shapeOffCurve: "●", // ⯅●■
-		},
-
-		tupleNeedle: {
-			stroke: "red",
-		},
-
-		tupleScalar: {
-			fill: "black",
-		},
-
-		glyph: {
-			//fill: "#ddd",
-			fill: "#555",
-			stroke: "none",
-			strokeWidth: 0,
-			backgroundColor: "black",
-		},
-
-		instanceGlyph: {
-			//fill: "#00f",
-			//fill: "#ddd",
-			fill: "white",
-			//stroke: "white",
-			strokeWidth: 2,
-			//opacity: 0.6,
-			opacity: 0.8,
-		},
-
-		glyphThumb: {
-			fill: "black",
-			stroke: "none",
-			strokeWidth: 0,
-		},
-
-		// ?better as CSS, so we can add italic, weight, border, background-color etc?
-		text: {
-			font: "IBM Plex",
-			size: 18,
-		},
-
-		label: {
-			font: "IBM Plex",
-			size: 12,
-		},
-	},
-
-	docs: {
-		axes: {
-			wght: "regex:microsoft",
-			wdth: "regex:microsoft",
-			opsz: "regex:microsoft",
-			ital: "regex:microsoft",
-			slnt: "regex:microsoft",
-			xtra: "regex:typenetwork",
-			xopq: "regex:typenetwork",
-			ytra: "regex:typenetwork",
-			yopq: "regex:typenetwork",
-			ytlc: "regex:typenetwork",
-			ytuc: "regex:typenetwork",
-			ytde: "regex:typenetwork",
-			ytas: "regex:typenetwork",
-			xtab: "regex:typenetwork",
-			vrot: "regex:typenetwork",
-			udln: "regex:typenetwork",
-			shdw: "regex:typenetwork",
-			refl: "regex:typenetwork",
-			otln: "regex:typenetwork",
-			engr: "regex:typenetwork",
-			embo: "regex:typenetwork",
-			ytch: "regex:typenetwork",
-			xtch: "regex:typenetwork",
-			rxad: "regex:typenetwork",
-			ryad: "regex:typenetwork",
-			rsec: "regex:typenetwork",
-			vuid: "regex:typenetwork",
-			votf: "regex:typenetwork",
-			gext: "https://github.com/microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Glyph_Extension_Axis/ProposalSummary.md",
-			hght: "https://github.com/microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Height_Axis/ProposalSummary.md",
-			spac: "https://github.com/Microsoft/OpenTypeDesignVariationAxisTags/blob/master/Proposals/Spacing_Axis/ProposalSummary.md",
-		},
-		regex: {
-			microsoft: "https://docs.microsoft.com/en-us/typography/opentype/spec/dvaraxistag_$1",
-			typenetwork: "https://variationsguide.typenetwork.com/#$1",
-		},
-		hoi: "http://underware.nl/case-studies/hoi/",
 	},
 
 	postscriptNames: [".notdef",".null","nonmarkingreturn","space","exclam","quotedbl","numbersign","dollar","percent","ampersand","quotesingle","parenleft","parenright","asterisk","plus","comma","hyphen","period","slash","zero","one","two","three","four","five","six","seven","eight","nine","colon","semicolon","less","equal","greater","question","at","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","bracketleft","backslash","bracketright","asciicircum","underscore","grave","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","braceleft","bar","braceright","asciitilde","Adieresis","Aring","Ccedilla","Eacute","Ntilde","Odieresis","Udieresis","aacute","agrave","acircumflex","adieresis","atilde","aring","ccedilla","eacute","egrave","ecircumflex","edieresis","iacute","igrave","icircumflex","idieresis","ntilde","oacute","ograve","ocircumflex","odieresis","otilde","uacute","ugrave","ucircumflex","udieresis","dagger","degree","cent","sterling","section","bullet","paragraph","germandbls","registered","copyright","trademark","acute","dieresis","notequal","AE","Oslash","infinity","plusminus","lessequal","greaterequal","yen","mu","partialdiff","summation","product","pi","integral","ordfeminine","ordmasculine","Omega","ae","oslash","questiondown","exclamdown","logicalnot","radical","florin","approxequal","Delta","guillemotleft","guillemotright","ellipsis","nonbreakingspace","Agrave","Atilde","Otilde","OE","oe","endash","emdash","quotedblleft","quotedblright","quoteleft","quoteright","divide","lozenge","ydieresis","Ydieresis","fraction","currency","guilsinglleft","guilsinglright","fi","fl","daggerdbl","periodcentered","quotesinglbase","quotedblbase","perthousand","Acircumflex","Ecircumflex","Aacute","Edieresis","Egrave","Iacute","Icircumflex","Idieresis","Igrave","Oacute","Ocircumflex","apple","Ograve","Uacute","Ucircumflex","Ugrave","dotlessi","circumflex","tilde","macron","breve","dotaccent","ring","cedilla","hungarumlaut","ogonek","caron","Lslash","lslash","Scaron","scaron","Zcaron","zcaron","brokenbar","Eth","eth","Yacute","yacute","Thorn","thorn","minus","multiply","onesuperior","twosuperior","threesuperior","onehalf","onequarter","threequarters","franc","Gbreve","gbreve","Idotaccent","Scedilla","scedilla","Cacute","cacute","Ccaron","ccaron","dcroat"],

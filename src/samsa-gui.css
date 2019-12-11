@@ -226,5 +226,6 @@ tt {
 
 .cartesian-axis-row {
 	display: grid;
-	grid-template-columns: 2em 4em auto;
+	grid-template-columns: 1fr 1fr;
+	border-top: 1px solid lightgrey;
 }
