@@ -2,15 +2,6 @@
 
 // samsa-cli.js
 
-/* 
-
-/Users/lorp/Documents/variablefonts/fonts/arphic/2017-11-02/JingXiHei-VF_65535.ttf 
-
-2019-10-19 examples
-node samsa-cli.js --input-font fonts/Gingham.ttf --variation-settings wght 634 wdth 5
-node samsa-cli.js --input-font fonts/JingXiHei-VF_65535.ttf --variation-settings wght 300 wdth 75 --named-instances
-
-*/
 
 
 
@@ -120,8 +111,24 @@ if ((i = process.argv.indexOf("--named-instances")) > 1)
 	dumpNamedInstances = true;
 
 
-// initialize vf
-let vf = new samsa.SamsaVF(init, config);
+
+if (customInstance || dumpNamedInstances) {
+	// initialize vf
+	let vf = new samsa.SamsaVF(init, config);
+}
+else
+	console.log (`
+Samsa-CLI, a utility for generating static fonts from variable fonts, based on the Samsa-Core JavaScript library.
+
+Documentation:
+  https://github.com/Lorp/samsa/tree/master/docs
+
+Examples:
+  node samsa-cli.js --input-font Gingham.ttf --variation-settings wght 634 wdth 5 --output-font GinghamCustom.ttf
+  node samsa-cli.js --input-font Skia.ttf --named-instances
+`);
+
+
 
 
 function vfLoaded (font) {
@@ -161,6 +168,7 @@ function vfLoaded (font) {
 		});
 
 	}
+
 }
 
 
@@ -169,17 +177,9 @@ function getStringFromData (data, p0, length)
 {
 	var str = "";
 	var p = p0;
-	while (p - p0 < length)
-	{
+	while (p - p0 < length) {
 		str += String.fromCharCode(data.getUint8(p++));	
 	}
 	return str;
 }
-
-
-
-
-// START OF MAIN PROGRAM
-console.log("-----------------------------------------------");
-console.log("Samsa CLI (samsa-cli.js) is running...");
 
