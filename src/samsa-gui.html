@@ -43,7 +43,7 @@
 		<div></div>
 	</div>
 
-	<div id="instances" class="panel closed">
+	<div id="instances" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Instances
 			<!--
 			<span class="icon" id="instances-as-grid">&#xf00a;</span>
@@ -53,12 +53,12 @@
 		<div></div>
 	</div>
 
-	<div id="tvts" class="panel closed">
+	<div id="tvts" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Tuple Variations</h2>
 		<div style="overflow-x: scroll;"></div>
 	</div>
 
-	<div id="designspace" class="panel closed">
+	<div id="designspace" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Designspace</h2>
 		<div></div>
 	</div>
@@ -451,67 +451,53 @@ function vfLoaded (font) {
 	panel.appendChild(cartesian);
 
 	// build dropdown select elements
-	let htmlX = `<select id="xSelect" multiple>`;
-	let htmlY = `<select id="ySelect" multiple>`;
-	GLOBAL.vf.axes.forEach((axis,a) => {
-		htmlX += `<option${a==0 ? " selected" : ""}>${axis.tag}</option>`;
-		htmlY += `<option${a==1 ? " selected" : ""}>${axis.tag}</option>`;
-	});
-	htmlX += `</select>`;
-	htmlY += `</select>`;
+
+	let htmlX, htmlY;
+	if (0) {
+		htmlX = `<select id="xSelect" multiple>`;
+		htmlY = `<select id="ySelect" multiple>`;
+		GLOBAL.vf.axes.forEach((axis,a) => {
+			htmlX += `<option${a==0 ? " selected" : ""}>${axis.tag}</option>`;
+			htmlY += `<option${a==1 ? " selected" : ""}>${axis.tag}</option>`;
+		});
+		htmlX += `</select>`;
+		htmlY += `</select>`;
+	}
+	else {
+		htmlX = `<div id="xSelect" class="ds-axis-group">`;
+		htmlY = `<div id="ySelect" class="ds-axis-group">`;
+		GLOBAL.vf.axes.forEach((axis,a) => {
+			htmlX += `<div><input type="checkbox" id="x-${axis.tag}" value="${axis.tag}"${a==0 ? " checked" : ""}><label for="x-${axis.tag}">${axis.tag}</label></div>`;
+			htmlY += `<div><input type="checkbox" id="y-${axis.tag}" value="${axis.tag}"${a==1 ? " checked" : ""}><label for="y-${axis.tag}">${axis.tag}</label></div>`;
+		});
+		htmlX += `</div>`;
+		htmlY += `</div>`;
+	}
+
+
 	panel.innerHTML += `<div class="cartesian-axis-row"><div>X</div>${htmlX}<div id="xValue"></div></div>`;
 	panel.innerHTML += `<div class="cartesian-axis-row"><div>Y</div>${htmlY}<div id="yValue"></div></div>`;
-	;
-	/*let xSelect = document.createElement("select");
-	let ySelect = document.createElement("select");
-	xSelect.id = "xSelect";
-	ySelect.id = "ySelect";
-	xSelect.setAttribute("multiple", true);
-	ySelect.setAttribute("multiple", true);
-*/
+	
+	// attach change events to each checkbox
+	Qall(".ds-axis-group input").forEach(el => {
+		el.addEventListener("change", () => {
+			// validate new state of checkboxes
+			let valid = true, foundAxes = [];
+			Qall(".ds-axis-group input:checked").forEach(el => {
+				if (foundAxes.includes(el.value))
+					valid = false;
+				else
+					foundAxes.push(el.value);
+			});
 
-	//let xTitle = document.createElement("option"); xTitle.innerText = "X";
-	//let yTitle = document.createElement("option"); yTitle.innerText = "Y";
-	//xSelect.appendChild(xTitle); xTitle.setAttribute("disabled", true);
-	//ySelect.appendChild(yTitle); yTitle.setAttribute("disabled", true);
-
-
-/*
-	GLOBAL.vf.axes.forEach((axis,a) => {
-		xEl = document.createElement("option"); xEl.innerText = axis.tag;
-		yEl = document.createElement("option"); yEl.innerText = axis.tag;
-		xSelect.appendChild(xEl);
-		ySelect.appendChild(yEl);
-		switch (a) {
-			case 0: xEl.setAttribute("selected", true); break;
-			case 1: yEl.setAttribute("selected", true); break;
-		}
+			// if invalid, set red background
+			xSelect.style.backgroundColor = ySelect.style.backgroundColor = valid ? "inherit" : "red";
+		});
 	});
-	panel.appendChild(xSelect);
-	panel.appendChild(ySelect);
-*/
 
 	// TODO: consider user/normalized option
 
 	updateDesignspace();
-
-
-
-/*
-	// TODO: hmm, this doesn’t work
-	//console.log(cbxMultiple)
-	cbxMultiple.onchange = function (event) {
-		alert ("click");
-		if (cbxMultiple.checked) {
-			xSelect.setAttribute("multiple", true);
-			ySelect.setAttribute("multiple", true);
-		}
-		else {
-			xSelect.removeAttribute("multiple");
-			ySelect.removeAttribute("multiple");
-		}
-	};
-*/
 
 
 	// TODO: .designspace export - is this useful?
@@ -574,10 +560,11 @@ function vfLoaded (font) {
 	// Glyphs panel
 	///////////////////////////////////////////////////////
 	GLOBAL.currentGlyphId = getDefaultGlyphId(font);
-	updateGlyphsPanel (font.instances[0]); // use default glyphs
+	updateGlyphsPanel (font.instances[0]); // instances[0] is always the default instance
 
 
 	Q("body").style.cursor = "default";
+
 
 	// designspace: handle mousemove
 	Q("#ds-cartesian").addEventListener("mousemove", e => {
@@ -599,30 +586,20 @@ function vfLoaded (font) {
 		for (let a=0; a < GLOBAL.vf.axes.length; a++) {
 			tuple.push(0); // default is 0 by definition
 		}
-			
-		// what is current x axis?
-		Qall("#xSelect option").forEach(option => {
-			if (option.selected) {			
-				let indices = GLOBAL.vf.axisIndices(option.value); // get axis indices for this axis tag
-				indices.forEach(index => {
-					tuple[index] = x;
-				});
-			}
+		
+		// what VF axes are attached to the X axis?
+		Qall("#xSelect input:checked").forEach(el => {
+			GLOBAL.vf.axisIndices(el.value).forEach(i => tuple[i]=x );
 		});
 
-		// what is current y axis?
-		Qall("#ySelect option").forEach(option => {
-			if (option.selected) {			
-				let indices = GLOBAL.vf.axisIndices(option.value); // get axis indices for this axis tag
-				indices.forEach(index => {
-					tuple[index] = y;
-				});
-			}
+		// what VF axes are attached to the Y axis?
+		Qall("#ySelect input:checked").forEach(el => {
+			GLOBAL.vf.axisIndices(el.value).forEach(i => tuple[i]=y );
 		});
 
 		// update the text fields
-		Q("#xValue").innerText = x;
-		Q("#yValue").innerText = y;
+		Q("#xValue").innerText = x.toFixed(5);
+		Q("#yValue").innerText = y.toFixed(5);
 
 		// set the axes in the Axes panel
 		let fvs = GLOBAL.vf.tupleToFvs(tuple);
@@ -640,29 +617,8 @@ function vfLoaded (font) {
 
 	});
 
-	Q("#xSelect").addEventListener("input", dsAxisSelectValidate);
-	Q("#ySelect").addEventListener("input", dsAxisSelectValidate);
-
 }
 
-
-function dsAxisSelectValidate (e) {
-
-	let xItems = [], yItems = [], valid = true;
-	Qall("#xSelect>option:checked").forEach(option => {
-		xItems.push(option.value);
-	});
-	Qall("#ySelect>option:checked").forEach(option => {
-		yItems.push(option.value);
-	});
-	xItems.forEach(tag => {
-		if (yItems.includes(tag))
-			valid = false;
-	});
-
-	xSelect.style.backgroundColor = ySelect.style.backgroundColor = valid ? "inherit" : "red";
-
-}
 
 function numberFormat(val, axis) {
 
@@ -734,17 +690,6 @@ function updateDesignspace() {
 	let cb = Q("#dsAxesMultiple");
 	let xSelect = Q("#xSelect");
 	let ySelect = Q("#ySelect");
-
-	/*
-	if (cb.checked) {
-		xSelect.setAttribute("multiple", true);
-		ySelect.setAttribute("multiple", true);
-	}
-	else {
-		xSelect.removeAttribute("multiple");
-		ySelect.removeAttribute("multiple");
-	}
-	*/
 
 	// draw cartesian axes
 	let cartesian = Q("#ds-cartesian");
