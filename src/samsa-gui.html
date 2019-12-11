@@ -468,7 +468,7 @@ function vfLoaded (font) {
 		li.innerHTML += `<input class="axis-min" value="${axis.min}" readonly style="text-align:right;">`;
 		li.innerHTML += `<input class="axis-default" value="${axis.default}" readonly style="text-align:right;">`;
 		li.innerHTML += `<input class="axis-max" value="${axis.max}" readonly style="text-align:right;">`;
-		li.innerHTML += `<input class="axis-current" value="${axis.default}" style="text-align:right;">`; // current
+		li.innerHTML += `<input class="axis-current active" value="${axis.default}" style="text-align:right;">`; // current
 
 		panel.appendChild(li);
 
@@ -1654,6 +1654,7 @@ document.onclick = function (event) {
 			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 			font.instances.pop();
 			axesUpdateValues();
+			setAxes (GLOBAL.vf, fvs);
 		}
 	}
 
