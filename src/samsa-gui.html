@@ -550,8 +550,16 @@ function vfLoaded (font) {
 		panel.innerHTML += uiModeHTML;
 
 		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox"><label for="arrows-split">split arrows</label><br>`;
-		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox" checked><label for="arrows-total">total arrows</label>`;
+		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox" checked><label for="arrows-total">total arrows</label><br>`;
 
+
+		// SVG export
+		panel.innerHTML += `<button id="svg-export">SVG export</button>`;
+
+		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
+		Q("#ui-mode").value = font.config.ui.name;
+
+		// UI checkbox click
 		Qall(".ui-arrows").forEach(el => {
 			el.addEventListener("change", e => {
 				let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
@@ -562,8 +570,17 @@ function vfLoaded (font) {
 			});
 		});
 
-		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
-		Q("#ui-mode").value = font.config.ui.name;
+		// SVG export click
+		Q("#svg-export").addEventListener("click", () => {
+			let svgCode = Q("#drawing").innerHTML;
+			let fauxLink = document.createElement("a");
+			fauxLink.download = "samsa-drawing.svg";
+			fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
+			document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
+			fauxLink.click();
+			fauxLink.remove();
+		});
+
 	}
 
 
