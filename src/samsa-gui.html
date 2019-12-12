@@ -33,7 +33,7 @@
 		<div></div>
 	</div>
 
-	<div id="ui" class="panel closed">
+	<div id="ui" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> UI</h2>
 		<div></div>
 	</div>
@@ -106,75 +106,206 @@ let GLOBAL = {
 };
 
 CONFIG.visualization = true;
-CONFIG.ui = {
+CONFIG.uiModes = {
 
-	cartesianAxes: {
-		stroke: "lightblue",
-		strokeWidth: 1,
+	light: {
+		name: "light",
+
+		cartesianAxes: {
+			stroke: "#31b8e7",
+			strokeWidth: 1,
+		},
+
+		arrow: {
+			strokeWidth: 3,
+			tipLength: 20,
+			tipWidth: 15,
+			color: "#0044ee",
+		},
+
+		tuple: {
+			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
+		},
+
+		point: {
+			size: 7,
+			shapeOnCurve: "■", // one of ⯅●■
+			shapeOffCurve: "●", // ⯅●■
+		},
+
+		tupleNeedle: {
+			stroke: "red",
+		},
+
+		tupleScalar: {
+			fill: "black",
+		},
+
+		glyphDefault: {
+			fill: "#ddd",
+			stroke: "none",
+			strokeWidth: 0,
+			backgroundColor: "transparent",
+		},
+
+		glyphCurrent: {
+			fill: "none",
+			stroke: "black",
+			strokeWidth: 2,
+			opacity: 1,
+		},
+
+		glyphThumb: {
+			fill: "black",
+			stroke: "none",
+			strokeWidth: 0,
+		},
+
+		text: {
+			font: "IBM Plex",
+			size: 18,
+		},
+
+		label: {
+			font: "IBM Plex",
+			size: 12,
+		},
 	},
 
-	arrow: {
-		strokeWidth: 3,
-		tipLength: 20,
-		tipWidth: 15,
-		//color: "#0044ee",
-		color: "orange",
+	dark: {
+		name: "dark",
+
+		cartesianAxes: {
+			stroke: "lightblue",
+			strokeWidth: 1,
+		},
+
+		arrow: {
+			strokeWidth: 3,
+			tipLength: 20,
+			tipWidth: 15,
+			//color: "#0044ee",
+			color: "orange",
+		},
+
+		tuple: {
+			//colors: ["#269d78", "#d7601c","#7571b1","#e5318a","#68a42c","#e5aa27","#a57528"], // "ColorBrewer Dark2" palette from https://serialmentor.com/dataviz/color-basics.html
+			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
+		},
+
+		point: {
+			size: 7,
+			shapeOnCurve: "■", // one of ⯅●■
+			shapeOffCurve: "●", // ⯅●■
+		},
+
+		tupleNeedle: {
+			stroke: "red",
+		},
+
+		tupleScalar: {
+			fill: "black",
+		},
+
+		glyphDefault: {
+			fill: "#555",
+			stroke: "none",
+			strokeWidth: 0,
+			backgroundColor: "black",
+		},
+
+		glyphCurrent: {
+			//fill: "#00f",
+			//fill: "#ddd",
+			fill: "white",
+			//stroke: "white",
+			strokeWidth: 2,
+			//opacity: 0.6,
+			opacity: 0.8,
+		},
+
+		glyphThumb: {
+			fill: "black",
+			stroke: "none",
+			strokeWidth: 0,
+		},
+
+		// ?better as CSS, so we can add italic, weight, border, background-color etc?
+		text: {
+			font: "IBM Plex",
+			size: 18,
+		},
+
+		label: {
+			font: "IBM Plex",
+			size: 12,
+		},
 	},
 
-	tuple: {
-		//colors: ["#269d78", "#d7601c","#7571b1","#e5318a","#68a42c","#e5aa27","#a57528"], // "ColorBrewer Dark2" palette from https://serialmentor.com/dataviz/color-basics.html
-		colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
-	},
+	preview: {
+		name: "preview",
 
-	point: {
-		size: 7,
-		shapeOnCurve: "■", // one of ⯅●■
-		shapeOffCurve: "●", // ⯅●■
-	},
+		cartesianAxes: {
+			stroke: "lightblue",
+			strokeWidth: 1,
+		},
 
-	tupleNeedle: {
-		stroke: "red",
-	},
+		arrow: {
+			strokeWidth: 0,
+			tipLength: 0,
+			tipWidth: 0,
+			color: "transparent",
+		},
 
-	tupleScalar: {
-		fill: "black",
-	},
+		tuple: {
+			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
+		},
 
-	glyph: {
-		//fill: "#ddd",
-		fill: "#555",
-		stroke: "none",
-		strokeWidth: 0,
-		backgroundColor: "black",
-	},
+		point: {
+			size: 0,
+		},
 
-	instanceGlyph: {
-		//fill: "#00f",
-		//fill: "#ddd",
-		fill: "white",
-		//stroke: "white",
-		strokeWidth: 2,
-		//opacity: 0.6,
-		opacity: 0.8,
-	},
+		tupleNeedle: {
+			stroke: "red",
+		},
 
-	glyphThumb: {
-		fill: "black",
-		stroke: "none",
-		strokeWidth: 0,
-	},
+		tupleScalar: {
+			fill: "black",
+		},
 
-	// ?better as CSS, so we can add italic, weight, border, background-color etc?
-	text: {
-		font: "IBM Plex",
-		size: 18,
-	},
+		glyphDefault: {
+			fill: "none",
+			stroke: "none",
+			strokeWidth: 0,
+			backgroundColor: "white",
+		},
 
-	label: {
-		font: "IBM Plex",
-		size: 12,
+		glyphCurrent: {
+			fill: "black",
+			stroke: "none",
+			//strokeWidth: 2,
+			opacity: 1,
+		},
+
+		glyphThumb: {
+			fill: "black",
+			stroke: "none",
+			strokeWidth: 0,
+		},
+
+		text: {
+			font: "IBM Plex",
+			size: 18,
+		},
+
+		label: {
+			font: "IBM Plex",
+			size: 12,
+		},
 	},
-};
+}
+
+CONFIG.ui = CONFIG.uiModes["dark"];
 
 CONFIG.docs = {
 	axes: {
@@ -406,21 +537,34 @@ function vfLoaded (font) {
 	// UI Panel
 	///////////////////////////////////////////////////////
 	panel = Q("#ui>div");
-	panel.innerText = "";
+	if (!Q("#ui-mode")) { // only build once
+		panel.innerText = "";
 
-	panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox"><label for="arrows-split">split arrows</label><br>`;
-	panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox" checked><label for="arrows-total">total arrows</label>`;
-
-	Qall(".ui-arrows").forEach(el => {
-		el.addEventListener("change", e => {
-			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
-			let glyph = font.glyphs[GLOBAL.currentGlyphId];
-			let iglyph = glyphApplyVariations(glyph, null, instance);
-			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-			font.instances.pop();
+		// ui options select
+		let uiModeHTML = "";
+		uiModeHTML += `<select id="ui-mode">`;
+		Object.keys(font.config.uiModes).forEach(mode => {
+			uiModeHTML += `<option value="${mode}">${mode}</option>`;
 		});
-	});
+		uiModeHTML += `</select><br>`;
+		panel.innerHTML += uiModeHTML;
 
+		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox"><label for="arrows-split">split arrows</label><br>`;
+		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox" checked><label for="arrows-total">total arrows</label>`;
+
+		Qall(".ui-arrows").forEach(el => {
+			el.addEventListener("change", e => {
+				let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+				let glyph = font.glyphs[GLOBAL.currentGlyphId];
+				let iglyph = glyphApplyVariations(glyph, null, instance);
+				setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+				font.instances.pop();
+			});
+		});
+
+		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
+		Q("#ui-mode").value = font.config.ui.name;
+	}
 
 
 	///////////////////////////////////////////////////////
@@ -662,7 +806,21 @@ function vfLoaded (font) {
 	Q("body").style.cursor = "default";
 
 
-	// designspace: handle mousemove
+	///////////////////////////////////////////////////////
+	// late event handlers and assignments
+	///////////////////////////////////////////////////////
+
+	// ui: handle change of mode
+	Q("#ui-mode").addEventListener("change", () => {
+		console.log(Q("#ui-mode").value);
+		font.config.ui = font.config.uiModes[Q("#ui-mode").value];
+
+		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+		font.instances.pop();
+	});
+
+	// designspace: handle mousemove (late event handler)
 	Q("#ds-cartesian").addEventListener("mousemove", e => {
 		// requires pointer-events:none on all grid lines
 
@@ -1057,9 +1215,6 @@ function setActiveGlyph (g, instance) {
 	Q(`#g-${g}`).classList.add("active");
 
 	let iglyph = glyphApplyVariations(glyph, null, instance);
-	console.log("HEre is instance", instance);
-	console.log("sagTuple", g, instance.tuple);
-	console.log("sagTuple", g, instance.tuple[0], instance.tuple[1]);
 	if (instance) {
 		GLOBAL.tuple = [];
 		instance.tuple.forEach((v,i) => {
@@ -1094,7 +1249,7 @@ function setActiveGlyph (g, instance) {
 	svg.attrsSVG( {
 		width: 1000,
 		height: 1000,
-		style: `background-color: ${ui.glyph.backgroundColor};`,
+		style: `background-color: ${ui.glyphDefault.backgroundColor};`,
 	});
 	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
 
@@ -1185,9 +1340,9 @@ function setActiveGlyph (g, instance) {
 					svgPath = SVG("path"); // give this an id so we can detect clicks
 					svgPath.attrsSVG({
 						d: path,
-						stroke: ui.glyph.stroke,
-						"stroke-width": `${ui.glyph.strokeWidth}px`,
-						fill: ui.glyph.fill,
+						stroke: ui.glyphDefault.stroke,
+						"stroke-width": `${ui.glyphDefault.strokeWidth}px`,
+						fill: ui.glyphDefault.fill,
 					});
 					if (svgg3) {
 						//svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
@@ -1224,7 +1379,7 @@ function setActiveGlyph (g, instance) {
 				if (!Array.isArray(paths)) { // composite
 					paths = [paths];
 				}
-				let uiStyle = ui.instanceGlyph;
+				let uiStyle = ui.glyphCurrent;
 				paths.forEach((path, p) => {
 					svgg3 = iglyph.numContours == -1 ? SVG("g") : null; // wrap component paths in a g
 					svgPath = SVG("path"); // give this an id so we can detect clicks
