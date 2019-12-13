@@ -127,12 +127,6 @@ CONFIG.uiModes = {
 			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
 		},
 
-		point: {
-			size: 7,
-			shapeOnCurve: "■", // one of ⯅●■
-			shapeOffCurve: "●", // ⯅●■
-		},
-
 		tupleNeedle: {
 			stroke: "red",
 		},
@@ -141,11 +135,25 @@ CONFIG.uiModes = {
 			fill: "black",
 		},
 
+		point: {
+			size: 10,
+			shape: "■", // one of ■●▲+x
+			shapeOffCurve: "●",
+			opacity: 1,
+		},		
+
 		glyphDefault: {
 			fill: "#ddd",
 			stroke: "none",
 			strokeWidth: 0,
 			backgroundColor: "transparent",
+			point: {
+				stroke: "#888",
+				strokeWidth: 3,
+				fill: "none",
+				shape: "+",
+				shapeOffCurve: "+",
+			},
 		},
 
 		glyphCurrent: {
@@ -153,6 +161,12 @@ CONFIG.uiModes = {
 			stroke: "black",
 			strokeWidth: 2,
 			opacity: 1,
+			point: {
+				size: 15,
+				strokeWidth: 0,
+				fill: "blue",
+				opacity: 0.7,
+			},
 		},
 
 		glyphThumb: {
@@ -193,18 +207,20 @@ CONFIG.uiModes = {
 			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
 		},
 
-		point: {
-			size: 7,
-			shapeOnCurve: "■", // one of ⯅●■
-			shapeOffCurve: "●", // ⯅●■
-		},
-
 		tupleNeedle: {
 			stroke: "red",
 		},
 
 		tupleScalar: {
 			fill: "black",
+		},
+
+		point: {
+			size: 7,
+			shape: "+",
+			shapeOffCurve: "+",
+			stroke: "yellow",
+			strokeWidth: 2,
 		},
 
 		glyphDefault: {
@@ -215,13 +231,17 @@ CONFIG.uiModes = {
 		},
 
 		glyphCurrent: {
-			//fill: "#00f",
-			//fill: "#ddd",
 			fill: "white",
-			//stroke: "white",
 			strokeWidth: 2,
-			//opacity: 0.6,
 			opacity: 0.8,
+			point: {
+				size: 17,
+				fill: "blue",
+				stroke: "none",
+				opacity: 0.7,
+				shape: "■", // one of ⯅●■
+				shapeOffCurve: "●", // ⯅●■
+			}
 		},
 
 		glyphThumb: {
@@ -261,10 +281,6 @@ CONFIG.uiModes = {
 			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
 		},
 
-		point: {
-			size: 0,
-		},
-
 		tupleNeedle: {
 			stroke: "red",
 		},
@@ -273,8 +289,12 @@ CONFIG.uiModes = {
 			fill: "black",
 		},
 
+		point: {
+			size: 0, // disable points
+		},		
+
 		glyphDefault: {
-			fill: "none",
+			fill: "none", // disable the default glyph
 			stroke: "none",
 			strokeWidth: 0,
 			backgroundColor: "white",
@@ -283,7 +303,6 @@ CONFIG.uiModes = {
 		glyphCurrent: {
 			fill: "black",
 			stroke: "none",
-			//strokeWidth: 2,
 			opacity: 1,
 		},
 
@@ -305,7 +324,7 @@ CONFIG.uiModes = {
 	},
 }
 
-CONFIG.ui = CONFIG.uiModes["dark"];
+CONFIG.ui = CONFIG.uiModes["light"];
 
 CONFIG.docs = {
 	axes: {
@@ -1211,6 +1230,55 @@ function getArrowParams (x1, y1, x2, y2) {
 	return arrow;
 }
 
+function getSVGForShape (point, shape, size) {
+
+	let svgEl;
+	switch (shape) {
+		// "■●▲+x"
+		case "■":
+			svgEl = SVG("rect");
+			svgEl.attrsSVG({
+				x: point[0]-size/2,
+				y: point[1]-size/2,
+				width: size,
+				height: size,
+			});
+			break;
+
+		case "●":
+			svgEl = SVG("circle");
+			svgEl.attrsSVG({
+				cx: point[0],
+				cy: point[1],
+				r: size/2,
+			});
+			break;
+
+		case "▲":
+			svgEl = SVG("path");
+			svgEl.attrsSVG({
+				d: `M${point[0]} ${point[1]+size/2}L${point[0]+size/2*0.86602540378} ${point[1]-size/2*0.5}L${point[0]-size/2*0.86602540378} ${point[1]-size/2*0.5}Z`,
+			});
+			break;
+
+		case "+":
+			svgEl = SVG("path");
+			svgEl.attrsSVG({
+				d: `M${point[0]-size/2} ${point[1]}L${point[0]+size/2} ${point[1]}M${point[0]} ${point[1]-size/2}L${point[0]} ${point[1]+size/2}`,
+			});
+			break;
+
+		case "x":
+			svgEl = SVG("path");
+			svgEl.attrsSVG({
+				d: `M${point[0]-size/2} ${point[1]-size/2}L${point[0]+size/2} ${point[1]+size/2}M${point[0]-size/2} ${point[1]+size/2}L${point[0]+size/2} ${point[1]-size/2}`,
+			});
+			break;
+	}
+
+	return svgEl;
+}
+
 
 function setActiveGlyph (g, instance) {
 
@@ -1312,22 +1380,29 @@ function setActiveGlyph (g, instance) {
 
 	layerIds.forEach(L => {
 
-		let svgPath, svgg3, paths;
+		let svgPath, svgg2, svgg3, paths;
 		let layer = layers[L] = {
 			on: true,
 			svg: null,
+		};
+		let style = {
+			size: 0,
+			fill: "none",
+			stroke: "none",
+			strokeWidth: 0,
 		};
 
 		switch (L) {
 
 			// cartesian axes, the grid
 			case 0:
-				layer.type = "grid";
+				layer.id = "layer-grid";
 				svgPath = SVG("path");
+				svgPath.id = layer.id;
 				svgPath.attrsSVG({
 					d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
 					stroke: ui.cartesianAxes.stroke,
-					"stroke-width": ui.cartesianAxes.strokeWidth + "px",
+					"stroke-width": ui.cartesianAxes.strokeWidth * font.unitsPerEm/1000,
 					fill: "none",
 				});
 				svgg.appendChild(svgPath);
@@ -1335,7 +1410,7 @@ function setActiveGlyph (g, instance) {
 				break;
 
 			case 1:
-				layer.type = "default";
+				layer.id = "layer-default";
 				//svgPath = SVG("path");
 
 				// draw glyph
@@ -1358,7 +1433,7 @@ function setActiveGlyph (g, instance) {
 					svgPath.attrsSVG({
 						d: path,
 						stroke: ui.glyphDefault.stroke,
-						"stroke-width": `${ui.glyphDefault.strokeWidth}px`,
+						"stroke-width": ui.glyphDefault.strokeWidth * font.unitsPerEm/1000,
 						fill: ui.glyphDefault.fill,
 					});
 					if (svgg3) {
@@ -1368,15 +1443,18 @@ function setActiveGlyph (g, instance) {
 						svgg3.setAttributeNS(null, "transform", `translate(${glyph.points[p][0]} ${glyph.points[p][1]})`);
 						svgg3.appendChild(svgPath);
 						svgg.appendChild(svgg3);
+						svgg3.id = layer.id;
 					}
-					else
+					else {
+						svgPath.id = layer.id;
 						svgg.appendChild(svgPath);
+					}
 				});
 
 				break;
 
 			case 2:
-				layer.type = "instance";
+				layer.id = "layer-instance";
 
 				// draw glyph with variations taken from the current axis settings
 				// - should we render all active instances in this "layer"?
@@ -1404,7 +1482,7 @@ function setActiveGlyph (g, instance) {
 						d: path,
 						style: `opacity: ${uiStyle.opacity}`,
 						stroke: "black",//`${uiStyle.stroke}`,
-						"stroke-width": `${uiStyle.strokeWidth}px`,
+						"stroke-width": uiStyle.strokeWidth * font.unitsPerEm/1000,
 						fill: `${uiStyle.fill}`,
 						// "filter": "url(#blur)", not yet :)					
 					});
@@ -1413,19 +1491,24 @@ function setActiveGlyph (g, instance) {
 						svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
 						svgg3.appendChild(svgPath);
 						svgg.appendChild(svgg3);
+						svgg3.id = layer.id;
 					}
 					else {
 						//svgg3.id = `g${iglyph.id}`; // "g27" means glyph 27
 						svgg.appendChild(svgPath);
+						svgPath.id = layer.id;
 					}
 				});
 
 				break;
 
+/*
+
 			case 3:
 				// TODO: decide how to show "points" for composites… origin, so we see translations?
-				layer.type = "instance-points";
+				layer.id = "layer-instance-points";
 				svgg2 = SVG("g");
+				svgg2.id = layer.id;
 
 				iglyph.points.forEach(function (pt, p) {
 					let size = ui.point.size;
@@ -1449,14 +1532,16 @@ function setActiveGlyph (g, instance) {
 
 				svgg.appendChild(svgg2);
 				break;
+*/
 
 			case 4:
-				layer.type = "arrows-total";
+				layer.id = "layer-arrows-total";
 
 				svgg2 = SVG("g");
+				svgg2.id = layer.id;
 				svgg2.attrsSVG({
 					"stroke": ui.arrow.color,
-					"stroke-width": `${ui.arrow.strokeWidth}`,
+					"stroke-width": ui.arrow.strokeWidth * font.unitsPerEm/1000,
 				});
 
 				glyph.points.forEach((point1, pt) => {
@@ -1490,35 +1575,67 @@ function setActiveGlyph (g, instance) {
 				svgg.appendChild(svgg2);
 				break;
 
+
+			case 3:
 			case 5:
-
 				// draw control points, grouped in their own <g>
-				layer.type = "points";
-				svgg2 = SVG("g");
-				svgg2.attrsSVG({
-					"fill": "none",
-					"stroke-width": "1px",
-					"stroke": ui.arrow.color,
-				});
-				glyph.points.forEach(function (pt, p) {
-					// TODO: use individual SVG elements for each point when we implement dragging of instance points
-					let size = 4; //font.config.ui.point.size;
-					svgPath = SVG("path");
-					svgPath.attrsSVG({"d": `M${pt[0]-size},${pt[1]} L${pt[0]+size},${pt[1]} M${pt[0]},${pt[1]+size} L${pt[0]},${pt[1]-size}`});
-					svgg2.appendChild(svgPath);
-				});
+				if (L==3)
+					layer.id = "layer-instance-points";
+				else if (L==5)
+					layer.id = "layer-points";
+				else
+					layer.id = "layer-invalid";
 
-				svgg.appendChild(svgg2);
+				// set style, with overrides
+				Object.keys(ui.point).forEach(k => {
+					style[k] = ui.point[k];
+				});
+				if (L==3 && ui.glyphCurrent.point)
+					Object.keys(ui.glyphCurrent.point).forEach(k => {
+						style[k] = ui.glyphCurrent.point[k];
+					});
+				else if (L==5 && ui.glyphDefault.point)
+					Object.keys(ui.glyphDefault.point).forEach(k => {
+						style[k] = ui.glyphDefault.point[k];
+					});
+
+				// only draw if they’re wanted
+				if (style.size > 0) {				
+					
+					// create group element
+					svgg2 = SVG("g");
+					svgg2.id = layer.id;
+
+					// set attrs
+					svgg2.attrsSVG({
+						fill: style.fill,
+						"stroke-width": style.strokeWidth * font.unitsPerEm/1000,
+						stroke: style.stroke,
+						opacity: style.opacity,
+					});
+
+					// draw the points
+					(L==3 ? iglyph : glyph).points.forEach(function (pt, p) {
+						let svgEl = getSVGForShape (
+							pt,
+							pt[2] ? style.shape : style.shapeOffCurve,
+							style.size * font.unitsPerEm/1000);
+						svgg2.appendChild(svgEl);
+					});
+
+					svgg.appendChild(svgg2);
+				}
 				break;
 
 
 			case 6:
 
-				layer.type = "arrows-split";
+				layer.id = "layer-arrows-split";
 				svgg2 = SVG("g");
+				svgg2.id = layer.id;
 				svgg2.attrsSVG({
 					"fill": "none",
-					"stroke-width": "3px",
+					"stroke-width": 3,
 					"stroke": "green",
 				});
 
