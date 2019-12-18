@@ -522,6 +522,68 @@ function appendInstanceEl(instance, select) {
 }
 
 
+function exportImage (format) {
+	if (GLOBAL.frameIndex === undefined)
+		GLOBAL.frameIndex = 0;
+	else
+		GLOBAL.frameIndex++;
+
+	let svgCode = Q("#drawing").innerHTML;
+	svgCode = svgCode.replace(`<svg `, `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" `);
+
+	if (format == "svg") {
+		let fauxLink = document.createElement("a");
+		fauxLink.download = "samsa-drawing.svg";
+		fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
+		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
+		fauxLink.click();
+		fauxLink.remove();
+	}
+	else if (format == "png") {
+		// make a canvas to export the bitmap
+		let canvas = document.createElement("canvas");
+		let img = new Image();
+		canvas.setAttribute("width", 1080);
+		canvas.setAttribute("height", 720);
+		canvas.id = "samsa-drawing-canvas";
+		canvas.style.border = "1px solid red";
+		document.body.appendChild(canvas);
+		img.onload = function () {
+			//alert ("loaded");
+			let canvas = Q("#samsa-drawing-canvas");
+			let filename = "samsa-drawing";
+			let frameIndexStr = GLOBAL.frameIndex.toString();
+			for ( ; frameIndexStr.length<3; frameIndexStr = `0${frameIndexStr}`) {
+			}
+			filename = filename + frameIndexStr + ".png";
+			let ctx = canvas.getContext("2d");
+			ctx.drawImage(img, 0, 0);
+			let png = canvas.toDataURL('image/png'); // get pixels from canvas
+			let fauxLink = document.createElement("a");
+			fauxLink.download = filename;
+			//fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
+			fauxLink.href = png;
+			document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
+			fauxLink.click();
+			fauxLink.remove();
+
+			//canvas.parentNode.removeChild(canvas);
+			canvas.remove(); // better to just blank it each time?
+		}
+		img.width = 800;
+		img.height = 800;
+		img.src = "data:image/svg+xml," + encodeURIComponent(svgCode);	
+
+		// ffmpeg command to export the animation bash script
+		// - when exporting multiple images is working, we’ll save this in a file too
+		// #!/bin/bash
+		// ffmpeg -r 10 -i samsa-drawing%03d.png -pix_fmt yuv420p -loglevel error samsa-drawing.mp4
+	}
+
+}
+
+
+
 function vfLoaded (font) {
 
 	GLOBAL.vf = font;
@@ -568,12 +630,13 @@ function vfLoaded (font) {
 		uiModeHTML += `</select><br>`;
 		panel.innerHTML += uiModeHTML;
 
-		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox"><label for="arrows-split">split arrows</label><br>`;
-		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox" checked><label for="arrows-total">total arrows</label><br>`;
+		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">split arrows</label><br>`;
+		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">total arrows</label><br>`;
 
 
 		// SVG export
-		panel.innerHTML += `<button id="svg-export">SVG export</button>`;
+		panel.innerHTML += `<button id="export-svg">Export SVG</button>`;
+		panel.innerHTML += `<button id="export-png">Export PNG</button>`;
 
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
 		Q("#ui-mode").value = font.config.ui.name;
@@ -590,16 +653,12 @@ function vfLoaded (font) {
 		});
 
 		// SVG export click
-		Q("#svg-export").addEventListener("click", () => {
-			let svgCode = Q("#drawing").innerHTML;
-			let fauxLink = document.createElement("a");
-			fauxLink.download = "samsa-drawing.svg";
-			fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
-			document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
-			fauxLink.click();
-			fauxLink.remove();
+		Q("#export-svg").addEventListener("click", () => {
+			exportImage ("svg");
 		});
-
+		Q("#export-png").addEventListener("click", () => {
+			exportImage ("png");
+		});
 	}
 
 
@@ -1727,7 +1786,7 @@ function setActiveGlyph (g, instance) {
 			liH.style.gridTemplateColumns = `1.5em 80px 45px repeat(${GLOBAL.vf.axisCount}, 45px)`
 			liH.innerHTML = `<label>TVT</label><label>IUP</label><label>Scalar</label>`;
 			GLOBAL.vf.axes.forEach(axis => {
-				liH.innerHTML += `<label style="width:100%; text-align:right;"><tt>${axis.tag}</tt></label>`;
+				liH.innerHTML += `<label style="width:100%; text-align:center;"><tt>${axis.tag}</tt></label>`;
 			});
 			
 			panel.appendChild(liH);
@@ -1809,15 +1868,13 @@ function setActiveGlyph (g, instance) {
 				svgg.appendChild(path);
 
 				// draw current axis position
-				if (iglyph.instance && iglyph.instance.tuple[a] > 0) {
+				if (iglyph.instance && iglyph.instance.tuple[a] != 0) {
 					let needle = SVG("line");
 					let needleColor = ui.tupleNeedle.stroke;
 					needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: iglyph.instance.tuple[a]*20, y1: 0, x2: iglyph.instance.tuple[a]*20, y2: 20});
 					svgg.appendChild(needle);
 				}
-
 			}
-
 
 			tvtGraph.appendChild(svgg);
 			tvtGraphEl.appendChild(tvtGraph);
