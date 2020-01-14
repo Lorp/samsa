@@ -51,6 +51,10 @@ let CONFIG = {
 		maxSize: 50000,
 	},
 
+	deltas: {
+		round: true,
+	},
+
 	postscriptNames: [".notdef",".null","nonmarkingreturn","space","exclam","quotedbl","numbersign","dollar","percent","ampersand","quotesingle","parenleft","parenright","asterisk","plus","comma","hyphen","period","slash","zero","one","two","three","four","five","six","seven","eight","nine","colon","semicolon","less","equal","greater","question","at","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","bracketleft","backslash","bracketright","asciicircum","underscore","grave","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","braceleft","bar","braceright","asciitilde","Adieresis","Aring","Ccedilla","Eacute","Ntilde","Odieresis","Udieresis","aacute","agrave","acircumflex","adieresis","atilde","aring","ccedilla","eacute","egrave","ecircumflex","edieresis","iacute","igrave","icircumflex","idieresis","ntilde","oacute","ograve","ocircumflex","odieresis","otilde","uacute","ugrave","ucircumflex","udieresis","dagger","degree","cent","sterling","section","bullet","paragraph","germandbls","registered","copyright","trademark","acute","dieresis","notequal","AE","Oslash","infinity","plusminus","lessequal","greaterequal","yen","mu","partialdiff","summation","product","pi","integral","ordfeminine","ordmasculine","Omega","ae","oslash","questiondown","exclamdown","logicalnot","radical","florin","approxequal","Delta","guillemotleft","guillemotright","ellipsis","nonbreakingspace","Agrave","Atilde","Otilde","OE","oe","endash","emdash","quotedblleft","quotedblright","quoteleft","quoteright","divide","lozenge","ydieresis","Ydieresis","fraction","currency","guilsinglleft","guilsinglright","fi","fl","daggerdbl","periodcentered","quotesinglbase","quotedblbase","perthousand","Acircumflex","Ecircumflex","Aacute","Edieresis","Egrave","Iacute","Icircumflex","Idieresis","Igrave","Oacute","Ocircumflex","apple","Ograve","Uacute","Ucircumflex","Ugrave","dotlessi","circumflex","tilde","macron","breve","dotaccent","ring","cedilla","hungarumlaut","ogonek","caron","Lslash","lslash","Scaron","scaron","Zcaron","zcaron","brokenbar","Eth","eth","Yacute","yacute","Thorn","thorn","minus","multiply","onesuperior","twosuperior","threesuperior","onehalf","onequarter","threequarters","franc","Gbreve","gbreve","Idotaccent","Scedilla","scedilla","Cacute","cacute","Ccaron","ccaron","dcroat"],
 
 };
@@ -308,12 +312,12 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 								X = dx[pt] = Math.round(points[pt][0]) - cx;
 								Y = dy[pt] = Math.round(points[pt][1]) - cy;
 								f = points[pt][2]; // on-curve = 1, off-curve = 0
-								if (!X)
+								if (X==0)
 									f |= 0x10;
 								else if (X >= -255 && X <= 255)
 									f |= (X > 0 ? 0x12 : 0x02);
 
-								if (!Y)
+								if (Y==0)
 									f |= 0x20;
 								else if (Y >= -255 && Y <= 255)
 									f |= (Y > 0 ? 0x24 : 0x04);
@@ -321,6 +325,11 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 								flags[pt] = f;
 								cx = points[pt][0];
 								cy = points[pt][1];
+
+								// OPTIMIZE: bring the 3 loops below into this loop to avoid multiple loops and duplicated tests
+								// - either don’t compress points at all, so we can write flag, x and y easily in one loop
+								// - or we write x and y into buffers and copy later
+								// - config option to select compression or speed
 							}
 							if (font.config.glyf.overlapSimple)
 								flags[0] |= 0x40; // overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
@@ -2296,7 +2305,7 @@ function instanceApplyVariations (font, instance) {
 }
 
 
-function glyphApplyVariations (glyph, userTuple, instance) {
+function glyphApplyVariations (glyph, userTuple, instance, extra) {
 
 	// create newGlyph, a new glyph object which is the supplied glyph with the variations applied, as specified in instance (or if blank, userTuple)
 	// - TODO: can we move away from using userTuple and always require an instance?
@@ -2307,7 +2316,6 @@ function glyphApplyVariations (glyph, userTuple, instance) {
 	}
 
 	let config = glyph.font.config;
-
 	let newGlyph = {
 		default: glyph,
 		font: glyph.font,
@@ -2329,6 +2337,9 @@ function glyphApplyVariations (glyph, userTuple, instance) {
 		advanceWidth: 0,
 		flags: glyph.flags, // do we need this?
 	};
+	let round = CONFIG.deltas.round;
+	if (extra && extra.roundDeltas === false)
+		round = false;
 
 	if (config.visualization)
 		newGlyph.tvtsVisualization = [];
@@ -2460,8 +2471,14 @@ function glyphApplyVariations (glyph, userTuple, instance) {
 			// TODO: Verify that we are rounding correctly. The spec implies we should maybe NOT round here
 			// - https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
 			newGlyph.points.forEach(function (point, p) {
-				point[0] += Math.round(scaledDeltas[p][0]);
-				point[1] += Math.round(scaledDeltas[p][1]);
+				if (round) {
+					point[0] += Math.round(scaledDeltas[p][0]);
+					point[1] += Math.round(scaledDeltas[p][1]);
+				}
+				else {
+					point[0] += scaledDeltas[p][0];
+					point[1] += scaledDeltas[p][1];
+				}
 			});
 		} // if (S != 0)
 

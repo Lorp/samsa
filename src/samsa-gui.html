@@ -123,6 +123,10 @@ CONFIG.uiModes = {
 			color: "#0044ee",
 		},
 
+		designspace: {
+			colors: ["blue", "red"],
+		},
+
 		tuple: {
 			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
 		},
@@ -202,6 +206,10 @@ CONFIG.uiModes = {
 			color: "orange",
 		},
 
+		designspace: {
+			colors: ["blue", "red"],
+		},
+
 		tuple: {
 			//colors: ["#269d78", "#d7601c","#7571b1","#e5318a","#68a42c","#e5aa27","#a57528"], // "ColorBrewer Dark2" palette from https://serialmentor.com/dataviz/color-basics.html
 			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
@@ -262,6 +270,92 @@ CONFIG.uiModes = {
 		},
 	},
 
+	loci: {
+		name: "loci",
+
+		cartesianAxes: {
+			stroke: "#31b8e7",
+			strokeWidth: 1,
+		},
+
+		arrow: {
+			strokeWidth: 0,
+		},
+
+		designspace: {
+			colors: ["royalblue", "crimson"],
+		},
+
+		tuple: {
+			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
+		},
+
+		tupleNeedle: {
+			stroke: "red",
+		},
+
+		tupleScalar: {
+			fill: "black",
+		},
+
+		loci: {
+			steps: 40,
+			strokeWidth: 6,
+			style: "railway", // "railway" or "line"
+			opacity: 0.7,
+		},
+
+		point: {
+			size: 10,
+			shape: "●", // one of ■●▲+x
+			shapeOffCurve: "●",
+			opacity: 1,
+		},		
+
+		glyphDefault: {
+			fill: "none",
+			stroke: "none",
+			strokeWidth: 0,
+			backgroundColor: "transparent",
+			point: {
+				stroke: "#888",
+				strokeWidth: 0,
+				fill: "none",
+				shape: "+",
+				shapeOffCurve: "+",
+			},
+		},
+
+		glyphCurrent: {
+			fill: "none",
+			stroke: "#aaa",
+			strokeWidth: 2,
+			opacity: 1,
+			point: {
+				size: 15,
+				strokeWidth: 0,
+				fill: "green",
+				opacity: 0.75,
+			},
+		},
+
+		glyphThumb: {
+			fill: "black",
+			stroke: "none",
+			strokeWidth: 0,
+		},
+
+		text: {
+			font: "IBM Plex",
+			size: 18,
+		},
+
+		label: {
+			font: "IBM Plex",
+			size: 12,
+		},
+	},
+
 	preview: {
 		name: "preview",
 
@@ -275,6 +369,10 @@ CONFIG.uiModes = {
 			tipLength: 0,
 			tipWidth: 0,
 			color: "transparent",
+		},
+
+		designspace: {
+			colors: ["blue", "red"],
 		},
 
 		tuple: {
@@ -629,10 +727,15 @@ function vfLoaded (font) {
 		});
 		uiModeHTML += `</select><br>`;
 		panel.innerHTML += uiModeHTML;
+		panel.innerHTML += "<label>Deltas</label>&nbsp;";
+		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">split</label>&nbsp;`;
+		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">total</label><br>`;
 
-		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">split arrows</label><br>`;
-		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">total arrows</label><br>`;
-
+		/*
+		panel.innerHTML += "<label>Delta colours</label>&nbsp;";
+		panel.innerHTML += `<input id="arrows-colours" name="arrows-colours" class="ui-arrows-colours" type="radio" checked><label for="arrows-split">by tuple</label>&nbsp;`;
+		panel.innerHTML += `<input id="arrows-colours" name="arrows-colours" class="ui-arrows-colours" type="radio"><label for="arrows-total">by order</label><br>`;
+		*/
 
 		// SVG export
 		panel.innerHTML += `<button id="export-svg">Export SVG</button>`;
@@ -1035,7 +1138,7 @@ function axisInput() {
 
 function updateDesignspace() {
 
-	console.log("updateDesignspace");
+	const ui = CONFIG.ui;
 	let cb = Q("#dsAxesMultiple");
 	let xSelect = Q("#xSelect");
 	let ySelect = Q("#ySelect");
@@ -1065,7 +1168,7 @@ function updateDesignspace() {
 	svgXVal.id = "svgXVal";
 	svgXVal.attrsSVG({
 		d: "M0 -1 L0 1",
-		stroke: `blue`,
+		stroke: ui.designspace.colors[1],
 		"stroke-width": `${1/scale}px`,
 		fill: "none",
 		"pointer-events": "none",
@@ -1075,7 +1178,7 @@ function updateDesignspace() {
 	svgYVal.id = "svgYVal";
 	svgYVal.attrsSVG({
 		d: "M-1 0 L1 0",
-		stroke: `lightgreen`,
+		stroke: ui.designspace.colors[0],
 		"stroke-width": `${1/scale}px`,
 		fill: "none",
 		"pointer-events": "none",
@@ -1387,9 +1490,9 @@ function setActiveGlyph (g, instance) {
 	let opacity = 0.5;
 	let svg = SVG("svg");
 	let svgg = SVG("g"); // this transforms everything inside it
-	let svgDefs = SVG("defs")
-	let svgMarker = SVG("marker")
-	let svgMarkerPath = SVG("path")
+	//let svgDefs = SVG("defs")
+	//let svgMarker = SVG("marker")
+	//let svgMarkerPath = SVG("path")
 	svg.attrsSVG( {
 		width: 1000,
 		height: 1000,
@@ -1397,6 +1500,7 @@ function setActiveGlyph (g, instance) {
 	});
 	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
 
+	/*
 	// define marker
 	svgMarker.id = "arrow";
 	svgMarker.attrsSVG({
@@ -1410,6 +1514,7 @@ function setActiveGlyph (g, instance) {
 	svgMarkerPath.setAttributeNS(null, "d", "M 10 5 L 3 2 L 3 8 z");
 	svgMarker.appendChild(svgMarkerPath);
 	svgDefs.appendChild(svgMarker);
+	*/
 
 	/*
 	// filters to use... not yet :)
@@ -1422,7 +1527,7 @@ function setActiveGlyph (g, instance) {
 	svgDefs.appendChild(svgFilter);
 	*/
 
-	svg.appendChild(svgDefs);
+	//svg.appendChild(svgDefs);
 
 
 	// TODO: we're not yet using the layer idea, but I think it will be useful to allow us to make minimal updates
@@ -1430,11 +1535,13 @@ function setActiveGlyph (g, instance) {
 	layerIds.push(0);
 	layerIds.push(1);
 	layerIds.push(2);
+	if (ui.loci && ui.loci.strokeWidth)
+		layerIds.push(7);
 	layerIds.push(3);
-	if (Q("#arrows-total").checked)
+	if (Q("#arrows-total").checked && ui.arrow.strokeWidth)
 		layerIds.push(4);
 	layerIds.push(5);
-	if (Q("#arrows-split").checked)
+	if (Q("#arrows-split").checked && ui.arrow.strokeWidth)
 		layerIds.push(6);
 
 	layerIds.forEach(L => {
@@ -1468,6 +1575,8 @@ function setActiveGlyph (g, instance) {
 
 				break;
 
+
+			// default
 			case 1:
 				layer.id = "layer-default";
 				//svgPath = SVG("path");
@@ -1512,6 +1621,8 @@ function setActiveGlyph (g, instance) {
 
 				break;
 
+
+			// instance
 			case 2:
 				layer.id = "layer-instance";
 
@@ -1540,7 +1651,7 @@ function setActiveGlyph (g, instance) {
 					svgPath.attrsSVG({
 						d: path,
 						style: `opacity: ${uiStyle.opacity}`,
-						stroke: "black",//`${uiStyle.stroke}`,
+						stroke: uiStyle.stroke,
 						"stroke-width": uiStyle.strokeWidth * font.unitsPerEm/1000,
 						fill: `${uiStyle.fill}`,
 						// "filter": "url(#blur)", not yet :)					
@@ -1593,6 +1704,7 @@ function setActiveGlyph (g, instance) {
 				break;
 */
 
+			// arrows: total
 			case 4:
 				layer.id = "layer-arrows-total";
 
@@ -1635,6 +1747,7 @@ function setActiveGlyph (g, instance) {
 				break;
 
 
+			// control points
 			case 3:
 			case 5:
 				// draw control points, grouped in their own <g>
@@ -1687,6 +1800,7 @@ function setActiveGlyph (g, instance) {
 				break;
 
 
+			// arrows: split
 			case 6:
 
 				layer.id = "layer-arrows-split";
@@ -1750,11 +1864,114 @@ function setActiveGlyph (g, instance) {
 				svgg.appendChild(svgg2);
 				break;
 
+
+			// loci
+			case 7: 
+				layer.id = "layer-loci";
+				const steps = ui.loci.steps; // we will make steps+1 instances
+				let lociX = [], lociY = []; // one for each point
+
+				svgg2 = SVG("g");
+				svgg2.id = layer.id + "-X";
+				svgg2.attrsSVG({
+					"fill": "none",
+				});
+
+				// trace X loci from -1 to 1
+				// TODO: force inclusion of default location and all axis peaks
+				for (let s=0; s<steps; s++) {
+
+					let lociInstanceX, lociInstanceY, iglyphX, iglyphY;
+					let T = -1.0 + s/(steps-1) * 2.0;
+
+					// initialize tuple
+					let tupleX = [], tupleY = [];
+					for (let a=0; a < font.axes.length; a++) {
+						tupleX[a] = tupleY[a] = GLOBAL.tuple[a];
+					}
+
+					// check which tuple values are non-default
+					// - what VF axes are attached to the X and Y axes?
+					Qall("#xSelect input:checked").forEach(el => {
+						font.axisIndices(el.value).forEach(i => tupleX[i] = T );
+					});
+					Qall("#ySelect input:checked").forEach(el => {
+						font.axisIndices(el.value).forEach(i => tupleY[i] = T );
+					});
+					
+					// make instance
+					lociInstanceX = font.addInstance(null, {tuple: tupleX});
+					lociInstanceY = font.addInstance(null, {tuple: tupleY});
+					iglyphX = glyphApplyVariations(glyph, null, lociInstanceX, {roundDeltas: false});
+					iglyphY = glyphApplyVariations(glyph, null, lociInstanceY, {roundDeltas: false});
+
+					// build the SVG polylines in parallel
+					for (let p=0; p<glyph.points.length; p++) {
+						if (s==0) {
+							lociX[p] = "";
+							lociY[p] = "";
+						}
+						else {
+							lociX[p] += " ";
+							lociY[p] += " ";
+						}
+						lociX[p] += `${iglyphX.points[p][0]},${iglyphX.points[p][1]}`;
+						lociY[p] += `${iglyphY.points[p][0]},${iglyphY.points[p][1]}`;
+					}
+
+					// pop instances
+					font.instances.pop();
+					font.instances.pop();
+				}
+
+				// create the SVG element, one set of elements per point
+				for (let p=0; p<glyph.points.length; p++) {
+
+					[lociX, lociY].forEach(LOCI => {
+
+						let svgPolyline;
+
+						// draw initial polyline
+						svgPolyline = SVG("polyline");
+						svgPolyline.attrsSVG({
+							points: LOCI[p],
+							stroke: LOCI===lociX ? ui.designspace.colors[0] : ui.designspace.colors[1],
+							"stroke-width": ui.loci.strokeWidth,
+							opacity: ui.loci.opacity,
+						});
+						svgg2.appendChild(svgPolyline);
+
+						// if railway mode, draw extra lines
+						if (ui.loci.style == "railway") {
+
+							svgPolyline = SVG("polyline");
+							svgPolyline.attrsSVG({
+								points: LOCI[p],
+								stroke: "white",
+								"stroke-width": ui.loci.strokeWidth / 1.5,
+							});
+							svgg2.appendChild(svgPolyline);
+
+							svgPolyline = SVG("polyline");
+							svgPolyline.attrsSVG({
+								points: LOCI[p],
+								stroke: LOCI===lociX ? ui.designspace.colors[0] : ui.designspace.colors[1],
+								"stroke-width": ui.loci.strokeWidth * 1.5,
+								"stroke-dasharray": "1 5",
+							});
+							svgg2.appendChild(svgPolyline);
+						}
+
+					});
+
+				}
+
+				svgg.appendChild(svgg2);
+				break;
 		}
 
 
 		// add layer to the view
-
 		layer.svg = svg;
 
 	});
