@@ -1936,7 +1936,7 @@ function setActiveGlyph (g, instance) {
 						svgPolyline.attrsSVG({
 							points: LOCI[p],
 							stroke: LOCI===lociX ? ui.designspace.colors[0] : ui.designspace.colors[1],
-							"stroke-width": ui.loci.strokeWidth,
+							"stroke-width": ui.loci.strokeWidth * font.unitsPerEm/1000,
 							opacity: ui.loci.opacity,
 						});
 						svgg2.appendChild(svgPolyline);
@@ -1948,7 +1948,7 @@ function setActiveGlyph (g, instance) {
 							svgPolyline.attrsSVG({
 								points: LOCI[p],
 								stroke: "white",
-								"stroke-width": ui.loci.strokeWidth / 1.5,
+								"stroke-width": ui.loci.strokeWidth / 1.5 * font.unitsPerEm/1000,
 							});
 							svgg2.appendChild(svgPolyline);
 
@@ -1956,7 +1956,7 @@ function setActiveGlyph (g, instance) {
 							svgPolyline.attrsSVG({
 								points: LOCI[p],
 								stroke: LOCI===lociX ? ui.designspace.colors[0] : ui.designspace.colors[1],
-								"stroke-width": ui.loci.strokeWidth * 1.5,
+								"stroke-width": ui.loci.strokeWidth * 1.5 * font.unitsPerEm/1000,
 								"stroke-dasharray": "1 5",
 							});
 							svgg2.appendChild(svgPolyline);
