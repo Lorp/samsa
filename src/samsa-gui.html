@@ -1219,13 +1219,13 @@ function updateGlyphsPanel(instance) {
 	for (let g=0; g < font.numGlyphs; g++) {
 
 		let glyph = instance ? instance.glyphs[g] : font.glyphs[g];
-		let glyphName;
 
 		let glyphThumb = document.createElement("div");
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
+		console.log(g, glyph);
 
-		if (glyph) {
+		if (glyph && glyph.numContours >= 0) {
 
 			// simple glyph
 			let svg = SVG("svg");
@@ -1269,17 +1269,15 @@ function updateGlyphsPanel(instance) {
 			svg.appendChild(svgg);
 			glyphThumb.appendChild(svg);
 
-			glyphName = glyph.name;
 		}
 		else if (glyph && glyph.numContours < 0) {
 
-			glyphName = glyph.name;
 
 		}
 
 		// set the label for the glyph thumb
 		let label = document.createElement("label");
-		label.innerText = glyphName ? glyphName : `#${g}`; // TODO: implement a toggle so we see glyph id when we want to
+		label.innerText = (glyph && glyph.name) ? glyph.name : `#${g}`; // TODO: implement a toggle so we see glyph id when we want to
 
 		// append the elements
 		glyphThumb.appendChild(label);
@@ -1448,6 +1446,7 @@ function setActiveGlyph (g, instance) {
 
 	let font = GLOBAL.vf;
 	let ui = font.config.ui;
+	const uiScale = font.unitsPerEm/1000
 	if (g === undefined)
 		g = 0;
 	g *= 1;
@@ -1486,7 +1485,7 @@ function setActiveGlyph (g, instance) {
 	let layers = []; // layers are drawn from low values (bottom) to high values (top)
 
 
-	let scale = 0.5 * 1000 / font.unitsPerEm;
+	let scale = 0.5 / uiScale;
 	let opacity = 0.5;
 	let svg = SVG("svg");
 	let svgg = SVG("g"); // this transforms everything inside it
@@ -1568,7 +1567,7 @@ function setActiveGlyph (g, instance) {
 				svgPath.attrsSVG({
 					d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
 					stroke: ui.cartesianAxes.stroke,
-					"stroke-width": ui.cartesianAxes.strokeWidth * font.unitsPerEm/1000,
+					"stroke-width": ui.cartesianAxes.strokeWidth * uiScale,
 					fill: "none",
 				});
 				svgg.appendChild(svgPath);
@@ -1601,7 +1600,7 @@ function setActiveGlyph (g, instance) {
 					svgPath.attrsSVG({
 						d: path,
 						stroke: ui.glyphDefault.stroke,
-						"stroke-width": ui.glyphDefault.strokeWidth * font.unitsPerEm/1000,
+						"stroke-width": ui.glyphDefault.strokeWidth * uiScale,
 						fill: ui.glyphDefault.fill,
 					});
 					if (svgg3) {
@@ -1652,7 +1651,7 @@ function setActiveGlyph (g, instance) {
 						d: path,
 						style: `opacity: ${uiStyle.opacity}`,
 						stroke: uiStyle.stroke,
-						"stroke-width": uiStyle.strokeWidth * font.unitsPerEm/1000,
+						"stroke-width": uiStyle.strokeWidth * uiScale,
 						fill: `${uiStyle.fill}`,
 						// "filter": "url(#blur)", not yet :)					
 					});
@@ -1712,7 +1711,7 @@ function setActiveGlyph (g, instance) {
 				svgg2.id = layer.id;
 				svgg2.attrsSVG({
 					"stroke": ui.arrow.color,
-					"stroke-width": ui.arrow.strokeWidth * font.unitsPerEm/1000,
+					"stroke-width": ui.arrow.strokeWidth * uiScale,
 				});
 
 				glyph.points.forEach((point1, pt) => {
@@ -1734,7 +1733,7 @@ function setActiveGlyph (g, instance) {
 						});
 
 						if (!iglyph.touched[pt]) {
-							svgLine.attrsSVG({ "stroke-dasharray": 4 * font.unitsPerEm/1000 }); // IUP implicit movement
+							svgLine.attrsSVG({ "stroke-dasharray": 4 * uiScale }); // IUP implicit movement
 						}
 
 						svgg2.appendChild(svgLine);
@@ -1781,7 +1780,7 @@ function setActiveGlyph (g, instance) {
 					// set attrs
 					svgg2.attrsSVG({
 						fill: style.fill,
-						"stroke-width": style.strokeWidth * font.unitsPerEm/1000,
+						"stroke-width": style.strokeWidth * uiScale,
 						stroke: style.stroke,
 						opacity: style.opacity,
 					});
@@ -1791,7 +1790,7 @@ function setActiveGlyph (g, instance) {
 						let svgEl = getSVGForShape (
 							pt,
 							pt[2] ? style.shape : style.shapeOffCurve,
-							style.size * font.unitsPerEm/1000);
+							style.size * uiScale);
 						svgg2.appendChild(svgEl);
 					});
 
@@ -1843,7 +1842,7 @@ function setActiveGlyph (g, instance) {
 							svgLine.attrsSVG({
 								x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2,
 								stroke: lineColor,
-								"stroke-width": ui.arrow.strokeWidth * font.unitsPerEm/1000,
+								"stroke-width": ui.arrow.strokeWidth * uiScale,
 							});
 
 							svgArrowHead.attrsSVG({
@@ -1936,7 +1935,7 @@ function setActiveGlyph (g, instance) {
 						svgPolyline.attrsSVG({
 							points: LOCI[p],
 							stroke: LOCI===lociX ? ui.designspace.colors[0] : ui.designspace.colors[1],
-							"stroke-width": ui.loci.strokeWidth * font.unitsPerEm/1000,
+							"stroke-width": ui.loci.strokeWidth * uiScale,
 							opacity: ui.loci.opacity,
 						});
 						svgg2.appendChild(svgPolyline);
@@ -1948,7 +1947,7 @@ function setActiveGlyph (g, instance) {
 							svgPolyline.attrsSVG({
 								points: LOCI[p],
 								stroke: "white",
-								"stroke-width": ui.loci.strokeWidth / 1.5 * font.unitsPerEm/1000,
+								"stroke-width": ui.loci.strokeWidth / 1.5 * uiScale,
 							});
 							svgg2.appendChild(svgPolyline);
 
@@ -1956,8 +1955,8 @@ function setActiveGlyph (g, instance) {
 							svgPolyline.attrsSVG({
 								points: LOCI[p],
 								stroke: LOCI===lociX ? ui.designspace.colors[0] : ui.designspace.colors[1],
-								"stroke-width": ui.loci.strokeWidth * 1.5 * font.unitsPerEm/1000,
-								"stroke-dasharray": "1 5",
+								"stroke-width": ui.loci.strokeWidth * 1.5 * uiScale,
+								"stroke-dasharray": `${1*uiScale} ${5*uiScale}`,
 							});
 							svgg2.appendChild(svgPolyline);
 						}
