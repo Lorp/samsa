@@ -1223,7 +1223,7 @@ function updateGlyphsPanel(instance) {
 		let glyphThumb = document.createElement("div");
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
-		console.log(g, glyph);
+		//console.log(g, glyph);
 
 		if (glyph && glyph.numContours >= 0) {
 
@@ -1256,7 +1256,9 @@ function updateGlyphsPanel(instance) {
 					fill: GLOBAL.vf.config.ui.glyphThumb.fill,
 				});
 				if (svgg3) {
-					svgg3.setAttributeNS(null, "transform", `translate(${glyph.points[p][0]},${glyph.points[p][1]})`);
+					svgg3.attrsSVG({
+						transform: `translate(${glyph.points[p][0]},${glyph.points[p][1]})`,
+					});
 					svgg3.appendChild(svgPath);
 					svgg.appendChild(svgg3);
 				}
@@ -1277,7 +1279,7 @@ function updateGlyphsPanel(instance) {
 
 		// set the label for the glyph thumb
 		let label = document.createElement("label");
-		label.innerText = (glyph && glyph.name) ? glyph.name : `#${g}`; // TODO: implement a toggle so we see glyph id when we want to
+		label.innerText = font.glyphs[g].name ? font.glyphs[g].name : `#${g}`; // TODO: implement a toggle so we see glyph id when we want to
 
 		// append the elements
 		glyphThumb.appendChild(label);
@@ -2140,12 +2142,9 @@ document.onclick = function (event) {
 	let target;
 	let font = GLOBAL.vf;
 
-	//console.log(event.target.classList);
-
 
 	if (event.target == Q("#font-file")) {
-	//if (target = event.target.closest("#font-file")) {
-		// debug hack to load MutatorSans easily
+		// hack to load MutatorSans easily
 		Q("body").style.cursor = "wait";
 
 		let vf = new SamsaVF({
@@ -2289,8 +2288,7 @@ document.onclick = function (event) {
 
 	else if (target = event.target.closest("#font-list .font-file")) {
 
-		// load font mutator
-
+		// load font from the list
 		let vf = new SamsaVF({
 
 			fontFamily: "FontNameShouldGoHere",
