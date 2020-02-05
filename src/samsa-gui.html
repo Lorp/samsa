@@ -2421,7 +2421,7 @@ function getArrowPathForLine(x1, y1, x2, y2, width, arrowLength, arrowWidth) {
 if (["http:", "https:"].includes(window.location.protocol)) {
 
 	let oReq = new XMLHttpRequest();
-	oReq.open("GET", "fonts/_fontlist_.json", true);
+	oReq.open("GET", "fonts/fontlist.json", true);
 	oReq.responseType = "json";
 	oReq.onload = function(oEvent) {
 		GLOBAL.fontList = this.response;
