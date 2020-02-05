@@ -1238,7 +1238,7 @@ function SamsaVF_parseGlyph (g) {
 		}
 		
 		// composite glyph
-		// - we DO add points for composite glyphs: one per component, and the 4 extra metrics points
+		// - we DO add points for composite glyphs: one per component (they are the x and y offsets), and the 4 extra metrics points
 		// - when we process these glyphs, we look at glyph.numContours and glyph.points, but NOT glyph.numPoints
 		else if (glyph.numContours < 0) {
 
@@ -2296,11 +2296,9 @@ function getGlyphSVGpath(glyph)
 
 
 function instanceApplyVariations (font, instance) {
-	//console.log(font);
+
 	for (let g=0; g<font.numGlyphs; g++) {
-		if (font.glyphs[g].numContours > 0) {
-			instance.glyphs[g] = glyphApplyVariations (font.glyphs[g], null, instance);
-		}
+		instance.glyphs[g] = glyphApplyVariations (font.glyphs[g], null, instance);
 	}
 }
 

@@ -1219,13 +1219,11 @@ function updateGlyphsPanel(instance) {
 	for (let g=0; g < font.numGlyphs; g++) {
 
 		let glyph = instance ? instance.glyphs[g] : font.glyphs[g];
-
 		let glyphThumb = document.createElement("div");
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
-		//console.log(g, glyph);
 
-		if (glyph && glyph.numContours >= 0) {
+		if (glyph) {
 
 			// simple glyph
 			let svg = SVG("svg");
@@ -1239,11 +1237,11 @@ function updateGlyphsPanel(instance) {
 			if (!Array.isArray(paths)) { // composite
 				paths = [paths];
 			}
+
 			paths.forEach((path, p) => {
 
-				if (Array.isArray(path))
-				{
-					console.log("OH DEAR " + glyph.name);
+				if (Array.isArray(path)) {
+					console.log("Warning: glyph <" + glyph.name + "> has nested components >1 level deep");
 				}
 
 				let svgPath;
