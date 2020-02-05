@@ -24,6 +24,7 @@ Also provided are a command-line utility, Samsa-CLI (`samsa-cli.js`, for executi
 There are several ways to try Samsa:
 
 * Visit [www.axis-praxis.org/samsa](https://www.axis-praxis.org/samsa/)
+* Visit [lorp.github.io/samsa](https://lorp.github.io/samsa/src/samsa-gui.html)
 * Download the repository and double-click `samsa-gui.html`
 	* This works fine for drag-drop usage, but does not allow fonts to be loaded from a server.
 * Download the files and install on a web server
