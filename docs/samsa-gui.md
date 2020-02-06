@@ -53,7 +53,7 @@ Shows all glyphs in the font in order of glyph id.
 
 
 ### Fonts ready to load panel
-Shows fonts stored on the server. This list comes from `fonts/_fontlist_.json`.
+Shows fonts stored on the server. This list comes from `fonts/fontlist.json`.
 
 ### Tuples panel
 
