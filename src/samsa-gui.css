@@ -126,6 +126,12 @@ body {
 	font-size: 75%;
 }
 
+#webfont.panel>div {
+	font-size: 48px;
+	font-family: Webfont;
+	background-color: white;
+}
+
 .instance {
 	background-color: white;
 	_border: 1px solid black;

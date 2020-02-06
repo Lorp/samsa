@@ -38,6 +38,11 @@
 		<div></div>
 	</div>
 
+	<div id="webfont" class="panel open">
+		<h2><span class="icon bold reveal">&#xf04b;</span> Webfont</h2>
+		<div></div>
+	</div>
+
 	<div id="axes" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Axes</h2>
 		<div></div>
@@ -766,6 +771,20 @@ function vfLoaded (font) {
 
 
 	///////////////////////////////////////////////////////
+	// Webfont panel
+	///////////////////////////////////////////////////////
+	panel = Q("#webfont>div");
+	panel.innerText = "AaBbCc";
+	panel.setAttribute("contentEditable", true);
+
+	// add the webfont
+	let webfontFace = new FontFace("Webfont", font.data.buffer)
+	webfontFace.load().then(webfontFace => {
+		document.fonts.add(webfontFace);
+	});
+
+
+	///////////////////////////////////////////////////////
 	// Axes panel
 	///////////////////////////////////////////////////////
 	panel = Q("#axes>div");
@@ -1066,6 +1085,7 @@ function vfLoaded (font) {
 		font.instances.pop();
 
 		axesUpdateValues();
+		webfontPanelUpdateVariationSettings();
 
 	});
 
@@ -1119,6 +1139,18 @@ function axesUpdateValues () {
 }
 
 
+function webfontPanelUpdateVariationSettings() {
+
+	// update font-variation-settings for the loaded webfont	
+	let fvsCSS = [];
+	let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
+	Object.keys(fvs).forEach(tag => {
+		fvsCSS.push(`"${tag}" ${fvs[tag]}`);
+	});
+	Q("#webfont.panel>div").style.fontVariationSettings = fvsCSS.join(); //getCurrentFvs());
+}
+
+
 function axisInput() {
 
 	let font = GLOBAL.vf;
@@ -1131,6 +1163,7 @@ function axisInput() {
 	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 	
 	axesUpdateValues();
+	webfontPanelUpdateVariationSettings();
 
 	// delete instance? definitely!
 	font.instances.pop();
@@ -1342,6 +1375,7 @@ function setActiveInstance (font, target) {
 			instanceApplyVariations (font, instance);
 			updateGlyphsPanel (instance);
 			axesUpdateValues();
+			webfontPanelUpdateVariationSettings();
 		}
 		else {
 			el.classList.remove("active");

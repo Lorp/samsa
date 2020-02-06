@@ -2049,6 +2049,24 @@ function SamsaVF (init, config) {
 
 
 	//////////////////////////////////
+	//  fvsToCSS()
+	//////////////////////////////////
+	// TODO: not sure this is workingx
+	this.fvsToCSS = fvs => {
+
+		// transforms an fvs object into a string suitable for font-variation-settings
+		console.log(fvs);
+		let fvsCSS = [];
+		this.axes.forEach((axis,a) => {
+			let val = (!fvs || fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
+			fvsCSS.push(`"${fvs[axis.tag]}" ${val}`);
+		});
+		console.log(fvsCSS.join());
+		return fvsCSS.join();
+	}
+
+
+	//////////////////////////////////
 	//  fvsToTuple()
 	//////////////////////////////////
 	this.fvsToTuple = fvs => {
