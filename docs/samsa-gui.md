@@ -20,12 +20,22 @@ In respect of VFs, Samsa is a read-only tool. However, it is built on the [Samsa
 ## Quick start
 Clone the GitHub repo, double-click on `samsa-gui.html`. This opens Samsa in your default browser.
 
-You can also place the Samsa files on a web server, whether localhost or on the web. Required files and folders:
+You can also place the Samsa files on a web server, whether localhost or on the web.
+
+Required files and folders:
 
 * `samsa-gui.html`
 * `samsa-core.js`
 * `samsa-gui.css`
+* `fonts/`
 * `fonts/ui/*`
+
+Optional files and folders:
+
+* `fonts/<font1.ttf>` — any number of fonts to appear in the “Fonts ready to load” panel
+* `fonts/fontlist.json` — a JSON file containing an array of strings, each string being a filename of a font to appear in the “Fonts ready to load” panel
+
+_Note: The “Fonts ready to load” panel is populated via an XMLHttpRequest (aka AJAX) for the file `fontlist.json`. XHR requires a web server setup (e.g. Apache), meaning Samsa’s “Fonts ready to load” panel is empty when Samsa is invoked by simple double-click or File/Open._
 
 ## Panels
 
