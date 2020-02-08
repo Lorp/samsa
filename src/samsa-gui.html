@@ -1037,60 +1037,68 @@ function vfLoaded (font) {
 		font.instances.pop();
 	});
 
-	// designspace: handle mousemove (late event handler)
+	// designspace: handle mousemove and mousedown (late event handler)
 	Q("#ds-cartesian").addEventListener("mousemove", e => {
 		// requires pointer-events:none on all grid lines
-
-		//console.log(e.target.id);
-		let rect = e.target.getBoundingClientRect();
-		let x = e.clientX - rect.left;
-		let y = e.clientY - rect.top;
-		x = x/180-1;
-		y = 1-y/180;
-
-		// update the visual designspace location
-		Q("#svgXVal").setAttributeNS(null, "d", `M${x} -1 L${x} 1`);
-		Q("#svgYVal").setAttributeNS(null, "d", `M-1 ${y} L1 ${y}`);
-
-		// initialize tuple
-		let tuple = [];
-		for (let a=0; a < GLOBAL.vf.axes.length; a++) {
-			tuple.push(0); // default is 0 by definition
+		if (e.buttons & 1) { // 1 is bitmask for left mouse button
+			updateDesignSpaceMoved(e);
 		}
-		
-		// what VF axes are attached to the X axis?
-		Qall("#xSelect input:checked").forEach(el => {
-			GLOBAL.vf.axisIndices(el.value).forEach(i => tuple[i]=x );
-		});
-
-		// what VF axes are attached to the Y axis?
-		Qall("#ySelect input:checked").forEach(el => {
-			GLOBAL.vf.axisIndices(el.value).forEach(i => tuple[i]=y );
-		});
-
-		// update the text fields
-		Q("#xValue").innerText = x.toFixed(5);
-		Q("#yValue").innerText = y.toFixed(5);
-
-		// set the axes in the Axes panel
-		let fvs = GLOBAL.vf.tupleToFvs(tuple);
-		setAxes (GLOBAL.vf, fvs);
-
-		// now update the glyph in the drawing
-		// - should we do this simply by setting the axes in the Axes panel
-		let instance = font.addInstance(null, {tuple: tuple});
-		let glyph = font.glyphs[GLOBAL.currentGlyphId];
-		let iglyph = glyphApplyVariations(glyph, null, instance);
-		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-		font.instances.pop();
-
-		axesUpdateValues();
-		webfontPanelUpdateVariationSettings();
-
+	});
+	Q("#ds-cartesian").addEventListener("mousedown", e => {
+		updateDesignSpaceMoved(e);
 	});
 
 }
 
+
+function updateDesignSpaceMoved(e) {
+
+	let font = GLOBAL.vf;
+	let rect = e.target.getBoundingClientRect();
+	let x = e.clientX - rect.left;
+	let y = e.clientY - rect.top;
+	x = x/180-1;
+	y = 1-y/180;
+
+	// update the visual designspace location lines
+	Q("#svgXVal").setAttributeNS(null, "d", `M${x} -1 L${x} 1`);
+	Q("#svgYVal").setAttributeNS(null, "d", `M-1 ${y} L1 ${y}`);
+
+	// initialize tuple
+	let tuple = [];
+	for (let a=0; a < font.axes.length; a++) {
+		tuple.push(0); // default is 0 by definition
+	}
+	
+	// what VF axes are attached to the X axis?
+	Qall("#xSelect input:checked").forEach(el => {
+		font.axisIndices(el.value).forEach(i => tuple[i]=x );
+	});
+
+	// what VF axes are attached to the Y axis?
+	Qall("#ySelect input:checked").forEach(el => {
+		font.axisIndices(el.value).forEach(i => tuple[i]=y );
+	});
+
+	// update the text fields
+	Q("#xValue").innerText = x.toFixed(5);
+	Q("#yValue").innerText = y.toFixed(5);
+
+	// set the axes in the Axes panel
+	let fvs = font.tupleToFvs(tuple);
+	setAxes (font, fvs);
+
+	// now update the glyph in the drawing
+	// - should we do this simply by setting the axes in the Axes panel
+	let instance = font.addInstance(null, {tuple: tuple});
+	let glyph = font.glyphs[GLOBAL.currentGlyphId];
+	let iglyph = glyphApplyVariations(glyph, null, instance);
+	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+	font.instances.pop();
+
+	axesUpdateValues();
+	webfontPanelUpdateVariationSettings();
+}
 
 function numberFormat(val, axis) {
 
