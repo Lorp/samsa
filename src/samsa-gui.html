@@ -82,6 +82,7 @@
 			<span class="icon bold" id="glyphs-stop" title="Stop playing">&#xf04d;</span>
 			<span class="icon bold" id="glyphs-play" title="Play">&#xf04b;</span>
 			<span class="icon bold" id="glyphs-stepforward" title="Step forward">&#xf051;</span>
+			<span class="texticon" id="glyphs-ids" title="Glyph IDs">123</span>
 			<!-- <span class="icon bold" id="glyphs-fastforward">&#xf04e;</span> -->
 		</h2>
 		<div></div>
@@ -1248,14 +1249,20 @@ function updateDesignspace() {
 function updateGlyphsPanel(instance) {
 
 	console.log("Updating glyphs panel");
-	let font = GLOBAL.vf;
+	const font = GLOBAL.vf;
 
 	///////////////////////////////////////////////////////
 	// glyphs panel
 	///////////////////////////////////////////////////////
-	let panel = Q("#glyphs>div");
+	const panel = Q("#glyphs>div");
 	panel.innerText = "";
-	let scale = 0.05 * 1000 / font.unitsPerEm;
+	const scale = 0.05 * 1000 / font.unitsPerEm;
+
+	let styleGlyphIds = "", styleGlyphNames = "";
+	if (Q("#glyphs>h2 #glyphs-ids").classList.contains("active"))
+		styleGlyphNames = ` style="display:none;"`;
+	else
+		styleGlyphIds = ` style="display:none;"`;
 
 	for (let g=0; g < font.numGlyphs; g++) {
 
@@ -1316,9 +1323,11 @@ function updateGlyphsPanel(instance) {
 
 		}
 
-		// set the label for the glyph thumb
+		// set the label for the glyph thumb: glyph name and glyph id
 		let label = document.createElement("label");
-		label.innerText = font.glyphs[g].name ? font.glyphs[g].name : `#${g}`; // TODO: implement a toggle so we see glyph id when we want to
+		let name = font.glyphs[g].name || "undefined";
+
+		label.innerHTML = `<span class="name" ${styleGlyphNames}>${name}</span><span class="number" ${styleGlyphIds}>${g}</span>`;
 
 		// append the elements
 		glyphThumb.appendChild(label);
@@ -2303,6 +2312,18 @@ document.onclick = function (event) {
 		// let iglyph = glyphApplyVariations(glyph, null, instance);
 		// setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 
+	}
+
+	else if (target = event.target.closest("#glyphs>h2") 
+			&& event.target.id == "glyphs-ids") {
+
+		// toggle the display of the spans inside the label
+		let active = Q("#glyphs-ids").classList.toggle("active");
+		let glyphLabels = Qall("#glyphs .glyph-thumb label");
+		glyphLabels.forEach((label) => {			
+			label.querySelector(".number").style.display = active ? "inline" : "none";
+			label.querySelector(".name").style.display = active ? "none" : "inline";
+		})
 	}
 
 	else if (target = event.target.closest("#controls .panel>h2")) {

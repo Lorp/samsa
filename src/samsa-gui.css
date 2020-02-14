@@ -197,6 +197,18 @@ tt {
 	font-weight: bold;
 }
 
+.texticon {
+	font-size: 75%;
+	border: 1px solid  white;
+	border-radius: 1em;
+	padding: 1px 2px;
+}
+
+.texticon.active {
+	color: grey;
+	background-color: white;
+}
+
 .icon:link, .icon:hover, .icon:visited, .icon:active {
 	color: black;
 	text-decoration: none;
