@@ -1257,13 +1257,8 @@ function updateGlyphsPanel(instance) {
 	const panel = Q("#glyphs>div");
 	panel.innerText = "";
 	const scale = 0.05 * 1000 / font.unitsPerEm;
-
-	let styleGlyphIds = "", styleGlyphNames = "";
-	if (Q("#glyphs>h2 #glyphs-ids").classList.contains("active"))
-		styleGlyphNames = ` style="display:none;"`;
-	else
-		styleGlyphIds = ` style="display:none;"`;
-
+	let showGlyphIds = Q("#glyphs>h2 #glyphs-ids").classList.contains("active");
+	
 	for (let g=0; g < font.numGlyphs; g++) {
 
 		let glyph = instance ? instance.glyphs[g] : font.glyphs[g];
@@ -1325,11 +1320,19 @@ function updateGlyphsPanel(instance) {
 
 		// set the label for the glyph thumb: glyph name and glyph id
 		let label = document.createElement("label");
-		let name = font.glyphs[g].name || "undefined";
-
-		label.innerHTML = `<span class="name" ${styleGlyphNames}>${name}</span><span class="number" ${styleGlyphIds}>${g}</span>`;
+		let spanName = document.createElement("span"), spanId = document.createElement("span");
+		spanName.innerText = font.glyphs[g].name || "undefined";
+		spanName.classList.add("name");
+		spanId.innerText = g;
+		spanId.classList.add("number");
+		if (showGlyphIds)
+			spanName.style.display = "none";
+		else
+			spanId.style.display = "none";
 
 		// append the elements
+		label.appendChild(spanName);
+		label.appendChild(spanId);
 		glyphThumb.appendChild(label);
 		panel.appendChild(glyphThumb);
 	}
@@ -1765,6 +1768,7 @@ function setActiveGlyph (g, instance) {
 					"stroke-width": ui.arrow.strokeWidth * uiScale,
 				});
 
+				// TODO: Make a function to draw arrows that the "split arrows" method can use too
 				glyph.points.forEach((point1, pt) => {
 					let point2 = iglyph.points[pt]; // transformed point
 					let x1 = point1[0], y1 = point1[1], x2 = point2[0], y2 = point2[1];
@@ -1862,40 +1866,50 @@ function setActiveGlyph (g, instance) {
 					"stroke": "green",
 				});
 
-				glyph.points.forEach((point1, pt) => {
-					//let point2 = iglyph.points[pt]; // transformed point
+				glyph.points.forEach((point, pt) => {
 
-					// TODO: handle movements for IUP points
-
-					let x1 = point1[0], y1 = point1[1];
+					let x1 = point[0], y1 = point[1];
 					let x2, y2;
+
+					// make an arrow for each tvt
 					glyph.tvts.forEach((tvt, t) => {
 						let sValue = iglyph.tvtsVisualization[t].S;
 						let delta = tvt.deltas[pt];
+						let iup = (delta === null);
 						let lineColor = ui.tuple.colors[t % ui.tuple.colors.length]; // get the t’th colour in the array, wrapping round to the start when we run out of colours
 
-						let svgLine = SVG("line");
-						let svgArrowHead = SVG("path");
-
-						if (delta === null) { // IUP
+						if (iup) {
 							x2 = x1 + iglyph.tvtsVisualization[t].scaledDeltas[pt][0];
 							y2 = y1 + iglyph.tvtsVisualization[t].scaledDeltas[pt][1];
-							svgLine.attrsSVG({ "stroke-dasharray": "4" });
 						}
 						else {							
 							x2 = x1 + delta[0] * sValue;
 							y2 = y1 + delta[1] * sValue;
 						}
 
-						let arrow = getArrowParams (x1, y1, x2, y2);
 						if (x2!=x1 || y2!=y1) {
 
+							// Arrows:
+							// We avoid SVG’s built-in method of attaching shapes to lines, and make a separate line and arrowhead
+							// Thick lines blunt pointed arrows, so we draw each line up to the base of the arrowhead.
+							// It might be more efficient to draw each tuple’s lines as one path
+							// - but the resulting SVG would be ugly to edit
+							// - and we’d also have to make separate paths for IUP and non-IUP arrows
+							let arrow = getArrowParams (x1, y1, x2, y2);
+
+							// make the line
+							let svgLine = SVG("line");
 							svgLine.attrsSVG({
 								x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2,
 								stroke: lineColor,
 								"stroke-width": ui.arrow.strokeWidth * uiScale,
 							});
+							if (iup)
+								svgLine.attrsSVG({ "stroke-dasharray": 4 * uiScale });
 
+							// make the arrowhead with SVG path
+							// - SVG polygon more efficient, but less flexible if we want a special shape
+							let svgArrowHead = SVG("path");
 							svgArrowHead.attrsSVG({
 								d: `M${x2} ${y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
 								fill: lineColor,
@@ -1905,6 +1919,24 @@ function setActiveGlyph (g, instance) {
 							svgg2.appendChild(svgLine);
 							svgg2.appendChild(svgArrowHead);
 						}
+						// show "pinned" points with a circle (these are points with 0,0 deltas, that protect other unmoved points that also do not move because of IUP)
+						// - hmm, not sure it is a good idea to try to visualize "pinned" points
+						// - they might be pinned by 1 axis, IUP’d by another axis, and moved by yet another axis
+						// - maybe useful only if you have one single-tuple axis active?
+						/*
+						else if (!iup && (delta[0] === 0 && delta[1] === 0)) {
+
+							console.log("circle!");
+							let svgCircle = SVG("circle");
+							svgCircle.attrsSVG({
+								cx: x1,
+								cy: y1,
+								r: 28,
+								stroke: lineColor,
+							});
+							svgg2.appendChild(svgCircle);
+						}
+						*/
 
 						x1 = x2;
 						y1 = y2;
@@ -2320,7 +2352,7 @@ document.onclick = function (event) {
 		// toggle the display of the spans inside the label
 		let active = Q("#glyphs-ids").classList.toggle("active");
 		let glyphLabels = Qall("#glyphs .glyph-thumb label");
-		glyphLabels.forEach((label) => {			
+		glyphLabels.forEach(label => {			
 			label.querySelector(".number").style.display = active ? "inline" : "none";
 			label.querySelector(".name").style.display = active ? "none" : "inline";
 		})
