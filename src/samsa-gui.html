@@ -626,7 +626,7 @@ function appendInstanceEl(instance, select) {
 }
 
 
-function exportImage (format) {
+function exportImage (format, filename="samsa-drawing", frameNumbers=true) {
 	if (GLOBAL.frameIndex === undefined)
 		GLOBAL.frameIndex = 0;
 	else
@@ -644,44 +644,42 @@ function exportImage (format) {
 		fauxLink.remove();
 	}
 	else if (format == "png") {
-		// make a canvas to export the bitmap
-		let canvas = document.createElement("canvas");
-		let img = new Image();
-		canvas.setAttribute("width", 1080);
-		canvas.setAttribute("height", 720);
-		canvas.id = "samsa-drawing-canvas";
-		canvas.style.border = "1px solid red";
-		document.body.appendChild(canvas);
+	
+		// 1. create the image
+		// 2. define what happens when it’s loaded
+		// 3. define what to load
+		let img = new Image(800, 800);
 		img.onload = function () {
-			//alert ("loaded");
-			let canvas = Q("#samsa-drawing-canvas");
-			let filename = "samsa-drawing";
+
+			// make a canvas to export the bitmap
+			let canvas = document.createElement("canvas");
+			canvas.setAttribute("width", 1080);
+			canvas.setAttribute("height", 720);
+			canvas.id = "samsa-drawing-canvas" + "-" + filename;
+			canvas.style.border = "1px solid red";
+			document.body.appendChild(canvas);
 			let frameIndexStr = GLOBAL.frameIndex.toString();
-			for ( ; frameIndexStr.length<3; frameIndexStr = `0${frameIndexStr}`) {
-			}
-			filename = filename + frameIndexStr + ".png";
+			while (frameIndexStr.length<3)
+				frameIndexStr = `0${frameIndexStr}`;
+
+			if (frameNumbers)
+				filename += frameIndexStr;
+			filename += ".png";
 			let ctx = canvas.getContext("2d");
+			ctx.fillStyle = "white";
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			ctx.drawImage(img, 0, 0);
-			let png = canvas.toDataURL('image/png'); // get pixels from canvas
 			let fauxLink = document.createElement("a");
 			fauxLink.download = filename;
-			//fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
-			fauxLink.href = png;
+			fauxLink.href = canvas.toDataURL('image/png'); // get pixels from canvas
 			document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
 			fauxLink.click();
 			fauxLink.remove();
-
-			//canvas.parentNode.removeChild(canvas);
-			canvas.remove(); // better to just blank it each time?
+			canvas.remove(); // better to just blank it each time, when exporting multiple frames?
 		}
-		img.width = 800;
-		img.height = 800;
-		img.src = "data:image/svg+xml," + encodeURIComponent(svgCode);	
 
-		// ffmpeg command to export the animation bash script
-		// - when exporting multiple images is working, we’ll save this in a file too
-		// #!/bin/bash
-		// ffmpeg -r 10 -i samsa-drawing%03d.png -pix_fmt yuv420p -loglevel error samsa-drawing.mp4
+		// give the <img> a src attribute with an SVG data url, to render the SVG on the canvas
+		img.src = "data:image/svg+xml," + encodeURIComponent(svgCode);	
 	}
 
 }
@@ -746,6 +744,7 @@ function vfLoaded (font) {
 		// SVG export
 		panel.innerHTML += `<button id="export-svg">Export SVG</button>`;
 		panel.innerHTML += `<button id="export-png">Export PNG</button>`;
+		//panel.innerHTML += `<button id="export-mp4">Export MP4</button>`;
 
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
 		Q("#ui-mode").value = font.config.ui.name;
@@ -761,13 +760,99 @@ function vfLoaded (font) {
 			});
 		});
 
-		// SVG export click
+		// SVG export
 		Q("#export-svg").addEventListener("click", () => {
 			exportImage ("svg");
 		});
+
+		// PNG export
 		Q("#export-png").addEventListener("click", () => {
 			exportImage ("png");
 		});
+
+		if (Q("#export-mp4")) {
+
+			Q("#export-mp4").addEventListener("click", () => {
+
+				// TODO: more efficient to just make one canvas, and blank it for each frame?
+
+				if (0) {
+					GLOBAL.animSteps = 10;
+					GLOBAL.animCurrent = 0;
+
+					function doAnimationFrame () {
+						if (GLOBAL.animCurrent < GLOBAL.animSteps) {
+
+							let animInstance, iglyph;
+							let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
+							let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
+							let T = Tmin + GLOBAL.animCurrent/(GLOBAL.animSteps-1) * (Tmax-Tmin);
+							let frameNumberStr = GLOBAL.animCurrent.toString();
+							while (frameNumberStr.length < 3)
+								frameNumberStr = `0${frameNumberStr}`;
+
+							let frameTuple = []; // create tuple for this frame’s instance
+							for (let a=0; a < font.axes.length; a++) {
+								frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
+							}
+							
+							animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
+							iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
+							setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
+							exportImage ("png", `samsa-frame${frameNumberStr}`, false); // place SVG on canvas, export canvas as PNG
+							font.instances.pop(); // pop instance
+
+							GLOBAL.animCurrent++;
+						}
+						else {
+							console.log(`end`);
+							clearInterval (GLOBAL.animTimer);
+							GLOBAL.animTimer = undefined;
+						}
+
+					}
+
+					GLOBAL.animTimer = setInterval(doAnimationFrame, 200);
+				}
+				else {
+
+					const steps = 50;
+
+					for (let s=0; s<steps; s++) {
+
+						let animInstance, iglyph;
+						let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
+						let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
+						let T = Tmin + s/(steps-1) * (Tmax-Tmin);
+						let frameNumberStr = s.toString();
+						while (frameNumberStr.length < 3) // generate frame number string (TODO: write padWithZeroes() function)
+							frameNumberStr = `0${frameNumberStr}`;
+
+						let frameTuple = []; // create tuple for this frame’s instance
+						for (let a=0; a < font.axes.length; a++) {
+							frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
+						}
+						
+						animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
+						iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
+						setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
+						exportImage ("png", `samsa-frame${frameNumberStr}`, false); // place SVG on canvas, export canvas as PNG
+						font.instances.pop(); // pop instance
+					}
+
+					// save shell script to invoke ffmpeg
+					let frameRate = 24;
+					let shellScript = `ffmpeg -r ${frameRate} -i samsa-frame%03d.png -vcodec libx264 -pix_fmt yuv420p samsa-movie.mp4`;
+					let scriptLink = document.createElement("a");
+					scriptLink.download = "samsa-movie.sh";
+					scriptLink.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(shellScript));
+					document.body.appendChild(scriptLink); // needed for Firefox, not Chrome or Safari
+					scriptLink.click();
+					document.body.removeChild(scriptLink);
+				}
+
+			});
+		}
 	}
 
 
@@ -1248,7 +1333,7 @@ function updateDesignspace() {
 
 function updateGlyphsPanel(instance) {
 
-	console.log("Updating glyphs panel");
+	console.log("Updating glyphs panel: START");
 	const font = GLOBAL.vf;
 
 	///////////////////////////////////////////////////////
@@ -1337,15 +1422,8 @@ function updateGlyphsPanel(instance) {
 		panel.appendChild(glyphThumb);
 	}
 
-	console.log("updateGlyphsPanel end");
-
-
-	//let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
-
-	console.log(instance);
+	console.log("Updating glyphs panel: END");
 	setActiveGlyph(GLOBAL.currentGlyphId, instance);
-	//font.instances.pop();
-
 }
 
 function setAxes (font, fvs) {
