@@ -2302,14 +2302,14 @@ document.onclick = function (event) {
 	let font = GLOBAL.vf;
 
 
+	// load default font
 	if (event.target == Q("#font-file")) {
-		// hack to load MutatorSans easily
+		
 		Q("body").style.cursor = "wait";
 
 		let vf = new SamsaVF({
-
-			fontFamily: "FontNameShouldGoHere",
-			url: "fonts/MutatorSans.ttf",
+			fontFamily: "DefaultFont",
+			url: `${GLOBAL.fontList.directory}/${GLOBAL.fontList.default}`, // "fonts/MutatorSans.ttf"
 			callback: vfLoaded,
 		});
 	}
@@ -2463,7 +2463,7 @@ document.onclick = function (event) {
 		let vf = new SamsaVF({
 
 			fontFamily: "FontNameShouldGoHere",
-			url: `fonts/${target.innerText}`,
+			url: `${GLOBAL.fontList.directory}/${target.innerText}`,
 			callback: vfLoaded,
 		});
 
@@ -2588,29 +2588,35 @@ function getArrowPathForLine(x1, y1, x2, y2, width, arrowLength, arrowWidth) {
 
 
 
-// load font list
-// - only if we are in http: or https: (it’s not supported in file:)
-// - TODO: switch to modern fetch(url)
+// load samsa-fonts.json
+// - this is the list of fonts available for 1-click loading
+// - only for normal web server ("http:" or "https:", not "file:")
 if (["http:", "https:"].includes(window.location.protocol)) {
 
-	let oReq = new XMLHttpRequest();
-	oReq.open("GET", "fonts/fontlist.json", true);
-	oReq.responseType = "json";
-	oReq.onload = function(oEvent) {
-		GLOBAL.fontList = this.response;
-		// TODO: handle onreadystatechange to detect errors
+	fetch("samsa-fonts.json")
+	.then(response => {
+			console.log(response);
+			return response.json(); // another promise, not a string!
+		}, 
+		error => {
+			console.log (error);
+		}
+	)
+	.then(responseJSON => { // then for the json() promise
+		// populate the font list panel
 		let panel = Q("#font-list>div");
 		panel.innerHTML = "";
-		GLOBAL.fontList.forEach(fontFilename => {
+		GLOBAL.fontList = responseJSON;
+		GLOBAL.fontList.fonts.forEach(fontFilename => {
 			panel.innerHTML += `<li class="font-file"><a href="">${fontFilename}</a></li>`;
 		});
-	};
-	oReq.send();
+	});
 }
 else {
 	let panel = Q("#font-list>div");
 	panel.innerHTML = `<div>Remote file loading is not available for protocol “${window.location.protocol}”</div>`;
 }
+
 
 
 document.addEventListener("keydown", e => {

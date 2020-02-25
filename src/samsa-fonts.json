@@ -1,4 +1,7 @@
-[
+{
+	"directory": "fonts",
+	"default": "MutatorSans.ttf",
+	"fonts": [
 "Amstelvar-Roman-parametric-VF.ttf",
 "DecovarAlpha-VF.ttf",
 "Gingham.ttf",
@@ -9,3 +12,4 @@
 "MutatorSans.ttf",
 "Zycon.ttf"
 ]
+}
