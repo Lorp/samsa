@@ -29,7 +29,7 @@ There are several ways to try Samsa:
 	* This works fine for drag-drop usage, but does not allow fonts to be loaded from a server.
 * Download the files and install on a web server
 	* You can make a symbolic link from index.html to samsa-gui.html or simply rename samsa-gui.html to index.html
-	* Edit `fonts/_fontlist_.json` to make fonts available from the `fonts` folder on your server.
+	* Edit `samsa-fonts.json` to make fonts available from the `fonts` folder on your server.
 
 ## Background
 
