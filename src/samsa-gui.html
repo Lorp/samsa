@@ -38,7 +38,7 @@
 		<div></div>
 	</div>
 
-	<div id="webfont" class="panel open">
+	<div id="panel-webfont" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Webfont</h2>
 		<div></div>
 	</div>
@@ -858,7 +858,7 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Webfont panel
 	///////////////////////////////////////////////////////
-	panel = Q("#webfont>div");
+	panel = Q("#panel-webfont>div");
 	panel.innerText = "AaBbCc";
 	panel.setAttribute("contentEditable", true);
 
@@ -980,6 +980,11 @@ function vfLoaded (font) {
 	panel = Q("#panel-stat>div");
 	if (font.tables.STAT) {
 		const STAT = font.tables.STAT.data;
+		
+		// create grid layout
+		let grid = document.createElement("div");
+		grid.style.display = "grid";
+		grid.style.gridTemplateColumns = "1fr 1fr 1fr";
 
 		function setCurrentSTATinstance(font, keepInstance, ignoreInstance) {
 
@@ -1053,8 +1058,10 @@ function vfLoaded (font) {
 					}
 				}
 			});
-			panel.appendChild(label);
-			panel.appendChild(select);
+
+			grid.appendChild(label);
+			grid.appendChild(select);
+			grid.appendChild(document.createElement("div")); // dummy
 			select.selectedIndex = selectedIndex;
 
 			// when we change the selection
@@ -1067,32 +1074,25 @@ function vfLoaded (font) {
 		input.id = "stat-name";
 		input.value = "<STAT font name>";
 		input.readOnly = true;
-		let br = document.createElement("br");
 
 		let label = document.createElement("label");
 		label.innerText = "Composed name";
-		panel.appendChild(br);
-		panel.appendChild(label);
-		panel.appendChild(input);
+
+		grid.appendChild(label);
+		grid.appendChild(input);
+		panel.appendChild(grid);
 
 		// "Add instance" button
 		let addInstanceEl = document.createElement("button");
 		addInstanceEl.innerText = "Add instance";
 		addInstanceEl.class = "instance-add";
-		panel.appendChild(addInstanceEl);
+		grid.appendChild(addInstanceEl);
 
 		// set current STAT instance and add it to the Instances panel
 		addInstanceEl.addEventListener("click", ()=>{
 			let instance = setCurrentSTATinstance(font, true);
 			appendInstanceEl(instance, true);
 		});
-
-		/*
-		let instance = font.addInstance(fvs, {type: "stat", name: statName});
-		addInstanceEl.addEventListener("click", ()=>{
-			appendInstanceEl(instance, true);
-		});
-		*/
 	}
 
 
@@ -1364,7 +1364,7 @@ function webfontPanelUpdateVariationSettings() {
 	Object.keys(fvs).forEach(tag => {
 		fvsCSS.push(`"${tag}" ${fvs[tag]}`);
 	});
-	Q("#webfont.panel>div").style.fontVariationSettings = fvsCSS.join(); //getCurrentFvs());
+	Q("#panel-webfont.panel>div").style.fontVariationSettings = fvsCSS.join(); //getCurrentFvs());
 }
 
 

@@ -126,7 +126,7 @@ body {
 	font-size: 75%;
 }
 
-#webfont.panel>div {
+#panel-webfont.panel>div {
 	font-size: 48px;
 	font-family: Webfont;
 	background-color: white;
