@@ -1024,6 +1024,7 @@ function vfLoaded (font) {
 				setAxes (font, fvs);
 				let instance = font.addInstance(fvs, {type: "stat", name: statName});
 				setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+				axesUpdateValues();
 
 				if (keepInstance)
 					return instance;
