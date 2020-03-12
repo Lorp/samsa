@@ -978,6 +978,7 @@ function vfLoaded (font) {
 	// STAT panel
 	///////////////////////////////////////////////////////
 	panel = Q("#panel-stat>div");
+	panel.innerText = "";
 	if (font.tables.STAT) {
 		const STAT = font.tables.STAT.data;
 		
@@ -1044,7 +1045,7 @@ function vfLoaded (font) {
 			let selectedIndex=0, thisIndex=0;
 			STAT.axisValueTables.forEach(axisValueTable => {
 				if (axisValueTable.format >= 1 && axisValueTable.format <= 3) {
-					if (axisValueTable.axisIndex == a) {
+					if (axisValueTable.axisIndex == designAxis.designAxisID) { // designAxis.designAxisID (rather than "a") handles when STAT.designAxesSorted is not the same order as STAT.designAxes
 						let option = document.createElement("option");
 						option.innerText = font.names[axisValueTable.nameID];
 						option.value = axisValueTable.value;

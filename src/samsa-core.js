@@ -1730,8 +1730,9 @@ function SamsaVF_parseSmallTable (tag) {
 			for (let a=0; a<table.designAxisCount; a++) {
 				p = tableOffset + designAxesOffset + a*designAxisSize;
 				let designAxis = {
+					designAxisID: a, // in case we are enumerating a sorted array
 					tag:          data.getTag(p),
-					nameID:   data.getUint16(p+4),
+					nameID:       data.getUint16(p+4),
 					//name:         font.names[data.getUint16(p+4)],
 					axisOrdering: data.getUint16(p+6),
 				};
