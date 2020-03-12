@@ -28,12 +28,12 @@
 
 <div id="controls">
 
-	<div id="info" class="panel open">
+	<div id="panel-info" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Info</h2>
 		<div></div>
 	</div>
 
-	<div id="ui" class="panel open">
+	<div id="panel-ui" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> UI</h2>
 		<div></div>
 	</div>
@@ -45,6 +45,11 @@
 
 	<div id="axes" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Axes</h2>
+		<div></div>
+	</div>
+
+	<div id="panel-stat" class="panel closed">
+		<h2><span class="icon bold reveal">&#xf04b;</span> STAT</h2>
 		<div></div>
 	</div>
 
@@ -67,13 +72,6 @@
 		<h2><span class="icon bold reveal">&#xf04b;</span> Designspace</h2>
 		<div></div>
 	</div>
-
-<!--
-	<div id="stat" class="panel">
-		<h2>STAT</h2>
-		<div></div>
-	</div>
--->
 
 	<div id="glyphs" class="panel open">
 		<h2><span class="icon bold reveal open">&#xf04b;</span> Glyphs
@@ -528,6 +526,7 @@ function appendInstanceEl(instance, select) {
 		case "default": icon = "&#xf015;"; title = "Default"; break; // FontAwesome home
 		case "named": icon = "&#xf02e;"; title = "Named instance"; break; // FontAwesome bookmark
 		case "custom": icon = "&#xf1de;"; title = "Custom instance"; break; // FontAwesome sliders
+		case "stat": icon = "&#xf03a;"; title = "STAT instance"; break; // FontAwesome list
 	}
 	let cell0 = document.createElement("div");
 	cell0.style.cursor = "pointer";
@@ -708,7 +707,7 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Info panel
 	///////////////////////////////////////////////////////
-	panel = Q("#info>div");
+	panel = Q("#panel-info>div");
 	panel.innerText = "";
 	panel.innerHTML += `${font.filename} (${font.filesize || "<em>n</em>"} bytes)<br>`;
 	panel.innerHTML += `Full name: ${font.names[4]}<br>`;
@@ -719,7 +718,7 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// UI Panel
 	///////////////////////////////////////////////////////
-	panel = Q("#ui>div");
+	panel = Q("#panel-ui>div");
 	if (!Q("#ui-mode")) { // only build once
 		panel.innerText = "";
 
@@ -954,9 +953,8 @@ function vfLoaded (font) {
 	// add button
 	let addInstanceEl = document.createElement("button");
 	addInstanceEl.innerText = "Add instance";
-	addInstanceEl.id = "instance-add";
+	addInstanceEl.class = "instance-add";
 	panel.appendChild(addInstanceEl);
-	//addInstanceEl.onclick = addInstance;
 
 	addInstanceEl.addEventListener("click", ()=>{
 		appendInstanceEl(undefined, true);
@@ -977,6 +975,128 @@ function vfLoaded (font) {
 
 
 	///////////////////////////////////////////////////////
+	// STAT panel
+	///////////////////////////////////////////////////////
+	panel = Q("#panel-stat>div");
+	if (font.tables.STAT) {
+		const STAT = font.tables.STAT.data;
+
+		function setCurrentSTATinstance(font, keepInstance, ignoreInstance) {
+
+			// build STAT name and fvs
+			let statNamesAVTs = [], fvs = {}, statNamesStrs = [], elidable = true;
+			Qall("#panel-stat select").forEach((thisSel, a) => {
+
+				let designAxis = thisSel.data.designAxis;
+				let axisValueTable = thisSel.options[thisSel.selectedIndex].data.axisValueTable;
+
+				// build STAT name
+				if (!(axisValueTable.flags & 0x0002)) // ELIDABLE_AXIS_VALUE_NAME
+					statNamesAVTs.push(axisValueTable);
+
+				// build fvs
+				fvs[designAxis.tag] = thisSel.value;
+			});
+
+			statNamesAVTs.forEach(statNameAVT => {
+				statNamesStrs.push(font.names[statNameAVT.nameID]);
+				if (!(statNameAVT.flags & 0x0002))
+					elidable = false;
+			});
+
+			// display STAT name
+			let statName;
+			if (elidable && STAT.elidedFallbackNameID !== undefined) {
+				statName = font.names[STAT.elidedFallbackNameID];
+			}
+			else {
+				statName = statNamesStrs.join(" ");
+			}
+			Q("#stat-name").value = statName;
+
+			if (!ignoreInstance) { // we might just want to set the STAT instance name
+				// create temporary instance
+				setAxes (font, fvs);
+				let instance = font.addInstance(fvs, {type: "stat", name: statName});
+				setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+
+				if (keepInstance)
+					return instance;
+				else {
+					font.instances.pop();
+					return null;
+				}
+			}
+		}
+
+		// for each STAT axis
+		STAT.designAxesSorted.forEach((designAxis, a) => {
+			let label = document.createElement("label");
+			label.innerText = font.names[designAxis.nameID];
+			let select = document.createElement("select");
+			select.data = { designAxis: designAxis };
+			let selectedIndex=0, thisIndex=0;
+			STAT.axisValueTables.forEach(axisValueTable => {
+				if (axisValueTable.format >= 1 && axisValueTable.format <= 3) {
+					if (axisValueTable.axisIndex == a) {
+						let option = document.createElement("option");
+						option.innerText = font.names[axisValueTable.nameID];
+						option.value = axisValueTable.value;
+						option.data = { axisValueTable: axisValueTable };
+						select.appendChild(option);
+						if (axisValueTable.flags & 0x0002) { // ELIDABLE_AXIS_VALUE_NAME
+							if (selectedIndex==0) {
+								selectedIndex = thisIndex; // select the first elidable avt
+							}
+						}
+						thisIndex++;
+					}
+				}
+			});
+			panel.appendChild(label);
+			panel.appendChild(select);
+			select.selectedIndex = selectedIndex;
+
+			// when we change the selection
+			select.addEventListener("change", ev => {
+				setCurrentSTATinstance(font);
+			});
+		});
+
+		let input = document.createElement("input");
+		input.id = "stat-name";
+		input.value = "<STAT font name>";
+		input.readOnly = true;
+		let br = document.createElement("br");
+
+		let label = document.createElement("label");
+		label.innerText = "Composed name";
+		panel.appendChild(br);
+		panel.appendChild(label);
+		panel.appendChild(input);
+
+		// "Add instance" button
+		let addInstanceEl = document.createElement("button");
+		addInstanceEl.innerText = "Add instance";
+		addInstanceEl.class = "instance-add";
+		panel.appendChild(addInstanceEl);
+
+		// set current STAT instance and add it to the Instances panel
+		addInstanceEl.addEventListener("click", ()=>{
+			let instance = setCurrentSTATinstance(font, true);
+			appendInstanceEl(instance, true);
+		});
+
+		/*
+		let instance = font.addInstance(fvs, {type: "stat", name: statName});
+		addInstanceEl.addEventListener("click", ()=>{
+			appendInstanceEl(instance, true);
+		});
+		*/
+	}
+
+
+	///////////////////////////////////////////////////////
 	// Instances panel
 	///////////////////////////////////////////////////////
 	panel = Q("#instances>div");
@@ -992,7 +1112,6 @@ function vfLoaded (font) {
 		appendInstanceEl(instance);
 	});
 	setActiveInstance(GLOBAL.vf); // without an instance parameter, it sets it to the default
-
 
 
 	///////////////////////////////////////////////////////
@@ -1133,6 +1252,10 @@ function vfLoaded (font) {
 	Q("#ds-cartesian").addEventListener("mousedown", e => {
 		updateDesignSpaceMoved(e);
 	});
+
+	if (font.tables.STAT) {
+		setCurrentSTATinstance(font, false, false); // this must be after the Glyphs panel is created
+	}
 
 }
 

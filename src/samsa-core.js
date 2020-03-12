@@ -1,17 +1,19 @@
-// https://www.npmjs.com/package/uglify-es // this version of uglify is ES6 compatible, earlier versions were not
-// uglifyjs samsa-core.js > samsa-core.min.js
-
-
 /*
 
-
 samsa-core.js
+
+Pre-GitHub version history
 2019-10-18 glyf parsing in node & browser
 2019-10-18 TVTs parsing in node & browser
 2019-10-18 Tons of refactoring working nicely (tvts is much clearer structure than old gvd)
 2019-10-19 avar seems to be working now
 2019-10-20 Finally got gvar decompiling for all fonts I throw at it. Just need to do the fake glyph.points for composites and we’re done.
 
+
+
+Minification:
+- https://www.npmjs.com/package/uglify-es // this version of uglify is ES6 compatible, earlier versions were not
+- uglifyjs samsa-core.js > samsa-core.min.js
 
 */
 
@@ -1523,20 +1525,20 @@ function SamsaVF_parseSmallTable (tag) {
 			}
 			break;
 
+
 		case "post":
 
 			font.glyphNames = []; // store the names separately because the glyph often has not been loaded
-			table.format = data.getUint32(p), p+=4;
-			font.italicAngle = data.getInt32(p) / 65536, p+=4;
+			table.format = data.getUint32(p+0);
+			font.italicAngle = data.getInt32(p+4) / 65536;
 
 			// most fonts are format 2
 			if (table.format == 0x00020000) {
 
 				// parse names data
-				p = font.tables['post'].offset + 32; // jump past header
-				p += 2 + 2 * font.numGlyphs;
+				p = tableOffset + 32 + 2 + 2 * font.numGlyphs; // jump past header and glyphNameIndex array
 				let extraNames = [];
-				while (p < font.tables['post'].offset + font.tables['post'].length) {
+				while (p < tableOffset + font.tables['post'].length) {
 					let str="", len=data.getUint8(p++); // Pascal style strings: first byte is length, the rest is the string
 					while (len--) {
 						str += String.fromCharCode(data.getUint8(p++));
@@ -1545,7 +1547,7 @@ function SamsaVF_parseSmallTable (tag) {
 				}
 
 				// parse glyphNameIndex array
-				p = font.tables['post'].offset + 32; // jump past header
+				p = tableOffset + 32; // jump past header
 				p += 2;
 				for (let g=0; g<font.numGlyphs; g++) {
 					let gni = data.getUint16(p + g*2);
@@ -1706,10 +1708,82 @@ function SamsaVF_parseSmallTable (tag) {
 			font.sharedTuples = table.sharedTuples;
 			break;
 
+
+		case "STAT":
+
+			table.majorVersion = data.getUint16(p+0);
+			table.minorVersion = data.getUint16(p+2);
+			let designAxisSize = data.getUint16(p+4);
+			table.designAxisCount = data.getUint16(p+6);
+			let designAxesOffset = data.getUint32(p+8);
+			table.axisValueCount = data.getUint16(p+12);
+			let offsetToAxisValueOffsets = data.getUint32(p+14);
+			if (table.majorVersion >= 1 && table.minorVersion >= 1) {
+				table.elidedFallbackNameID = data.getUint16(p+18);
+				//table.elidedFallbackName = font.names[data.getUint16(p+18)];
+			}
+			table.designAxes = [];
+			table.designAxesSorted = [];
+			table.axisValueTables = [];
+
+			// parse designAxes
+			for (let a=0; a<table.designAxisCount; a++) {
+				p = tableOffset + designAxesOffset + a*designAxisSize;
+				let designAxis = {
+					tag:          data.getTag(p),
+					nameID:   data.getUint16(p+4),
+					//name:         font.names[data.getUint16(p+4)],
+					axisOrdering: data.getUint16(p+6),
+				};
+				table.designAxes.push(designAxis);
+				table.designAxesSorted[designAxis.axisOrdering] = designAxis;
+			}
+
+			// parse axisValueTables
+			for (let a=0; a<table.axisValueCount; a++) {
+				p = tableOffset + offsetToAxisValueOffsets + 2*a;
+				let axisValueOffset = data.getUint16(p);
+				p = tableOffset + offsetToAxisValueOffsets + axisValueOffset;
+				let format = data.getUint16(p);
+				if (format < 1 || format > 4)
+					continue;
+				let axisValueTable = {
+					format:      format,
+					axisIndex:   data.getUint16(p+2),
+					flags:       data.getUint16(p+4),
+					nameID: data.getUint16(p+6),
+					//name: font.names[data.getUint16(p+6)],
+				};
+				if (axisValueTable.format >= 1 && axisValueTable.format <= 3) {
+					axisValueTable.value = data.getInt32(p+8)/65536;
+				}
+				if (axisValueTable.format == 2) {
+					axisValueTable.min = data.getInt32(p+12)/65536;
+					axisValueTable.max = data.getInt32(p+16)/65536;
+				}
+				else if (axisValueTable.format == 3) {
+					axisValueTable.linkedValue = data.getInt32(p+12)/65536;
+				}
+				else if (axisValueTable.format == 4) {
+					axisValueTable.axisCount = axisValueTable.axisIndex;
+					axisValueTable.axisIndex = undefined;
+					p += 12;
+					axisValueTable.axisValues = [];
+					for (let a=0; a < axisValueTable.axisCount; a++) {
+						//let axisValue = 
+						axisValueTable.axisValues.push({
+							index: data.getUint16(p),
+							value: data.getInt32(p+2)/65536,
+						});
+					}
+				}
+				table.axisValueTables.push(axisValueTable);
+			}
+			break;
+
 	}
 	
 	font.tables[tag].data = table;
-
 }
 
 
@@ -1790,7 +1864,7 @@ function SamsaVF_parse () {
 	// - avar must precede fvar
 	// - name must precede fvar
 	// - gvar isn’t short, but we only parse its header here
-	["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "loca"].forEach(tag => {
+	["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca"].forEach(tag => {
 
 		if (font.tables[tag])
 			font.parseSmallTable(tag);
