@@ -480,6 +480,10 @@ function Qall (selector) {
 	return document.querySelectorAll(selector);
 }
 
+function EL(tagName) {
+	return document.createElement(tagName);
+}
+
 
 // TODO: specify that this gets the current fvs from sliders
 function getCurrentFvs() {
@@ -1095,6 +1099,10 @@ function vfLoaded (font) {
 			let instance = setCurrentSTATinstance(font, true);
 			appendInstanceEl(instance, true);
 		});
+	}
+
+	else {
+		panel.innerHTML = "This font does not contain a STAT table.";
 	}
 
 
