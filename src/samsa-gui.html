@@ -985,11 +985,13 @@ function vfLoaded (font) {
 	panel.innerText = "";
 	if (font.tables.STAT) {
 		const STAT = font.tables.STAT.data;
+		let allowAddInstance = true;
 		
 		// create grid layout
 		let grid = document.createElement("div");
 		grid.style.display = "grid";
-		grid.style.gridTemplateColumns = "1fr 1fr 1fr";
+		grid.classList.add("designAxes");
+		grid.style.gridTemplateColumns = "30% 35% 35%";
 
 		function setCurrentSTATinstance(font, keepInstance, ignoreInstance) {
 
@@ -1003,6 +1005,11 @@ function vfLoaded (font) {
 				// build STAT name
 				if (!(axisValueTable.flags & 0x0002)) // ELIDABLE_AXIS_VALUE_NAME
 					statNamesAVTs.push(axisValueTable);
+
+				// display note
+				if (axisValueTable.format == 2) {
+					Qall("#panel-stat .designAxes input")[a].value = `${axisValueTable.min}…${axisValueTable.max}`;
+				}
 
 				// build fvs
 				fvs[designAxis.tag] = thisSel.value;
@@ -1024,6 +1031,7 @@ function vfLoaded (font) {
 			}
 			Q("#stat-name").value = statName;
 
+
 			if (!ignoreInstance) { // we might just want to set the STAT instance name
 				// create temporary instance
 				setAxes (font, fvs);
@@ -1042,32 +1050,44 @@ function vfLoaded (font) {
 
 		// for each STAT axis
 		STAT.designAxesSorted.forEach((designAxis, a) => {
-			let label = document.createElement("label");
+			let label = EL("label");
 			label.innerText = font.names[designAxis.nameID];
-			let select = document.createElement("select");
+			let select = EL("select");
 			select.data = { designAxis: designAxis };
 			let selectedIndex=0, thisIndex=0;
-			STAT.axisValueTables.forEach(axisValueTable => {
-				if (axisValueTable.format >= 1 && axisValueTable.format <= 3) {
-					if (axisValueTable.axisIndex == designAxis.designAxisID) { // designAxis.designAxisID (rather than "a") handles when STAT.designAxesSorted is not the same order as STAT.designAxes
-						let option = document.createElement("option");
-						option.innerText = font.names[axisValueTable.nameID];
-						option.value = axisValueTable.value;
-						option.data = { axisValueTable: axisValueTable };
-						select.appendChild(option);
-						if (axisValueTable.flags & 0x0002) { // ELIDABLE_AXIS_VALUE_NAME
-							if (selectedIndex==0) {
-								selectedIndex = thisIndex; // select the first elidable avt
+			let note = "";
+			if (STAT.axisValueTables.length == 0) {
+				let option = EL("option");
+				option.innerText = "no axisValueTables";
+				select.appendChild(option);
+				select.disabled = true;
+				allowAddInstance = false;
+			}
+			else {
+				STAT.axisValueTables.forEach(axisValueTable => {
+					switch (axisValueTable.format) {
+						case 1: case 2: case 3:
+							if (axisValueTable.axisIndex == designAxis.designAxisID) { // note that "a" is different from designAxis.designAxisID if STAT.designAxesSorted is not ordered as STAT.designAxes
+								let option = EL("option");
+								option.innerText = font.names[axisValueTable.nameID];
+								option.value = axisValueTable.value;
+								option.data = { axisValueTable: axisValueTable };
+								select.appendChild(option);
+								if (axisValueTable.flags & 0x0002) { // ELIDABLE_AXIS_VALUE_NAME
+									if (selectedIndex==0) {
+										selectedIndex = thisIndex; // select the first elidable avt
+									}
+								}
+								thisIndex++;
 							}
-						}
-						thisIndex++;
+							break;
 					}
-				}
-			});
+				});
+			}
 
 			grid.appendChild(label);
 			grid.appendChild(select);
-			grid.appendChild(document.createElement("div")); // dummy
+			grid.appendChild(EL("input"));
 			select.selectedIndex = selectedIndex;
 
 			// when we change the selection
@@ -1095,10 +1115,15 @@ function vfLoaded (font) {
 		grid.appendChild(addInstanceEl);
 
 		// set current STAT instance and add it to the Instances panel
-		addInstanceEl.addEventListener("click", ()=>{
-			let instance = setCurrentSTATinstance(font, true);
-			appendInstanceEl(instance, true);
-		});
+		if (allowAddInstance) {		
+			addInstanceEl.addEventListener("click", ()=>{
+				let instance = setCurrentSTATinstance(font, true);
+				appendInstanceEl(instance, true);
+			});
+		}
+		else {
+			addInstanceEl.disabled = true;
+		}
 	}
 
 	else {
