@@ -991,7 +991,8 @@ function vfLoaded (font) {
 		let grid = document.createElement("div");
 		grid.style.display = "grid";
 		grid.classList.add("designAxes");
-		grid.style.gridTemplateColumns = "30% 35% 35%";
+		grid.style.gridTemplateColumns = "30% 35% 1fr";
+		grid.style.gridColumnGap = "3px";
 
 		function setCurrentSTATinstance(font, keepInstance, ignoreInstance) {
 
@@ -1006,13 +1007,20 @@ function vfLoaded (font) {
 				if (!(axisValueTable.flags & 0x0002)) // ELIDABLE_AXIS_VALUE_NAME
 					statNamesAVTs.push(axisValueTable);
 
-				// display note
-				if (axisValueTable.format == 2) {
-					Qall("#panel-stat .designAxes input")[a].value = `${axisValueTable.min}…${axisValueTable.max}`;
-				}
-
 				// build fvs
 				fvs[designAxis.tag] = thisSel.value;
+
+				// display note
+				let note = axisValueTable.value;
+				switch (axisValueTable.format) {
+					case 2:
+						note += ` [${axisValueTable.min},${axisValueTable.max}]`;
+						break;
+					case 3:
+						note += ` → ${axisValueTable.linkedValue}`;
+						break;
+				}
+				thisSel.parentNode.querySelectorAll("label.axisValueNote")[a].innerText = note;
 			});
 
 			statNamesAVTs.forEach(statNameAVT => {
@@ -1054,8 +1062,10 @@ function vfLoaded (font) {
 			label.innerText = font.names[designAxis.nameID];
 			let select = EL("select");
 			select.data = { designAxis: designAxis };
+			let note = EL("label")
+			note.classList.add("axisValueNote");
+
 			let selectedIndex=0, thisIndex=0;
-			let note = "";
 			if (STAT.axisValueTables.length == 0) {
 				let option = EL("option");
 				option.innerText = "no axisValueTables";
@@ -1074,6 +1084,7 @@ function vfLoaded (font) {
 								option.data = { axisValueTable: axisValueTable };
 								select.appendChild(option);
 								if (axisValueTable.flags & 0x0002) { // ELIDABLE_AXIS_VALUE_NAME
+									option.innerText = "(" + option.innerText + ")";
 									if (selectedIndex==0) {
 										selectedIndex = thisIndex; // select the first elidable avt
 									}
@@ -1087,7 +1098,7 @@ function vfLoaded (font) {
 
 			grid.appendChild(label);
 			grid.appendChild(select);
-			grid.appendChild(EL("input"));
+			grid.appendChild(note);
 			select.selectedIndex = selectedIndex;
 
 			// when we change the selection

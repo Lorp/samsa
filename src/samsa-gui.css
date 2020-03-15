@@ -124,6 +124,11 @@ body {
 
 .panel label {
 	font-size: 75%;
+	margin-top: 4px;
+}
+
+.panel input[type=checkbox] {
+	margin-top: 4px;
 }
 
 #panel-webfont.panel>div {
