@@ -43,7 +43,7 @@
 		<div></div>
 	</div>
 
-	<div id="axes" class="panel open">
+	<div id="panel-axes" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Axes</h2>
 		<div></div>
 	</div>
@@ -53,7 +53,7 @@
 		<div></div>
 	</div>
 
-	<div id="instances" class="panel open">
+	<div id="panel-instances" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Instances
 			<!--
 			<span class="icon" id="instances-as-grid">&#xf00a;</span>
@@ -63,17 +63,17 @@
 		<div></div>
 	</div>
 
-	<div id="tvts" class="panel open">
+	<div id="panel-tvts" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Tuple Variations</h2>
 		<div style="overflow-x: scroll;"></div>
 	</div>
 
-	<div id="designspace" class="panel open">
+	<div id="panel-designspace" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Designspace</h2>
 		<div></div>
 	</div>
 
-	<div id="glyphs" class="panel open">
+	<div id="panel-glyphs" class="panel open">
 		<h2><span class="icon bold reveal open">&#xf04b;</span> Glyphs
 			<!-- <span class="icon bold" id="glyphs-rewind">&#xf04a;</span> -->
 			<span class="icon bold" id="glyphs-stepback" title="Step back">&#xf048;</span>
@@ -88,7 +88,7 @@
 
 	</div>
 
-	<div id="font-list" class="panel open">
+	<div id="panel-font-list" class="panel open">
 		<h2><span class="icon bold reveal open">&#xf04b;</span> Fonts ready to load</h2>
 		<div></div>
 	</div>
@@ -504,7 +504,7 @@ function getCurrentFvs() {
 function appendInstanceEl(instance, select) {
 
 	let font = GLOBAL.vf;
-	let panel = Q("#instances>div");
+	let panel = Q("#panel-instances>div");
 
 	// create the instance DOM element
 	let li = document.createElement("div"); // not li?
@@ -876,29 +876,24 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Axes panel
 	///////////////////////////////////////////////////////
-	panel = Q("#axes>div");
+	panel = Q("#panel-axes>div");
 	panel.innerText = "";
 
 
 	let liH = document.createElement("li");
 	liH.classList.add("header");
 	liH.style.display = "grid";
-	liH.style.gridTemplateColumns = `35px 20px 45px 45px 45px 45px 45px 1fr`;
-	liH.innerHTML = `<label>Tag</label><label class="icon bold">&#xf129;</label><label>Name</label><label class="min icon bold" style="text-align:right;">&#xf13a;</label><label class="default icon bold" style="text-align:right;">&#xf015;</label><label class="max icon bold" style="text-align:right;">&#xf139;</label><label class="icon bold" style="text-align:right;">&#xf007;</label>`;
-
-	liH.innerHTML += `<select id="axis-value-format"><option>user</option><option>userhex</option><option>norm</option><option>normhex</option></select>`;
-	//GLOBAL.vf.axes.forEach(axis => {
-	//	liH.innerHTML += `<label style="width:100%; text-align:right;"><tt>${axis.tag}</tt></label>`;
-	//});
+	liH.style.gridTemplateColumns = `35px 20px 1fr 50px 50px 50px 50px`;
+	liH.innerHTML = `<label>Tag</label><label class="icon bold">&#xf129;</label><label>Name</label><label class="min icon bold" style="text-align:center;">&#xf13a;</label><label class="default icon bold" style="text-align:center;">&#xf015;</label><label class="max icon bold" style="text-align:center;">&#xf139;</label><label class="icon bold" style="text-align:center;">&#xf007;</label>`;
 	panel.appendChild(liH);
 
 	// add each axis
 	font.axes.forEach((axis, a) => {
 
-		let li = document.createElement("li");
+		let li = EL("li");
 		li.id = `axis-${a}`;
 		li.style.display = "grid";
-		li.style.gridTemplateColumns = `35px 20px 45px 45px 45px 45px 45px 1fr`;
+		li.style.gridTemplateColumns = liH.style.gridTemplateColumns;
 		li.style.listStyleType = "none";
 
 		li.innerHTML = `<label><tt>${axis.tag}</tt></label>`;
@@ -922,23 +917,7 @@ function vfLoaded (font) {
 
 		panel.appendChild(li);
 
-		/*
-		let label =  document.createElement("label");
-
-		//label.innerHTML = `<span style="font-weight: bold; font-family: monospace;">${axis.tag}</span> ${axis.name}`;
-		label.innerHTML = `<tt>${axis.tag}</tt> ${axis.name}`;
-		let docUrl = font.config.docs.axes[axis.tag.toLowerCase()];
-		if (docUrl) {
-			let docParts = docUrl.split(/:(.+)/)
-			if (docUrl && docParts[0] == "regex") {
-				docUrl = font.config.docs.regex[docParts[1]].replace("$1", axis.tag.toLowerCase()); // handles microsoft and typenetwork
-			}
-			label.innerHTML += ` <a href="${docUrl}" class="icon bold" title="‘${axis.tag}’ axis specification" target="_blank">&#xf02d;</a>`; // book icon, links to the specification of this axis
-		}
-		panel.appendChild(label);
-		*/
-
-		let slider = document.createElement("input");
+		let slider = EL("input");
 		slider.classList.add("slider");
 		slider.setAttribute("type", "range");
 		slider.setAttribute("min", 0.0);
@@ -947,23 +926,41 @@ function vfLoaded (font) {
 
 		slider.data = {axis: axis};
 
-		//let boxes = document.createElement("label");
-
 		panel.appendChild(slider);
 		slider.addEventListener("input", axisInput);
 
 	});
 
-	// add button
-	let addInstanceEl = document.createElement("button");
+	// create grid layout
+	let grid = EL("div");
+	grid.style.display = "grid";
+	grid.classList.add("axes-footer");
+	grid.style.gridTemplateColumns = "30% 35% 1fr";
+	grid.style.gridColumnGap = "3px";
+
+	let axisValueFormat = EL("select");
+	axisValueFormat.id = "axis-value-format";
+	axisValueFormat.innerHTML = `<option>user</option><option>userhex</option><option>norm</option><option>normhex</option>`;
+
+	let addInstanceEl = EL("button");
 	addInstanceEl.innerText = "Add instance";
 	addInstanceEl.class = "instance-add";
-	panel.appendChild(addInstanceEl);
 
+	let axisValueLabel = EL("label");
+	axisValueLabel.innerText = "Number format";
+
+	
+	grid.appendChild(axisValueLabel);
+	grid.appendChild(axisValueFormat)
+	grid.appendChild(addInstanceEl)
+	panel.appendChild(grid);
+
+	// event: click
 	addInstanceEl.addEventListener("click", ()=>{
 		appendInstanceEl(undefined, true);
 	});
 
+	// event: change format
 	Q("#axis-value-format").addEventListener("change", ()=>{
 
 		let fvs = font.tupleToFvs(GLOBAL.tuple);
@@ -1046,6 +1043,7 @@ function vfLoaded (font) {
 				let instance = font.addInstance(fvs, {type: "stat", name: statName});
 				setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 				axesUpdateValues();
+				webfontPanelUpdateVariationSettings();
 
 				if (keepInstance)
 					return instance;
@@ -1145,7 +1143,7 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Instances panel
 	///////////////////////////////////////////////////////
-	panel = Q("#instances>div");
+	panel = Q("#panel-instances>div");
 	panel.innerText = "";
 	panel.style.backgroundClip = "border-box";
 	panel.style.padding = "1px 0"; // necessary so the padding of the contents uses the panel’s background-color 
@@ -1163,7 +1161,7 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Designspace panel
 	///////////////////////////////////////////////////////
-	panel = Q("#designspace>div");
+	panel = Q("#panel-designspace>div");
 	panel.innerText = "";
 	panel.style.backgroundColor = "white";
 
@@ -1508,10 +1506,10 @@ function updateGlyphsPanel(instance) {
 	///////////////////////////////////////////////////////
 	// glyphs panel
 	///////////////////////////////////////////////////////
-	const panel = Q("#glyphs>div");
+	const panel = Q("#panel-glyphs>div");
 	panel.innerText = "";
 	const scale = 0.05 * 1000 / font.unitsPerEm;
-	let showGlyphIds = Q("#glyphs>h2 #glyphs-ids").classList.contains("active");
+	let showGlyphIds = Q("#panel-glyphs>h2 #glyphs-ids").classList.contains("active");
 	
 	for (let g=0; g < font.numGlyphs; g++) {
 
@@ -1780,7 +1778,7 @@ function setActiveGlyph (g, instance) {
 	///////////////////////////////////////////////////////
 
 	// TODO: we shouldn’t be doing all this for each glyph refresh
-	let panel = Q("#tvts>div");
+	let panel = Q("#panel-tvts>div");
 	panel.innerHTML = "";
 
 	let layers = []; // layers are drawn from low values (bottom) to high values (top)
@@ -2516,7 +2514,7 @@ document.onclick = function (event) {
 		setActiveInstance(GLOBAL.vf, target);
 	}
 
-	else if (target = event.target.closest("#axes .header .icon")) {
+	else if (target = event.target.closest("#panel-axes .header .icon")) {
 
 		let fvs = {}, redraw = true;
 		if (target.classList.contains("default")) {
@@ -2552,7 +2550,7 @@ document.onclick = function (event) {
 		console.log(event.target.data.point);
 	}
 
-	else if (target = event.target.closest("#glyphs>h2") 
+	else if (target = event.target.closest("#panel-glyphs>h2") 
 			&& event.target.classList.contains("icon")
 			&& !event.target.classList.contains("reveal")) { // this test must be before the other h2 test
 
@@ -2593,12 +2591,12 @@ document.onclick = function (event) {
 
 	}
 
-	else if (target = event.target.closest("#glyphs>h2") 
+	else if (target = event.target.closest("#panel-glyphs>h2") 
 			&& event.target.id == "glyphs-ids") {
 
 		// toggle the display of the spans inside the label
 		let active = Q("#glyphs-ids").classList.toggle("active");
-		let glyphLabels = Qall("#glyphs .glyph-thumb label");
+		let glyphLabels = Qall("#panel-glyphs .glyph-thumb label");
 		glyphLabels.forEach(label => {			
 			label.querySelector(".number").style.display = active ? "inline" : "none";
 			label.querySelector(".name").style.display = active ? "none" : "inline";
@@ -2626,7 +2624,7 @@ document.onclick = function (event) {
 
 	}
 
-	else if (target = event.target.closest("#font-list .font-file")) {
+	else if (target = event.target.closest("#panel-font-list .font-file")) {
 
 		// load font from the list
 		let vf = new SamsaVF({
@@ -2773,7 +2771,7 @@ if (["http:", "https:"].includes(window.location.protocol)) {
 	)
 	.then(responseJSON => { // then for the json() promise
 		// populate the font list panel
-		let panel = Q("#font-list>div");
+		let panel = Q("#panel-font-list>div");
 		panel.innerHTML = "";
 		GLOBAL.fontList = responseJSON;
 		GLOBAL.fontList.fonts.forEach(fontFilename => {
@@ -2782,7 +2780,7 @@ if (["http:", "https:"].includes(window.location.protocol)) {
 	});
 }
 else {
-	let panel = Q("#font-list>div");
+	let panel = Q("#panel-font-list>div");
 	panel.innerHTML = `<div>Remote file loading is not available for protocol “${window.location.protocol}”</div>`;
 }
 

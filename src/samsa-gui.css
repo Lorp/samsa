@@ -127,6 +127,10 @@ body {
 	margin-top: 4px;
 }
 
+#panel-glyphs.panel label {
+	margin-top: 0px;
+}
+
 .panel input[type=checkbox] {
 	margin-top: 4px;
 }
@@ -143,6 +147,12 @@ body {
 	padding: 4px;
 	margin: 4px;
 }
+
+.instance .tile {
+	
+}
+
+
 
 .tvt {
 	background-color: white;
