@@ -93,6 +93,11 @@
 		<div></div>
 	</div>
 
+	<div id="panel-media" class="panel open">
+		<h2><span class="icon bold reveal">&#xf04b;</span> Media</h2>
+		<div></div>
+	</div>
+
 </div>
 
 <div id="drawing"></div>
@@ -480,8 +485,12 @@ function Qall (selector) {
 	return document.querySelectorAll(selector);
 }
 
-function EL(tagName) {
-	return document.createElement(tagName);
+function EL (tag) {
+	return document.createElement(tag);
+}
+
+function SVG (tag) {
+    return document.createElementNS("http://www.w3.org/2000/svg", tag);
 }
 
 
@@ -505,6 +514,7 @@ function appendInstanceEl(instance, select) {
 
 	let font = GLOBAL.vf;
 	let panel = Q("#panel-instances>div");
+	//panel.classList.add("tiles");
 
 	// create the instance DOM element
 	let li = document.createElement("div"); // not li?
@@ -629,18 +639,19 @@ function appendInstanceEl(instance, select) {
 }
 
 
-function exportImage (format, filename="samsa-drawing", frameNumbers=true) {
+function exportImage (format, filename="samsa-drawing", params) {
 	if (GLOBAL.frameIndex === undefined)
 		GLOBAL.frameIndex = 0;
 	else
 		GLOBAL.frameIndex++;
 
 	let svgCode = Q("#drawing").innerHTML;
+
 	svgCode = svgCode.replace(`<svg `, `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" `);
 
 	if (format == "svg") {
 		let fauxLink = document.createElement("a");
-		fauxLink.download = "samsa-drawing.svg";
+		fauxLink.download = filename + ".svg";
 		fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
 		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
 		fauxLink.click();
@@ -665,7 +676,7 @@ function exportImage (format, filename="samsa-drawing", frameNumbers=true) {
 			while (frameIndexStr.length<3)
 				frameIndexStr = `0${frameIndexStr}`;
 
-			if (frameNumbers)
+			if (params && params.frameNumbers === true)
 				filename += frameIndexStr;
 			filename += ".png";
 			let ctx = canvas.getContext("2d");
@@ -684,7 +695,38 @@ function exportImage (format, filename="samsa-drawing", frameNumbers=true) {
 		// give the <img> a src attribute with an SVG data url, to render the SVG on the canvas
 		img.src = "data:image/svg+xml," + encodeURIComponent(svgCode);	
 	}
+	else if (format == "svg-animation") {
 
+		let svg = Q("#drawing svg").cloneNode();
+		let svgg = Q("#drawing svg #svg-transform-group").cloneNode();
+		let svgInstance = Q("#drawing svg #layer-instance").cloneNode();
+		let svgAnimate = SVG("animate");
+
+		svgInstance.removeAttribute("d");
+
+
+		console.log("HERE IS PARAMS" + params);
+		svgAnimate.attrsSVG({
+			attributeName: "d",
+			values: params.values, // the array of paths converted to a string
+			keyTimes: params.keyTimes,
+			dur: params.dur,
+			repeatCount: params.repeatCount,
+		});
+
+		svgInstance.appendChild(svgAnimate);
+		svgg.appendChild(svgInstance);
+		svg.appendChild(svgg);
+		let svgCode = svg.outerHTML;
+		svgCode = svgCode.replace(`<svg `, `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" `);
+		console.log("HERE IS FINAL" , svgCode);
+		let fauxLink = document.createElement("a");
+		fauxLink.download = filename + ".svg";
+		fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
+		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
+		fauxLink.click();
+		fauxLink.remove();
+	}
 }
 
 
@@ -744,11 +786,6 @@ function vfLoaded (font) {
 		panel.innerHTML += `<input id="arrows-colours" name="arrows-colours" class="ui-arrows-colours" type="radio"><label for="arrows-total">by order</label><br>`;
 		*/
 
-		// SVG export
-		panel.innerHTML += `<button id="export-svg">Export SVG</button>`;
-		panel.innerHTML += `<button id="export-png">Export PNG</button>`;
-		//panel.innerHTML += `<button id="export-mp4">Export MP4</button>`;
-
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
 		Q("#ui-mode").value = font.config.ui.name;
 
@@ -762,100 +799,6 @@ function vfLoaded (font) {
 				font.instances.pop();
 			});
 		});
-
-		// SVG export
-		Q("#export-svg").addEventListener("click", () => {
-			exportImage ("svg");
-		});
-
-		// PNG export
-		Q("#export-png").addEventListener("click", () => {
-			exportImage ("png");
-		});
-
-		if (Q("#export-mp4")) {
-
-			Q("#export-mp4").addEventListener("click", () => {
-
-				// TODO: more efficient to just make one canvas, and blank it for each frame?
-
-				if (0) {
-					GLOBAL.animSteps = 10;
-					GLOBAL.animCurrent = 0;
-
-					function doAnimationFrame () {
-						if (GLOBAL.animCurrent < GLOBAL.animSteps) {
-
-							let animInstance, iglyph;
-							let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
-							let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
-							let T = Tmin + GLOBAL.animCurrent/(GLOBAL.animSteps-1) * (Tmax-Tmin);
-							let frameNumberStr = GLOBAL.animCurrent.toString();
-							while (frameNumberStr.length < 3)
-								frameNumberStr = `0${frameNumberStr}`;
-
-							let frameTuple = []; // create tuple for this frame’s instance
-							for (let a=0; a < font.axes.length; a++) {
-								frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
-							}
-							
-							animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
-							iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
-							setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
-							exportImage ("png", `samsa-frame${frameNumberStr}`, false); // place SVG on canvas, export canvas as PNG
-							font.instances.pop(); // pop instance
-
-							GLOBAL.animCurrent++;
-						}
-						else {
-							console.log(`end`);
-							clearInterval (GLOBAL.animTimer);
-							GLOBAL.animTimer = undefined;
-						}
-
-					}
-
-					GLOBAL.animTimer = setInterval(doAnimationFrame, 200);
-				}
-				else {
-
-					const steps = 50;
-
-					for (let s=0; s<steps; s++) {
-
-						let animInstance, iglyph;
-						let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
-						let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
-						let T = Tmin + s/(steps-1) * (Tmax-Tmin);
-						let frameNumberStr = s.toString();
-						while (frameNumberStr.length < 3) // generate frame number string (TODO: write padWithZeroes() function)
-							frameNumberStr = `0${frameNumberStr}`;
-
-						let frameTuple = []; // create tuple for this frame’s instance
-						for (let a=0; a < font.axes.length; a++) {
-							frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
-						}
-						
-						animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
-						iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
-						setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
-						exportImage ("png", `samsa-frame${frameNumberStr}`, false); // place SVG on canvas, export canvas as PNG
-						font.instances.pop(); // pop instance
-					}
-
-					// save shell script to invoke ffmpeg
-					let frameRate = 24;
-					let shellScript = `ffmpeg -r ${frameRate} -i samsa-frame%03d.png -vcodec libx264 -pix_fmt yuv420p samsa-movie.mp4`;
-					let scriptLink = document.createElement("a");
-					scriptLink.download = "samsa-movie.sh";
-					scriptLink.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(shellScript));
-					document.body.appendChild(scriptLink); // needed for Firefox, not Chrome or Safari
-					scriptLink.click();
-					document.body.removeChild(scriptLink);
-				}
-
-			});
-		}
 	}
 
 
@@ -871,6 +814,215 @@ function vfLoaded (font) {
 	webfontFace.load().then(webfontFace => {
 		document.fonts.add(webfontFace);
 	});
+
+
+	///////////////////////////////////////////////////////
+	// Media panel
+	///////////////////////////////////////////////////////
+	panel = Q("#panel-media>div");
+	panel.innerText = "";
+	panel.style.display = "grid";
+	panel.style.gridTemplateColumns = "auto auto auto";
+
+	// export buttons
+	panel.innerHTML += `<div></div><div></div><button id="export-svg">Export SVG</button>`;
+	panel.innerHTML += `<div></div><div></div><button id="export-png">Export PNG</button>`;
+	//panel.innerHTML += `<div></div><div></div><button id="export-mp4">Export MP4</button>`;
+	panel.innerHTML += `<label>Select axis</label>`;
+
+	// axis selector	
+	let mediaAxisSelect = EL("select");
+	mediaAxisSelect.id = "svg-animation-axis";
+	font.axes.forEach(axis => {
+		let option = EL("option");
+		option.setAttribute("value", axis.id);
+		option.innerText = `${axis.tag} (${axis.id})`;
+		mediaAxisSelect.appendChild(option);
+	});
+	panel.appendChild(mediaAxisSelect);
+	panel.innerHTML += `<button id="export-svg-animation">Export SVG animation</button>`;
+	
+	// SVG export
+	Q("#export-svg").addEventListener("click", () => {
+		exportImage ("svg");
+	});
+
+	// SVG export
+	if (Q("#export-svg-animation")) {
+
+		Q("#export-svg-animation").addEventListener("click", () => {
+
+			// build special animation object object to pass to the exporter
+			// - MDN https://developer.mozilla.org/en-US/docs/Web/SVG/Element/animate
+			// - CSS-Tricks/Sara Soueidan https://css-tricks.com/guide-svg-animations-smil/
+
+			// for every single-axis tuple that controls axis 0
+			// - record start, peak, end
+			// - build this into a sorted array of timing values
+			// - then use this array of timing values to get the required instances
+
+			// let’s build fvs, not tuple, so we don’t need to worry about avar or whether default is at min or max
+			// - hmm, are you sure? we’re using normalized values because we parse tvts
+
+
+			let fvs = {};
+			let glyph = font.glyphs[GLOBAL.currentGlyphId];
+			let keyTimesSet = new Set();
+			let thisAxis = Q("#panel-media #svg-animation-axis").value;
+			let svgAnimation;
+
+			// find the tvts that only affect the chosen axis, then record their start, peak, end
+			glyph.tvts.forEach(tvt => {
+
+				// check it’s just axis 0 that is non-zero
+				if (tvt.peak[thisAxis] != 0.0) {
+
+					let valid = true;
+					for (let a=0; a<font.axes.length; a++) {
+						if (tvt.peak[a] != 0.0 && a != thisAxis) {
+							valid = false;
+							break;
+						}
+					}
+					if (valid) {
+						keyTimesSet.add(tvt.start[thisAxis]).add(tvt.peak[thisAxis]).add(tvt.end[thisAxis]);
+					}
+				}
+			});
+
+			if (keyTimesSet.size > 0) {
+
+				// create a sorted keyTimes array from the set of unique values
+				let keyTimes = Array.from(keyTimesSet).sort((a, b) => a - b);
+				let keyTimesZeroOne; // normalized on a scale from 0 to 1
+				let keyPaths = [];
+				keyTimes.forEach(T => {
+
+					let animInstance, iglyph;
+					let frameTuple = []; // create tuple for this frame’s instance
+					for (let a=0; a < font.axes.length; a++) {
+						frameTuple[a] = a==thisAxis ? T : 0; // animate the <thisAxis> axis
+					}
+					
+					animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
+					iglyph = glyphApplyVariations(glyph, null, animInstance); // make instance glyph
+					keyPaths.push(getGlyphSVGpath(iglyph)); // get SVG path of this instance
+					font.instances.pop(); // pop instance
+				});
+
+				// create keyTimesZeroOne array, normalized onto range [0,1]
+				let kMin=keyTimes[0], kMax=keyTimes[keyTimes.length-1];
+				if (kMin == 0.0 && kMax == 1.0)
+					keyTimesZeroOne = keyTimes;
+				else {
+					keyTimesZeroOne = [];
+					keyTimes.forEach(T => {
+						keyTimesZeroOne.push((T-kMin) / (kMax-kMin));
+					});
+				}
+
+				// build svg using keyPaths and keyTimes
+				svgAnimation = {
+					attributeName: "d",
+					dur: "5s",
+					values: keyPaths.join(";"),
+					keyTimes: keyTimesZeroOne.join(";"),
+					repeatCount: "indefinite",
+				};
+			}
+			if (svgAnimation)
+				exportImage ("svg-animation", "samsa-animation", svgAnimation);
+		});
+	}
+	// PNG export
+	Q("#export-png").addEventListener("click", () => {
+		exportImage ("png");
+	});
+
+	if (Q("#export-mp4")) {
+
+		Q("#export-mp4").addEventListener("click", () => {
+
+			// TODO: more efficient to just make one canvas, and blank it for each frame?
+
+			if (0) {
+				GLOBAL.animSteps = 10;
+				GLOBAL.animCurrent = 0;
+
+				function doAnimationFrame () {
+					if (GLOBAL.animCurrent < GLOBAL.animSteps) {
+
+						let animInstance, iglyph;
+						let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
+						let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
+						let T = Tmin + GLOBAL.animCurrent/(GLOBAL.animSteps-1) * (Tmax-Tmin);
+						let frameNumberStr = GLOBAL.animCurrent.toString();
+						while (frameNumberStr.length < 3)
+							frameNumberStr = `0${frameNumberStr}`;
+
+						let frameTuple = []; // create tuple for this frame’s instance
+						for (let a=0; a < font.axes.length; a++) {
+							frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
+						}
+						
+						animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
+						iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
+						setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
+						exportImage ("png", `samsa-frame${frameNumberStr}`, {frameNumbers: false}); // place SVG on canvas, export canvas as PNG
+						font.instances.pop(); // pop instance
+
+						GLOBAL.animCurrent++;
+					}
+					else {
+						console.log(`end`);
+						clearInterval (GLOBAL.animTimer);
+						GLOBAL.animTimer = undefined;
+					}
+
+				}
+
+				GLOBAL.animTimer = setInterval(doAnimationFrame, 200);
+			}
+			else {
+
+				const steps = 50;
+
+				for (let s=0; s<steps; s++) {
+
+					let animInstance, iglyph;
+					let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
+					let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
+					let T = Tmin + s/(steps-1) * (Tmax-Tmin);
+					let frameNumberStr = s.toString();
+					while (frameNumberStr.length < 3) // generate frame number string (TODO: write padWithZeroes() function)
+						frameNumberStr = `0${frameNumberStr}`;
+
+					let frameTuple = []; // create tuple for this frame’s instance
+					for (let a=0; a < font.axes.length; a++) {
+						frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
+					}
+					
+					animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
+					iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
+					setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
+					exportImage ("png", `samsa-frame${frameNumberStr}`, {frameNumbers: false}); // place SVG on canvas, export canvas as PNG
+					font.instances.pop(); // pop instance
+				}
+
+				// save shell script to invoke ffmpeg
+				let frameRate = 24;
+				let shellScript = `ffmpeg -r ${frameRate} -i samsa-frame%03d.png -vcodec libx264 -pix_fmt yuv420p samsa-movie.mp4`;
+				let scriptLink = document.createElement("a");
+				scriptLink.download = "samsa-movie.sh";
+				scriptLink.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(shellScript));
+				document.body.appendChild(scriptLink); // needed for Firefox, not Chrome or Safari
+				scriptLink.click();
+				document.body.removeChild(scriptLink);
+			}
+
+		});
+	}
+
 
 
 	///////////////////////////////////////////////////////
@@ -1442,6 +1594,7 @@ function updateDesignspace() {
 
 	let svg = SVG("svg");
 	let svgg = SVG("g"); // this transforms everything inside it
+	svgg.id = "svg-transform-group";
 	let svgXYAxes, svgXVal, svgYVal;
 	let scale = 360/2; // 360 is the width & height of the cartesian space in px, 2 is the width & height of the cartesian space in normalized units (-1 to +1)
 	svg.setAttributeNS(null, "width","360");
@@ -1788,6 +1941,7 @@ function setActiveGlyph (g, instance) {
 	let opacity = 0.5;
 	let svg = SVG("svg");
 	let svgg = SVG("g"); // this transforms everything inside it
+	svgg.id = "svg-transform-group";
 	//let svgDefs = SVG("defs")
 	//let svgMarker = SVG("marker")
 	//let svgMarkerPath = SVG("path")
@@ -2686,12 +2840,6 @@ Q("#font-file").addEventListener("dragover",function(e){
 
 
 
-function SVG(tag) {
-
-    return document.createElementNS('http://www.w3.org/2000/svg', tag);
-}
-
-
 
 
 // method to attach multiple SVG attributes at once
@@ -2755,7 +2903,7 @@ function getArrowPathForLine(x1, y1, x2, y2, width, arrowLength, arrowWidth) {
 
 
 
-// load samsa-fonts.json
+// load the list of fonts from samsa-fonts.json into the font-list panel
 // - this is the list of fonts available for 1-click loading
 // - only for normal web server ("http:" or "https:", not "file:")
 if (["http:", "https:"].includes(window.location.protocol)) {

@@ -143,16 +143,15 @@ body {
 
 .instance {
 	background-color: white;
-	_border: 1px solid black;
 	padding: 4px;
 	margin: 4px;
 }
 
-.instance .tile {
-	
+.tiles .instance {
+	width: 30px;
+	float: left;
+	position: relative;
 }
-
-
 
 .tvt {
 	background-color: white;

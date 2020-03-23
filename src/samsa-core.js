@@ -1720,7 +1720,6 @@ function SamsaVF_parseSmallTable (tag) {
 			let offsetToAxisValueOffsets = data.getUint32(p+14);
 			if (table.majorVersion >= 1 && table.minorVersion >= 1) {
 				table.elidedFallbackNameID = data.getUint16(p+18);
-				//table.elidedFallbackName = font.names[data.getUint16(p+18)];
 			}
 			table.designAxes = [];
 			table.designAxesSorted = [];
@@ -1733,7 +1732,6 @@ function SamsaVF_parseSmallTable (tag) {
 					designAxisID: a, // in case we are enumerating a sorted array
 					tag:          data.getTag(p),
 					nameID:       data.getUint16(p+4),
-					//name:         font.names[data.getUint16(p+4)],
 					axisOrdering: data.getUint16(p+6),
 				};
 				table.designAxes.push(designAxis);
@@ -1753,7 +1751,6 @@ function SamsaVF_parseSmallTable (tag) {
 					axisIndex:   data.getUint16(p+2),
 					flags:       data.getUint16(p+4),
 					nameID: data.getUint16(p+6),
-					//name: font.names[data.getUint16(p+6)],
 				};
 				if (axisValueTable.format >= 1 && axisValueTable.format <= 3) {
 					axisValueTable.value = data.getInt32(p+8)/65536;
@@ -1771,7 +1768,6 @@ function SamsaVF_parseSmallTable (tag) {
 					p += 12;
 					axisValueTable.axisValues = [];
 					for (let a=0; a < axisValueTable.axisCount; a++) {
-						//let axisValue = 
 						axisValueTable.axisValues.push({
 							index: data.getUint16(p),
 							value: data.getInt32(p+2)/65536,
@@ -2373,11 +2369,11 @@ function getGlyphSVGpath(glyph)
 			if (p==0)
 				path += `M${pt[0]} ${pt[1]}`;
 			else {
-				if (pt[2] == 0) {
+				if (pt[2] == 0) { // off-curve point (consumes 2 points)
 					pt_ = contourSVG[(++p) % contourSVG.length]; // increments loop variable p
 					path += `Q${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]}`;
 				}
-				else
+				else // on-curve point
 					path += `L${pt[0]} ${pt[1]}`;
 				if (p == contourSVG.length-1)
 					path += "Z";
