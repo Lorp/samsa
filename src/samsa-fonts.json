@@ -2,6 +2,8 @@
 	"directory": "fonts",
 	"default": "MutatorSans.ttf",
 	"fonts": [
+"Amstelvar-Roman-VF.ttf",
+"Amstelvar-Italic-VF.ttf",
 "Amstelvar-Roman-parametric-VF.ttf",
 "DecovarAlpha-VF.ttf",
 "Gingham.ttf",
