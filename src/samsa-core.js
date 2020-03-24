@@ -1763,15 +1763,14 @@ function SamsaVF_parseSmallTable (tag) {
 					axisValueTable.linkedValue = data.getInt32(p+12)/65536;
 				}
 				else if (axisValueTable.format == 4) {
+
 					axisValueTable.axisCount = axisValueTable.axisIndex;
-					axisValueTable.axisIndex = undefined;
-					p += 12;
-					axisValueTable.axisValues = [];
+					axisValueTable.axisIndex = []; // now array, not numeric
+					axisValueTable.value = []; // now array, not numeric
+					p += 8;
 					for (let a=0; a < axisValueTable.axisCount; a++) {
-						axisValueTable.axisValues.push({
-							index: data.getUint16(p),
-							value: data.getInt32(p+2)/65536,
-						});
+						axisValueTable.axisIndex.push(data.getUint16(p+a*6));
+						axisValueTable.value.push(data.getInt32(p+a*6+2)/65536);
 					}
 				}
 				table.axisValueTables.push(axisValueTable);
