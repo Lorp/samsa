@@ -1043,11 +1043,12 @@ function vfLoaded (font) {
 
 		let li = EL("li");
 		li.id = `axis-${a}`;
+		li.classList.add("axis-row");
 		li.style.display = "grid";
 		li.style.gridTemplateColumns = liH.style.gridTemplateColumns;
 		li.style.listStyleType = "none";
 
-		li.innerHTML = `<label><tt>${axis.tag}</tt></label>`;
+		li.innerHTML = `<label class="tag"><tt>${axis.tag}</tt></label>`;
 
 		let docStr = "", docUrl = font.config.docs.axes[axis.tag.toLowerCase()];
 		if (docUrl) {
@@ -1079,6 +1080,23 @@ function vfLoaded (font) {
 
 		panel.appendChild(slider);
 		slider.addEventListener("input", axisInput);
+
+		// double-click sets the axis to default
+		li.querySelector(".tag").addEventListener("dblclick", ev => {
+			let fvs = getCurrentFvs();
+			let tag = ev.target.innerText;
+			GLOBAL.vf.axes.forEach((axis, a) => {
+				if (axis.tag == tag)
+					fvs[tag] = axis.default;
+			});
+
+			setAxes (font, fvs);
+			let instance = font.addInstance(fvs);
+			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+			axesUpdateValues();
+			webfontPanelUpdateVariationSettings();
+			font.instances.pop();
+		});
 
 	});
 
