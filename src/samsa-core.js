@@ -1234,7 +1234,7 @@ function SamsaVF_parseGlyph (g) {
 						case 0x20: y = y_; break;
 						case 0x24: y = y_ + data.getUint8(p), p++; break;
 					}
-					glyph.points[pt].push(y_ = y, flags[pt] & 0x01);
+					glyph.points[pt].push(y_ = y, flag & 0x01);
 				});
 			}
 		}
