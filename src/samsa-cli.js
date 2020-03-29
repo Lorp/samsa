@@ -12,17 +12,6 @@ let config = {
 	*/
 	path: "/Users/lorp/Sites/samsa",
 
-	/*
-	SERVER: "localhost",
-	MAX_TABLES: 100,
-	OVERLAP_FLAG_APPLE: true,
-	MAX_SIZE_FONT: 10000000,
-	MAX_SIZE_GLYF_TABLE: 10000000,
-	MAX_SIZE_NAME_TABLE: 50000,
-	//HUGE_FONT: true,
-	HUGE_FONT: false,
-	OUTPUT_TABLES_TO_SKIP: ['gvar','fvar','cvar','avar','STAT','MVAR','HVAR'],
-	*/
 };
 
 
@@ -44,8 +33,6 @@ Buffer.prototype.setInt8   = function (p,v) {this.writeInt8(v,p);}
 
 // add new Buffer methods
 Buffer.prototype.getTag = function (p) {
-	//console.log ("he")
-	//console.log (this);
 	var tag = "";
 	var p_end = p + 4; // global
 	var ch;
@@ -88,6 +75,9 @@ if (((i = process.argv.indexOf("--input-font")) > 1) && process.argv[i+1] !== un
 	init.inFile = process.argv[i+1];
 	if (init.inFile.charAt[0] != "/")
 		init.inFile = __dirname + "/" + init.inFile; // add current directory (__dirname is provided by node)
+
+console.log(init.inFile);
+
 }
 if (((i = process.argv.indexOf("--output-font")) > 1) && process.argv[i+1] !== undefined)
 	init.outFile = process.argv[i+1];
@@ -135,10 +125,12 @@ function vfLoaded (font) {
 	
 	//console.log ("Samsa Font loaded");
 
+	console.log(`Loaded font file and parsed small tables: ${font.dateParsed - font.dateCreated} ms`);
+	
 	if (customInstance) {
 		customInstance = font.addInstance(fvs);
 		samsa.SamsaVF_compileBinaryForInstance(font, customInstance);
-			console.log (`New instance: ${customInstance.filename} (${customInstance.size} bytes, ${customInstance.timer} ms}`);
+			console.log (`New instance: ${customInstance.filename} (${font.numGlyphs} glyphs, ${customInstance.size} bytes, ${customInstance.timer} ms`);
 	}
 
 	// get named instances
@@ -163,7 +155,7 @@ function vfLoaded (font) {
 
 			//samsa.makeStaticFont (font, instance);
 
-			console.log (`New instance: ${instance.filename} (${instance.size} bytes, ${instance.timer} ms}`);
+			console.log (`New instance: ${instance.filename} (${font.numGlyphs} glyphs, ${instance.size} bytes, ${instance.timer} ms`);
 
 		});
 
