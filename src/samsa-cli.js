@@ -67,8 +67,10 @@ let init = {
 
 // command line args
 // TODO?: move this to samsa-core.js
+/*
 let i;
 let fvs = {};
+
 let dumpNamedInstances = false;
 let customInstance = false;
 if (((i = process.argv.indexOf("--input-font")) > 1) && process.argv[i+1] !== undefined) {
@@ -99,9 +101,58 @@ if ((i = process.argv.indexOf("--variation-settings")) > 1) {
 
 if ((i = process.argv.indexOf("--named-instances")) > 1)
 	dumpNamedInstances = true;
+*/
+
+//let processedArgs = false;
+let listOnly = false;
+let quiet = false;
+let thisArg, thisParam;
+let allInstances = [];
+let instanceDefs = [];
+let i = 1;
+
+while (!((thisArg = process.argv[++i]) === undefined)) {
+	switch (thisArg) {
+		case "--instances":
+		case "--instance":
+		case "-I":
+			if (!((thisParam = process.argv[++i]) === undefined)) {
+				instanceDefs = thisParam.split(";");
+			}
+			break;
+
+		case "--list":
+		case "-L":
+			listOnly = true;
+			break;
+
+		case "--quiet":
+		case "-Q":
+			quiet = true;
+			break;
+
+		case "--output":
+		case "-O":
+			if (!(thisParam = process.argv[++i]) === undefined) {
+				init.outFile = thisParam;
+			}
+			break;
+
+		// an argument without a flag must be the font file
+		default:
+			init.inFile = process.argv[i];
+			break;
+
+	}
+
+}
+
+
+let vf = new samsa.SamsaVF(init, config);
 
 
 
+/*
 if (customInstance || dumpNamedInstances) {
 	// initialize vf
 	let vf = new samsa.SamsaVF(init, config);
@@ -119,14 +170,60 @@ Examples:
 `);
 
 
-
+*/
 
 function vfLoaded (font) {
 	
 	//console.log ("Samsa Font loaded");
 
 	console.log(`Loaded font file and parsed small tables: ${font.dateParsed - font.dateCreated} ms`);
-	
+
+	instanceDefs.forEach(instanceDef => {
+		instanceDef = instanceDef.trim();
+		let instances = [];
+		switch (instanceDef) {
+			case "named":
+				instances = font.getNamedInstances();
+				break;
+
+			case "stat":
+				console.log("Getting STAT instances (not yet)");
+
+
+				break;
+
+			default:
+				let fvs = {}; // truly default case, i.e. no fvs parameters
+				if (instanceDef != "default") {
+					fvsParams = instanceDef.split(" ");
+					if (fvsParams.length % 2 == 0) {
+						for (let p=0; p < fvsParams.length; p+=2) {
+							fvs[fvsParams[p]] = parseFloat(fvsParams[p+1]);
+						}
+					}
+				}
+				instances[0] = font.addInstance(fvs);
+				//samsa.SamsaVF_compileBinaryForInstance(font, instances[0]);
+				//console.log (`Custom instance: ${instances[0].filename} (${font.numGlyphs} glyphs, ${instances[0].size} bytes, ${instances[0].timer} ms`);
+				font.instances.pop();
+
+				break;
+		}
+
+		allInstances.push(...instances);
+
+	});
+
+
+	allInstances.forEach((instance, i) => {
+		instance.filename = `instance-${i}.ttf`;
+		samsa.SamsaVF_compileBinaryForInstance(font, instance);
+		console.log(`${instance.filename}: ${instance.type}, ${font.numGlyphs} glyphs, ${instance.size} bytes, ${instance.timer} ms`);
+
+	});
+
+	//console.log(JSON.stringify(allInstances));
+	/*
 	if (customInstance) {
 		customInstance = font.addInstance(fvs);
 		samsa.SamsaVF_compileBinaryForInstance(font, customInstance);
@@ -137,7 +234,10 @@ function vfLoaded (font) {
 	// TODO: this really needs an optimized mode in samsa-core.js to avoid decompiling the VF each time
 	// - you'd load the glyph once, then spin out all the glyphs
 	// - a temporary glyph file for each instance is one method
-	// - another method: make it possible to create multiple instances at once from within SamsaVF_compileBinaryForInstance, so the instance parameter is optionally an array of instances
+	// - another method:
+	//    - create multiple instances at once from within SamsaVF_compileBinaryForInstance
+	//    - so the instance parameter is optionally an array of instances
+	//    - we build the final fonts in parallel
 	if (dumpNamedInstances) {
 
 		let instances = font.getNamedInstances();
@@ -149,17 +249,14 @@ function vfLoaded (font) {
 
 		instances.forEach((instance, i) => {
 
-			instance.filename = "instance-" + i + ".ttf";
-
+			instance.filename = `instance-${i}.ttf`;
 			samsa.SamsaVF_compileBinaryForInstance(font, instance);
-
-			//samsa.makeStaticFont (font, instance);
-
 			console.log (`New instance: ${instance.filename} (${font.numGlyphs} glyphs, ${instance.size} bytes, ${instance.timer} ms`);
 
 		});
 
 	}
+	*/
 
 }
 
