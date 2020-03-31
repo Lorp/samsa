@@ -1,36 +1,54 @@
 # Samsa-CLI
 
-Samsa-CLI (samsa-cli.js) is a Node.js command-line utility for performing operations on variable fonts (VFs). It uses the [Samsa-Core](samsa-core.js) library, so it requires samsa-core.js.
+Samsa-CLI (samsa-cli.js) is a Node.js command-line utility for performing operations on variable fonts (VFs). It uses the [Samsa-Core](samsa-core.js) library, so it requires samsa-core.js, as well as Node.
 
-## Execution
+## Installing Node.js
+[Download Node.js](https://nodejs.org/en/download/) for your platform
 
-Run it using Node.js:
+## Arguments
 
-`node samsa-cli.js`  
+**`--instances, --instance, -I <instanceDefs>`**
 
-The library file `samsa-core.js` must be in the same directory.
+  Introduces a list of instance definitions, separated with ";". Use quotes 
+  to avoid space and semicolon being handled incorrectly by the shell. An
+  instance definition may be:
+  
+* A specific location in the font’s designspace, specifying axis tags and values in pairs (e.g. "`wght 633 wdth 88 ital 1`").
+* The special value "`default`", which generates the default instance.
+* The special value "`named`", which generates all named instances in the font.
+* The special value "`stat`", which generates all possible combinations of axis values specified by the STAT table. For example, if a STAT table records 5 axis values for `wght` and 3 axis values for `wdth`, we get the 15 (=5*3) possible combinations of instances. Note that this can lead to the generation of very many instances in some fonts. Any Format 4 STAT values are also included.
 
-## Options
+**`--output, -O <filename>`**
+Outfile filename, overrides "samsa-instance".
 
-Define the input and output font files using `--input-font` and `--output-font`:
+**`--quiet, -Q`**  
+Quiet mode, no console output.
 
-`--input-font <variable-ttf-file>`  
-`--output-font <static-ttf-file>` (default = `samsa-out.ttf`)
-
-Define a variation to be instantiated:
-
-`--variation-settings <axis1> <value1> [<axis2> <value2>...]`  
-
-To instantiate all named instances as static fonts:
-
-`--named-instances`  
+**`--list, -L`**  
+List instances, do not write any files.
 
 ## Examples
 
-```
-node samsa-cli.js --input-font Gingham.ttf --variation-settings wght 634 wdth 5
-node samsa-cli.js --input-font Gingham.ttf --variation-settings wght 300 wdth 75 --named-instances
-```
+Print out this short help info:  
+`% node samsa-cli.js`
+
+Make static fonts for all named instances  
+`% node samsa-cli.js Gingham.ttf --instances named`
+
+Make static fonts for all named instances (switching to short -I syntax)  
+`% node samsa-cli.js Gingham.ttf -I named`
+
+Make static fonts for all stat instances  
+`% node samsa-cli.js SourceSans.ttf -I stat`
+
+Make a static font for the custom instance at wght 245, wdth 89  
+`% node samsa-cli.js Skia.ttf -I "wght 345 wdth 89"`
+
+Make a static font for the default instance  
+`% node samsa-cli.js Skia.ttf -I default`
+
+Make static fonts using multiple instance specifications separated with ";"  
+`% node samsa-cli.js Skia.ttf -I "named;stat;wght 345 wdth 89;wght 811 wdth 180;default"`
 
 ## Performance
 
@@ -39,7 +57,8 @@ Initial tests indicate that it is much faster (approx. 40x) than fontTools at in
 ## Limitations
 The fonts produced are not production ready. Limitations include:
 
-* no support for GSUB, GPOS, STAT tables.
-* checksums are not performed
+* no support for GSUB, GPOS, STAT, MVAR tables
+* no support for Feature Variations (aka `rvrn`)
+* sfnt table checksums are not performed
 
 Exporting production ready fonts will depend on improvements to samsa-core.js.
