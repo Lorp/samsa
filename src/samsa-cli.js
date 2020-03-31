@@ -10,8 +10,7 @@ let config = {
 	/*
 	isNode: (typeof module !== 'undefined' && module.exports) ? true : false,
 	*/
-	path: "/Users/lorp/Sites/samsa",
-
+	path: ".",
 };
 
 
@@ -55,53 +54,16 @@ Buffer.prototype.getF2DOT14 = function (p) {
 module.paths.push(config.path);
 let fs = require('fs');
 let samsa = require("samsa-core.js");
+const cliTimeStart = new Date();
 
 config.fs = fs;
 
 
 let init = {
-	fontFamily: "Gingham",
-	url: "http://localhost/samsa/fonts/Gingham.ttf",
 	callback: vfLoaded,
+	outFile: "samsa-instance",
 };
 
-// command line args
-// TODO?: move this to samsa-core.js
-/*
-let i;
-let fvs = {};
-
-let dumpNamedInstances = false;
-let customInstance = false;
-if (((i = process.argv.indexOf("--input-font")) > 1) && process.argv[i+1] !== undefined) {
-	init.inFile = process.argv[i+1];
-	if (init.inFile.charAt[0] != "/")
-		init.inFile = __dirname + "/" + init.inFile; // add current directory (__dirname is provided by node)
-
-console.log(init.inFile);
-
-}
-if (((i = process.argv.indexOf("--output-font")) > 1) && process.argv[i+1] !== undefined)
-	init.outFile = process.argv[i+1];
-if ((i = process.argv.indexOf("--variation-settings")) > 1) {
-	let processedArgs = false;
-	i++;
-	while (!processedArgs) {
-		if (process.argv[i] === undefined || process.argv[i].substr(0,2) == "--" || 
-			process.argv[i+1] === undefined || process.argv[i+1].substr(0,2) == "--") {
-			processedArgs = true;
-		}
-		else {
-			fvs[process.argv[i]] = parseFloat(process.argv[i+1]);
-			i+=2;
-		}
-	}
-	customInstance = true;
-}
-
-if ((i = process.argv.indexOf("--named-instances")) > 1)
-	dumpNamedInstances = true;
-*/
 
 //let processedArgs = false;
 let listOnly = false;
@@ -110,6 +72,7 @@ let thisArg, thisParam;
 let allInstances = [];
 let instanceDefs = [];
 let i = 1;
+
 
 while (!((thisArg = process.argv[++i]) === undefined)) {
 	switch (thisArg) {
@@ -133,8 +96,12 @@ while (!((thisArg = process.argv[++i]) === undefined)) {
 
 		case "--output":
 		case "-O":
-			if (!(thisParam = process.argv[++i]) === undefined) {
-				init.outFile = thisParam;
+			if (!((thisParam = process.argv[++i]) === undefined)) {
+				let lastDot = thisParam.lastIndexOf(".");
+				if (lastDot == -1)
+					init.outFile = thisParam; // no extension
+				else
+					init.outFile = thisParam.substr(0,lastDot); // remove extension
 			}
 			break;
 
@@ -147,53 +114,160 @@ while (!((thisArg = process.argv[++i]) === undefined)) {
 
 }
 
+if (init.inFile && instanceDefs.length > 0) {
 
-let vf = new samsa.SamsaVF(init, config);
-
-
-
-/*
-if (customInstance || dumpNamedInstances) {
-	// initialize vf
 	let vf = new samsa.SamsaVF(init, config);
+
 }
-else
+else {
+
 	console.log (`
-Samsa-CLI, a utility for generating static fonts from variable fonts, based on the Samsa-Core JavaScript library.
+Samsa-CLI, a utility for generating static fonts from variable fonts, based on 
+the Samsa-Core JavaScript library.
 
 Documentation:
+
   https://github.com/Lorp/samsa/tree/master/docs
 
+Arguments:
+
+  --instances, --instance, -I <instanceDef[;instanceDef]>
+  Introduces a list of instance definitions, separated with ";". Use quotes 
+  to avoid space and semicolon being handled incorrectly by the shell. An
+  instance definition may be:
+    * A specific location in the font’s designspace, specifying axis tags then
+      axis values (e.g. "wght 633 wdth 88 ital 1").
+    * The special value "default", which generates the default instance.
+    * The special value "named", which generates all named instances in the
+      font.
+    * The special value "stat", which generates all possible combinations of
+      axis values specified by the STAT table. For example, if a STAT table
+      records 5 axis values for 'wght' and 3 axis values for 'wdth', we get the
+      15 (=5*3) possible combinations of instances. Note that this can lead to
+      the generation of very many instances in some fonts. Any Format 4 STAT 
+      values are also included.
+
+  --quiet, -Q
+  Quiet mode, no console output.
+
+  --list, -L
+  List instances, do not write any files.
+
 Examples:
-  node samsa-cli.js --input-font Gingham.ttf --variation-settings wght 634 wdth 5 --output-font GinghamCustom.ttf
-  node samsa-cli.js --input-font Skia.ttf --named-instances
+
+  Print out this short help info:
+  % node samsa-cli.js
+
+  Print out this short help info:
+  % node samsa-cli.js
+
+  Make static fonts for all named instances 
+  % node samsa-cli.js Gingham.ttf --instances named
+
+  Make static fonts for all named instances (switching to short -I syntax)
+  % node samsa-cli.js Gingham.ttf -I named
+
+  Make static fonts for all stat instances
+  % node samsa-cli.js SourceSans.ttf -I stat
+
+  Make a static font for the custom instance at wght 245, wdth 89
+  % node samsa-cli.js Skia.ttf -I "wght 345 wdth 89"
+
+  Make a static font for the default instance
+  % node samsa-cli.js Skia.ttf -I default
+
+  Make static fonts using multiple instance specifications separated with ";"
+  % node samsa-cli.js Skia.ttf -I "named;stat;wght 345 wdth 89;wght 811 wdth 180;default"
 `);
 
+}
 
-*/
 
 function vfLoaded (font) {
 	
-	//console.log ("Samsa Font loaded");
+	let totalSize = 0;
 
-	console.log(`Loaded font file and parsed small tables: ${font.dateParsed - font.dateCreated} ms`);
+	if (!quiet)
+		console.log(`Loaded font file "${font.inFile}" (${font.numGlyphs} glyphs)\n  parsed small tables: ${font.dateParsed - font.dateCreated} ms`);
 
+	// assemble the list of supplied instance definitions, expanding "named" and "stat" values
 	instanceDefs.forEach(instanceDef => {
 		instanceDef = instanceDef.trim();
 		let instances = [];
+		let fvs = {}; // default
 		switch (instanceDef) {
 			case "named":
 				instances = font.getNamedInstances();
 				break;
 
 			case "stat":
-				console.log("Getting STAT instances (not yet)");
+				if (font.tables["STAT"]) {
+					let avtsByAxis = [];
+					let stat = font.tables["STAT"].data;
+					let numInstances = 1;
 
+					// build arrays of axisValue records for each axis
+					for (let a=0; a<stat.designAxes.length; a++) {
+						avtsByAxis[a] = [];
+					}
+					stat.axisValueTables.forEach(avt => {
+						if (avt.format >= 1 && avt.format <= 3)
+							avtsByAxis[avt.axisIndex].push(avt);
+					});
+					avtsByAxis.forEach(avts => {
+						numInstances *= avts.length; // this could be zero, for poorly made STAT tables
+					});
 
+					// generate all STAT combinations (using modulo arithmetic, not recursion)
+					for (let i=0; i<numInstances; i++) {
+						let fvs = {};
+						let divider = 1;
+						let statNamesAVTs = [];
+						stat.designAxesSorted.forEach(designAxis => {
+							let tag = designAxis.tag;
+							let avts = avtsByAxis[designAxis.designAxisID];
+							let modulo = avtsByAxis[designAxis.designAxisID].length; // this is right, because designAxesSorted might not be sorted in fvar axis order
+							let avt = avts[((i / divider) >> 0) % modulo]; // this gets us the combinatorial explosion
+							statNamesAVTs.push(avt); // build STAT name
+							fvs[tag] = avt.value;
+							divider *= avts.length;
+						});
+
+						// get final STAT name
+						let statName, elidable = true, statNamesStrs = [];
+						statNamesAVTs.forEach(statNameAVT => {
+							if (!(statNameAVT.flags & 0x0002)) {
+								statNamesStrs.push(font.names[statNameAVT.nameID]);
+								elidable = false;
+							}
+						});
+						if (elidable && stat.elidedFallbackNameID !== undefined)
+							statName = font.names[stat.elidedFallbackNameID];
+						else
+							statName = statNamesStrs.join(" ");
+
+						// append the instance
+						instances.push(font.addInstance(fvs, {type: "stat", name: statName}));
+						font.instances.pop();
+					}
+
+					// finally add instances pointed to by format 4 avts, which specify multiple axes
+					stat.axisValueTables.forEach(avt => {
+						let fvs = {};
+						if (avt.format == 4) {
+							avt.axisIndex.forEach(a => {
+								fvs[stat.designAxes[a].tag] = avt.value[a];
+							});
+							instances.push(font.addInstance(fvs, {type: "stat"}));
+							font.instances.pop();
+						}
+					});
+
+				}
 				break;
 
 			default:
-				let fvs = {}; // truly default case, i.e. no fvs parameters
+				let instanceType = "default";;
 				if (instanceDef != "default") {
 					fvsParams = instanceDef.split(" ");
 					if (fvsParams.length % 2 == 0) {
@@ -201,74 +275,39 @@ function vfLoaded (font) {
 							fvs[fvsParams[p]] = parseFloat(fvsParams[p+1]);
 						}
 					}
+					instanceType = "custom";
 				}
-				instances[0] = font.addInstance(fvs);
-				//samsa.SamsaVF_compileBinaryForInstance(font, instances[0]);
-				//console.log (`Custom instance: ${instances[0].filename} (${font.numGlyphs} glyphs, ${instances[0].size} bytes, ${instances[0].timer} ms`);
+				instances.push(font.addInstance(fvs, {type: instanceType}));
 				font.instances.pop();
-
 				break;
 		}
 
 		allInstances.push(...instances);
-
 	});
 
-
+	// for each instance, compile binary file
 	allInstances.forEach((instance, i) => {
-		instance.filename = `instance-${i}.ttf`;
-		samsa.SamsaVF_compileBinaryForInstance(font, instance);
-		console.log(`${instance.filename}: ${instance.type}, ${font.numGlyphs} glyphs, ${instance.size} bytes, ${instance.timer} ms`);
+
+		let extraName = instance.name === undefined ? "" : `(${instance.name})`;
+		instance.filename = `${init.outFile}-${i}${extraName}.ttf`;
+		if (!listOnly) {
+			samsa.SamsaVF_compileBinaryForInstance(font, instance);
+			totalSize += instance.size;
+		}
+
+		if (!quiet) {
+			console.log(`Instance: type=${instance.type}, name="${instance.name}", location=` + JSON.stringify (instance.fvs));
+			if (!listOnly)
+				console.log(`  ${instance.filename}: ${instance.size} bytes, ${instance.timer} ms`);
+		}
 
 	});
 
-	//console.log(JSON.stringify(allInstances));
-	/*
-	if (customInstance) {
-		customInstance = font.addInstance(fvs);
-		samsa.SamsaVF_compileBinaryForInstance(font, customInstance);
-			console.log (`New instance: ${customInstance.filename} (${font.numGlyphs} glyphs, ${customInstance.size} bytes, ${customInstance.timer} ms`);
+	// final message
+	const cliTimeEnd = new Date();
+	if (!quiet) {
+		console.log(`Total instances: ${allInstances.length}`);
+		if (!listOnly)
+			console.log(`${totalSize} bytes, ${cliTimeEnd - cliTimeStart} ms`);
 	}
-
-	// get named instances
-	// TODO: this really needs an optimized mode in samsa-core.js to avoid decompiling the VF each time
-	// - you'd load the glyph once, then spin out all the glyphs
-	// - a temporary glyph file for each instance is one method
-	// - another method:
-	//    - create multiple instances at once from within SamsaVF_compileBinaryForInstance
-	//    - so the instance parameter is optionally an array of instances
-	//    - we build the final fonts in parallel
-	if (dumpNamedInstances) {
-
-		let instances = font.getNamedInstances();
-
-		// make a custom instance
-		// generate the binary for each instance and save to file
-
-		// console.log(`Found ${instances.length} instances`);
-
-		instances.forEach((instance, i) => {
-
-			instance.filename = `instance-${i}.ttf`;
-			samsa.SamsaVF_compileBinaryForInstance(font, instance);
-			console.log (`New instance: ${instance.filename} (${font.numGlyphs} glyphs, ${instance.size} bytes, ${instance.timer} ms`);
-
-		});
-
-	}
-	*/
-
 }
-
-
-
-function getStringFromData (data, p0, length)
-{
-	var str = "";
-	var p = p0;
-	while (p - p0 < length) {
-		str += String.fromCharCode(data.getUint8(p++));	
-	}
-	return str;
-}
-

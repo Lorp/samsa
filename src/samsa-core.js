@@ -75,8 +75,7 @@ function getStringFromData (data, p0, length)
 	// TODO: add a Pascal and C modes to use in parsing "post" table (use length = undefined for C, -1 for Pascal)
 	var str = "";
 	var p = p0;
-	while (p - p0 < length)
-	{
+	while (p - p0 < length) {
 		str += String.fromCharCode(data.getUint8(p++));	
 	}
 	return str;
@@ -1636,16 +1635,13 @@ function SamsaVF_parseSmallTable (tag) {
 
 				if (i==0) {
 					instance.name = "Default";
-					instance.default = true;
-					instance.namedInstance = false;
-					instance.type = "default"; // TODO: move to this method of identifying instance type, not .default or .namedInstance (type should be one of default, named, custom)
+					instance.type = "default"; // one of default, named, stat, custom
 				}
 				else {
 					if (table.instanceSize == table.axisCount * 4 + 6)
 						instance.postScriptNameID = data.getUint16(p), p+=2;
 					instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed! (TODO: fallback if no name table)
-					instance.namedInstance = true;
-					instance.type = "named"; // TODO: update code in samsa-cli to check this, rather than instance.namedInstance
+					instance.type = "named"; // one of default, named, stat, custom
 				}
 				font.instances.push(instance);
 			}
@@ -2019,22 +2015,28 @@ function SamsaVF (init, config) {
 	//////////////////////////////////
 	//  load()
 	//////////////////////////////////
-	this.load = function (url) {
+	this.load = function () {
 
 		if (this.config.isNode) {
-			//console.log (__dirname);
-			//console.log ("IN FONT LOAD", this.inFile);
-			if (this.fd = config.fs.openSync (this.inFile, "r")) {
-				this.stat = config.fs.fstatSync(this.fd);
-				this.filesize = this.stat.size;
-				this.date = this.stat.birthtimeMs;
+
+			// open the font file
+			try {
+				this.fd = config.fs.openSync (this.inFile, "r");
 			}
+			catch {
+				this.errors.push(`Could not open file ${this.inFile}`);
+				quit(this);
+			}
+
+			this.stat = config.fs.fstatSync(this.fd);
+			this.filesize = this.stat.size;
+			this.date = this.stat.birthtimeMs;
 			this.parse();
 		}
 
 		else if (this.url) {
 			let oReq = new XMLHttpRequest();
-			oReq.open("GET", url, true);
+			oReq.open("GET", this.url, true);
 			oReq.responseType = "arraybuffer";
 			oReq.SamsaVF = this;
 			oReq.onload = function(oEvent) {
@@ -2054,12 +2056,12 @@ function SamsaVF (init, config) {
 	//  getNamedInstances()
 	//////////////////////////////////
 	this.getNamedInstances = function () {
-		let namedInstances = [];
+		let instances = [];
 		this.instances.forEach(instance => {
-			if (instance.namedInstance)
-				namedInstances.push(instance);
+			if (instance.type == "named")
+				instances.push(instance);
 		});
-		return namedInstances;
+		return instances;
 	}
 
 	//////////////////////////////////
@@ -2236,6 +2238,7 @@ function SamsaVF (init, config) {
 
 		if (axis === undefined) {
 			n = 0;
+			return n;
 		}
 
 
@@ -2283,8 +2286,8 @@ function SamsaVF (init, config) {
 
 
 	// load data if not already loaded
-	if (!this.data && this.url) {
-		this.load(this.url);
+	if (!this.data && (this.url || this.inFile)) {
+		this.load(this.url || this.inFile);
 	}
 
 
@@ -2635,6 +2638,16 @@ function SamsaInstance () {
 	this.fvs = {};
 	this.tuple = [];
 
+}
+
+
+function quit(obj) {
+	if (obj.errors !== undefined) {
+		obj.errors.forEach(error => {
+			console.error(`ERROR: ${error}`);
+		})
+	}
+	process.exit(0);
 }
 
 
