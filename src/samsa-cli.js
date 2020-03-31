@@ -147,6 +147,9 @@ Arguments:
       the generation of very many instances in some fonts. Any Format 4 STAT 
       values are also included.
 
+  --output, -O
+  Outfile filename, overrides "samsa-instance".
+
   --quiet, -Q
   Quiet mode, no console output.
 
@@ -154,9 +157,6 @@ Arguments:
   List instances, do not write any files.
 
 Examples:
-
-  Print out this short help info:
-  % node samsa-cli.js
 
   Print out this short help info:
   % node samsa-cli.js
