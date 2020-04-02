@@ -303,7 +303,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 							aws[g] = iglyph.points[iglyph.components.length+1][0]; // the x-coordinate of the numPoints+1 point
 							if (aws[g] < 0)
 								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
-							lsbs[g] = iglyph.xMin;
+							lsbs[g] = 0; // TODO: we don’t know xMin so work out a solution to replace simple glyph’s iglyph.xMin;
 
 						}
 						else if (glyph.numContours == 0) {
