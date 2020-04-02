@@ -117,17 +117,20 @@ function copyBytes(source, target, zs, zt, n)
 }
 
 
+// Instantiation: Node method
 function SamsaVF_compileBinaryForInstance (font, instance) {
 	// we either write to a memory object or straight to a file
 
 
 	const timerStart = new Date();
+	console.log("Instantiation: NODE");
 
 	let node = font.config.isNode;
 	let fd, read, write;
 	let zeroBuffer;
 	let position;
 	let fdw;
+	const glyfBufSafetyMargin = 256;
 	if (node) {
 		fd = font.fd;
 		read = font.config.fs.readSync;
@@ -239,8 +242,63 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 							// p = ?? // frontend: all glyphs at once
 						}
 
+						// Same function for all glyphs: simple, composite, zero-contour
+						let iglyph = glyphApplyVariations(glyph, null, instance);
+
 						if (glyph.numContours < 0) {
 							// composite glyph
+
+							// max size of each composite glyph is:
+							//      10 bytes header
+							//    + 16 bytes (6..8 bytes + 0..8 bytes) for each component
+							//    +  2 bytes for instruction length
+							//    +  length of instructions
+							let maxNewGlyphSize = 10 + 16 * iglyph.components.length + 2 + glyph.instructionLength;
+							maxNewGlyphSize += glyfBufSafetyMargin;
+							newGlyphBuf = Buffer.alloc(maxNewGlyphSize);
+
+							// glyph header
+							newGlyphBuf.setInt16(p, -1), p+=2;
+							newGlyphBuf.setInt16(p, glyph.xMin), p+=2;
+							newGlyphBuf.setInt16(p, glyph.yMin), p+=2;
+							newGlyphBuf.setInt16(p, glyph.xMax), p+=2;
+							newGlyphBuf.setInt16(p, glyph.yMax), p+=2;
+
+							// components
+							for (let c=0; c<iglyph.components.length; c++) {
+								let component = iglyph.components[c];
+
+								// set up the flags
+								let flags = 0;
+								flags |= 0x0001; // ARG_1_AND_2_ARE_WORDS (could compress the component a tiny bit if we cared about this)
+								flags |= 0x0002; // ARGS_ARE_XY_VALUES
+								if (c < iglyph.components.length-1)
+									flags |= 0x0020; // MORE_COMPONENTS
+								if (component.flags & 0x0200)
+									flags |= 0x0200; // USE_MY_METRICS (copy from the original glyph)
+								// flag 0x0100 WE_HAVE_INSTRUCTIONS is set to zero
+
+								// write this component
+								newGlyphBuf.setUint16(p, flags), p+=2;
+								newGlyphBuf.setUint16(p, component.glyphId), p+=2;
+								newGlyphBuf.setInt16(p, iglyph.points[c][0]), p+=2;
+								newGlyphBuf.setInt16(p, iglyph.points[c][1]), p+=2;
+
+								//console.log(component);
+								//console.log(`X,Y offset: ${iglyph.points[c][0]},${iglyph.points[c][1]}`);
+								
+							}
+
+							// padding
+							if (p%2)
+								newGlyphBuf.setUint8(p, 0), p++;
+
+							// write this glyph
+							if (node) {
+								write (fdw, newGlyphBuf, 0, p, position);
+								position += p;
+							}
+
 							lsbs[g] = 0;
 							aws[g] = 0;
 						}
@@ -257,12 +315,12 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 							// - this only works in node mode of course, as frontend will normally need the whole font
 
 							// apply the variations
-							let iglyph = glyphApplyVariations(glyph, null, instance);
+							//let iglyph = glyphApplyVariations(glyph, null, instance);
 							//console.log(`Glyph #${g} (simple)`);
 
 							//console.log(`i length=${glyph.instructionLength}`);
 							let maxNewGlyphSize = 12 + glyph.instructionLength + (glyph.numContours+glyph.instructionLength) * 2 + glyph.numPoints * (2+2+1);
-							maxNewGlyphSize += 256; // safety margin...
+							maxNewGlyphSize += glyfBufSafetyMargin;
 							newGlyphBuf = Buffer.alloc(maxNewGlyphSize);
 
 							let xMin=0,xMax=0,yMin=0,yMax=0;
@@ -303,7 +361,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 								newGlyphBuf.setUint16(p, iglyph.endPts[e]), p+=2;
 
 							// instructions
-							newGlyphBuf.setUint16(p, instructionLength); p+=2;
+							newGlyphBuf.setUint16(p, instructionLength), p+=2;
 							// write instructions here, but we don't bother for now
 							p += instructionLength;
 
@@ -340,6 +398,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 								newGlyphBuf.setUint8(p, flags[pt]), p++; // compress this a bit more later if optimizing for space, not speed
 
 							// write point coordinates
+							// TODO: slightly better to work in terms of flags with a switch on 3 values
 							for (pt=0; pt<iglyph.numPoints; pt++) {
 								if (dx[pt] == 0)
 									continue;
@@ -374,6 +433,8 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 
 							// store metrics (with node, we soon lose the iglyph)
 							aws[g] = iglyph.points[iglyph.numPoints+1][0]; // the x-coordinate of the numPoints+1 point
+							if (aws[g] < 0)
+								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
 							lsbs[g] = iglyph.xMin;
 						}
 
@@ -478,7 +539,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 
 	// [4b] write final hmtx table
 	for (let g=0; g<font.numGlyphs; g++) {
-		if (aws[g])
+		if (aws[g] > 0) // negative values (not in hmtx spec, but gvar processing might cause them) should have been fixed already
 			hmtxBuf.setUint16(4*g, aws[g]);
 		if (lsbs[g])
 			hmtxBuf.setInt16(4*g+2, lsbs[g]);
@@ -528,6 +589,7 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 }
 
 
+// Instantiation: Front-end method
 // TODO:
 // - make sure SamsaVF_compileBinaryForInstance works well for frontend
 // - then we can delete this function
@@ -535,7 +597,7 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 {
 	// elapsed time
 	const timerStart = new Date();
-
+	console.log("Instantiation: FRONTEND");
 	var newfont = {
 		tableDirectory: [],
 		tables: {},
@@ -659,13 +721,6 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 				else
 					glyfTable.setInt16(p, dy[pt]), p+=2;
 			}
-
-			// padding
-			if (p%2)
-				glyfTable.setUint8(p, 0), p++;
-
-			// record our data position
-			glyfLocas.push(p);
 		}
 		else
 		{
@@ -688,12 +743,14 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 				copyBytes(font.data, glyfTable, font.tables['glyf'].offset + offset, p, nextOffset - offset);
 				p += nextOffset - offset;
 			}
-
-			// padding
-			if (p%2)
-				glyfTable.setUint8(p, 0), p++;
-			glyfLocas.push(p);
 		}
+
+		// padding
+		if (p%2)
+			glyfTable.setUint8(p, 0), p++;
+
+		// record our data position
+		glyfLocas.push(p);
 	}
 
 	// copy all tables except gvar and fvar
@@ -1247,7 +1304,7 @@ function SamsaVF_parseGlyph (g) {
 			glyph.components = [];
 			do  {
 				let component = {};
-				flag = data.getUint16(p), p+=2;
+				component.flags = flag = data.getUint16(p), p+=2;
 				component.glyphId = data.getUint16(p), p+=2;
 
 				// record offsets
@@ -1272,6 +1329,8 @@ function SamsaVF_parseGlyph (g) {
 					else {
 						component.matchedPoints = [data.getUint8(p), data.getUint8(p+1)], p+=2;
 					}
+
+					console.log("ERROR: We don’t like the matchedPoints method!");
 				}
 
 				// transformation matrix
@@ -1798,7 +1857,6 @@ function SamsaVF_parse () {
 
 	/////////////////////////////////////////////////////////////////////////////////
 	// sfnt first 12 bytes
-	// this works 2019-10-18!!!
 	if (node) {
 		data = Buffer.alloc(12);
 		read (fd, data, 0, 12, 0);
@@ -1855,6 +1913,7 @@ function SamsaVF_parse () {
 	// - maxp must be first
 	// - avar must precede fvar
 	// - name must precede fvar
+	// - name must precede STAT
 	// - gvar isn’t short, but we only parse its header here
 	["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca"].forEach(tag => {
 
@@ -1878,31 +1937,12 @@ function SamsaVF_parse () {
 	}
 	// glyf end
 
-	//console.log ("Parsed all glyphs!!")
-
-
-	// record parsed timestamp
+	// we parsed the font, get a timestamp
 	font.dateParsed = new Date();
 	font.callback(font);
 }
 
 
-/*
-function SamsaVF_load (url) {
-
-	let oReq = new XMLHttpRequest();
-	oReq.open("GET", url, true);
-	oReq.responseType = "arraybuffer";
-	oReq.SamsaVF = this;
-	oReq.onload = function(oEvent) {
-
-		this.SamsaVF.data = new DataView(this.response);
-		this.SamsaVF.parse();
-
-	};
-	oReq.send();
-}
-*/
 
 // TODO make SamsaVFInstance a proper object
 function SamsaVFInstance (init) {
@@ -2519,9 +2559,10 @@ function glyphApplyVariations (glyph, userTuple, instance, extra) {
 								follPt = (follPt-startPt+1)%numPointsInContour+startPt;
 								} while (!touched[follPt]) // found the follPt
 
-							// now we have a good precPt and follPt, do IUP for x, then for y
-							// https://www.microsoft.com/typography/otspec/gvar.htm#IDUP
+							// now we have a good precPt and follPt
+							// perform IUP for x(0), then for y(1)
 							[0,1].forEach(function (xy) {
+								// IUP spec: https://www.microsoft.com/typography/otspec/gvar.htm#IDUP
 								const pA = glyph.points[precPt][xy];
 								const pB = glyph.points[follPt][xy];
 								const dA = scaledDeltas[precPt][xy];
