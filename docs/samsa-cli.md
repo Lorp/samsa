@@ -57,10 +57,11 @@ Make static fonts using multiple instance specifications separated with ";":
 Initial tests indicate that it is much faster (approx. 40x) than fontTools at instantiation.
 
 ## Limitations
-The fonts produced are not production ready. Limitations include:
+The static fonts exported are not yet production ready. Limitations include:
 
-* no support for GSUB, GPOS, STAT, MVAR tables
+* no support for GSUB, GPOS, STAT, MVAR tables (GSUB and GPOS tables are identical to input font, MVAR data is ignored, is STAT data is not exported to static fonts)
 * no support for Feature Variations (aka `rvrn`)
-* sfnt table checksums are not performed
+* sfnt table checksums are all set to zero
+* the name table remains identical to the input font
 
 Exporting production ready fonts will depend on improvements to samsa-core.js.
