@@ -91,6 +91,24 @@ function uint8ToBase64(buffer) {
      return window.btoa( binary );
 }
 
+//////////////////////////////////
+//  fvsToCSS()
+//////////////////////////////////
+function fvsToCSS(fvs) {
+
+	// transforms an fvs object into a string suitable for font-variation-settings
+	// - simple transormation, it doesn’t perform any checks to see if the axes are in a font or if settings are beyond axis ranges
+	// - examples:
+	//   {"wght": 655, "wdth": 77, "FOOB": 12345} => '"wght" 655,"wdth" 77,"FOOB" 12345'
+	//   {} => 'normal'
+	let fvsCSS = [];
+	Object.keys(fvs).forEach(tag => {
+		fvsCSS.push(`"${tag}" ${fvs[tag]}`);
+	});
+	return fvsCSS.length ? fvsCSS.join() : "normal";
+}
+
+
 DataView.prototype.getTag = function (p) {
 	var tag = "";
 	var p_end = p + 4;
@@ -159,22 +177,17 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 	// - we update with actual values at the end
 
 	// get new number of tables (we skip the variable-specific tables, copy or recompile all the rest)
-	let newNumTables = 0;
 	let newTableDirectory = [];
 	let newTables = {};
 	font.tableDirectory.forEach (table => {
-		if (font.config.instantiation.skipTables.indexOf(table.tag) == -1) {
-			//newTableDirectory.push(table); // TODO: make this fully independent of font.tableDirectory
-
+		if (!font.config.instantiation.skipTables.includes(table.tag)) // if this table is not in the "skipTables" list
 			newTableDirectory.push(newTables[table.tag] = {	tag: table.tag } );
-			++newNumTables;
-		}
 	});
 
 	let fileHeaderBuf;
 	let dFileHeaderBuf;
 	if (node) {
-		let headerSize = 12 + 16 * newNumTables;
+		let headerSize = 12 + 16 * newTableDirectory.length; // we now know the new number of tables so we can allocate space at the start of the file
 		fileHeaderBuf = Buffer.alloc(headerSize);
 		write (fdw, fileHeaderBuf, 0, headerSize, position);
 		position += headerSize;
@@ -194,340 +207,327 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 	font.tableDirectory.sort((a, b) => (a.offset > b.offset) ? 1 : -1); // sort in order of the original table order in the font, i.e. by offset
 
 
-	// [3] write tables (same order as source font)
-	// now the tableDirectory is ordered by original offset
-	//console.log(font.tableDirectory);
+	// [3] write tables (same offset order as source font)
+	// - newTableDirectory is ordered by original offset and only contains tables we want for static output
 	let tablesNewLocations = {};
-
-	// go thru tables in order of their original offset values
 	let locaBuf, hmtxBuf;
 	let aws = [], lsbs = []; // metrics, calculated when we instantiate each glyph
 	let newLocas = [0]; // if we write in ULONG format we can write this table before glyf if we want
 
 	newTableDirectory.forEach (table => {
 
-		// TODO: we already checked this...
-		if (font.config.instantiation.skipTables.indexOf(table.tag) == -1) {
+		// set the new offset
+		table.offset = position;
 
-			// it’s a simple table if it’s not one of these
-			//let simpleTable = (["hmtx", "loca", "glyf"].indexOf(table.tag) == -1);
-			//console.log(simpleTable);
-			//table.length = font.tables[tag].length;
-			table.offset = position; // new offset
+		switch (table.tag) {
 
-			// read and write small table
-			//console.log ("Writing table " + table.tag + " (" + table.length + " bytes)");
+			case "glyf":
 
-			switch (table.tag) {
+				let p; // the current data offset where the binary glyph is being written in memory
 
-				case "glyf":
+				// OPTIMIZE: write to a large buffer, handle overflows: the large write data size should be faster
 
-					let p; // the current data offset where the binary glyph is being written in memory
+				// = node ? 0 : 0; // TODO: fix this for frontend
 
-					// OPTIMIZE: write to a large buffer, handle overflows: the large write data size should be faster
+				for (let g=0; g<font.numGlyphs; g++) {
 
-					// = node ? 0 : 0; // TODO: fix this for frontend
+					// remember to delete these later!
+					let glyph = font.glyphs[g] = font.parseGlyph(g); // glyf data
+					glyph.tvts = font.parseTvts(g); // gvar data
 
-					for (let g=0; g<font.numGlyphs; g++) {
+					let newGlyphBuf; // compiled binary will go here
+					if (node) {
+						p = 0; // node: one glyph at a time for memory efficiency with very large fonts
+					}
+					else {
+						// p = ?? // frontend: all glyphs at once
+					}
 
-						// remember to delete these later!
-						let glyph = font.glyphs[g] = font.parseGlyph(g); // glyf data
-						glyph.tvts = font.parseTvts(g); // gvar data
+					// Same function for all glyphs: simple, composite, zero-contour
+					let iglyph = glyphApplyVariations(glyph, null, instance);
 
-						let newGlyphBuf; // compiled binary will go here
+					if (glyph.numContours < 0) {
+						// composite glyph
+
+						// max size of each composite glyph is:
+						//      10 bytes header
+						//    + 16 bytes (6..8 bytes + 0..8 bytes) for each component
+						//    +  2 bytes for instruction length
+						//    +  length of instructions
+						let maxNewGlyphSize = 10 + 16 * iglyph.components.length + 2 + glyph.instructionLength;
+						maxNewGlyphSize += glyfBufSafetyMargin;
+						newGlyphBuf = Buffer.alloc(maxNewGlyphSize);
+
+						// glyph header
+						newGlyphBuf.setInt16(p, -1), p+=2;
+						newGlyphBuf.setInt16(p, glyph.xMin), p+=2;
+						newGlyphBuf.setInt16(p, glyph.yMin), p+=2;
+						newGlyphBuf.setInt16(p, glyph.xMax), p+=2;
+						newGlyphBuf.setInt16(p, glyph.yMax), p+=2;
+
+						// components
+						for (let c=0; c<iglyph.components.length; c++) {
+							let component = iglyph.components[c];
+
+							// set up the flags
+							let flags = 0;
+							flags |= 0x0001; // ARG_1_AND_2_ARE_WORDS (could compress the component a tiny bit if we cared about this)
+							flags |= 0x0002; // ARGS_ARE_XY_VALUES
+							if (c < iglyph.components.length-1)
+								flags |= 0x0020; // MORE_COMPONENTS
+							if (component.flags & 0x0200)
+								flags |= 0x0200; // USE_MY_METRICS (copy from the original glyph)
+							// flag 0x0100 WE_HAVE_INSTRUCTIONS is set to zero
+
+							// write this component
+							newGlyphBuf.setUint16(p, flags), p+=2;
+							newGlyphBuf.setUint16(p, component.glyphId), p+=2;
+							newGlyphBuf.setInt16(p, iglyph.points[c][0]), p+=2;
+							newGlyphBuf.setInt16(p, iglyph.points[c][1]), p+=2;
+
+							//console.log(component);
+							//console.log(`X,Y offset: ${iglyph.points[c][0]},${iglyph.points[c][1]}`);
+							
+						}
+
+						// padding
+						if (p%2)
+							newGlyphBuf.setUint8(p, 0), p++;
+
+						// write this glyph
 						if (node) {
-							p = 0; // node: one glyph at a time for memory efficiency with very large fonts
+							write (fdw, newGlyphBuf, 0, p, position);
+							position += p;
+						}
+
+						// store metrics (with node, we soon lose the iglyph)
+						aws[g] = iglyph.points[iglyph.components.length+1][0]; // the x-coordinate of the iglyph.components.length+1 point
+						if (aws[g] < 0)
+							aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
+						lsbs[g] = 0; // TODO: we don’t know xMin so work out a solution to replace simple glyph’s iglyph.xMin;
+
+					}
+					else if (glyph.numContours == 0) {
+						// space glyph
+						lsbs[g] = 0;
+						aws[g] = 0;
+					}
+					else /* glyph.numContours > 0) */
+					{
+						// simple glyph
+
+						// OPTIMIZE: Only allocate the memory once (at the biggest possible binary glyph size)
+						// - this only works in node mode of course, as frontend will normally need the whole font
+
+						// apply the variations
+						//let iglyph = glyphApplyVariations(glyph, null, instance);
+						//console.log(`Glyph #${g} (simple)`);
+
+						//console.log(`i length=${glyph.instructionLength}`);
+						let maxNewGlyphSize = 12 + glyph.instructionLength + (glyph.numContours+glyph.instructionLength) * 2 + glyph.numPoints * (2+2+1);
+						maxNewGlyphSize += glyfBufSafetyMargin;
+						newGlyphBuf = Buffer.alloc(maxNewGlyphSize);
+
+						let xMin=0,xMax=0,yMin=0,yMax=0;
+						let pt;
+						let points = iglyph.points;
+						let instructionLength = 0;
+
+						// we always have >0 points in a simple glyph
+						if (points && points[0]) {
+							[xMin,yMin] = [xMax,yMax] = points[0];
+							
+							for (pt=1; pt<iglyph.numPoints; pt++) {
+								const P = points[pt][0], Q = points[pt][1];
+								if (P<xMin) xMin=P;
+								else if (P>xMax) xMax=P;
+								if (Q<yMin) yMin=Q;
+								else if (Q>yMax) yMax=Q;
+							}
+							xMin = Math.round(xMin);
+							xMax = Math.round(xMax);
+							yMin = Math.round(yMin);
+							yMax = Math.round(yMax);
 						}
 						else {
-							// p = ?? // frontend: all glyphs at once
+							// TODO: COMPOSITES and SPACE GLYPHS
 						}
+						iglyph.newLsb = xMin;
 
-						// Same function for all glyphs: simple, composite, zero-contour
-						let iglyph = glyphApplyVariations(glyph, null, instance);
+						// new bbox
+						newGlyphBuf.setInt16(p, iglyph.numContours), p+=2;
+						newGlyphBuf.setInt16(p, xMin), p+=2;
+						newGlyphBuf.setInt16(p, yMin), p+=2;
+						newGlyphBuf.setInt16(p, xMax), p+=2;
+						newGlyphBuf.setInt16(p, yMax), p+=2;
 
-						if (glyph.numContours < 0) {
-							// composite glyph
+						// endpoints
+						for (var e=0; e<iglyph.numContours; e++)
+							newGlyphBuf.setUint16(p, iglyph.endPts[e]), p+=2;
 
-							// max size of each composite glyph is:
-							//      10 bytes header
-							//    + 16 bytes (6..8 bytes + 0..8 bytes) for each component
-							//    +  2 bytes for instruction length
-							//    +  length of instructions
-							let maxNewGlyphSize = 10 + 16 * iglyph.components.length + 2 + glyph.instructionLength;
-							maxNewGlyphSize += glyfBufSafetyMargin;
-							newGlyphBuf = Buffer.alloc(maxNewGlyphSize);
+						// instructions
+						newGlyphBuf.setUint16(p, instructionLength), p+=2;
+						// write instructions here, but we don't bother for now
+						p += instructionLength;
 
-							// glyph header
-							newGlyphBuf.setInt16(p, -1), p+=2;
-							newGlyphBuf.setInt16(p, glyph.xMin), p+=2;
-							newGlyphBuf.setInt16(p, glyph.yMin), p+=2;
-							newGlyphBuf.setInt16(p, glyph.xMax), p+=2;
-							newGlyphBuf.setInt16(p, glyph.yMax), p+=2;
+						// compress points
+						let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
+						for (pt=0; pt<iglyph.numPoints; pt++) {
+							X = dx[pt] = Math.round(points[pt][0]) - cx;
+							Y = dy[pt] = Math.round(points[pt][1]) - cy;
+							f = points[pt][2]; // on-curve = 1, off-curve = 0
+							if (X==0)
+								f |= 0x10;
+							else if (X >= -255 && X <= 255)
+								f |= (X > 0 ? 0x12 : 0x02);
 
-							// components
-							for (let c=0; c<iglyph.components.length; c++) {
-								let component = iglyph.components[c];
+							if (Y==0)
+								f |= 0x20;
+							else if (Y >= -255 && Y <= 255)
+								f |= (Y > 0 ? 0x24 : 0x04);
 
-								// set up the flags
-								let flags = 0;
-								flags |= 0x0001; // ARG_1_AND_2_ARE_WORDS (could compress the component a tiny bit if we cared about this)
-								flags |= 0x0002; // ARGS_ARE_XY_VALUES
-								if (c < iglyph.components.length-1)
-									flags |= 0x0020; // MORE_COMPONENTS
-								if (component.flags & 0x0200)
-									flags |= 0x0200; // USE_MY_METRICS (copy from the original glyph)
-								// flag 0x0100 WE_HAVE_INSTRUCTIONS is set to zero
+							flags[pt] = f;
+							cx = points[pt][0];
+							cy = points[pt][1];
 
-								// write this component
-								newGlyphBuf.setUint16(p, flags), p+=2;
-								newGlyphBuf.setUint16(p, component.glyphId), p+=2;
-								newGlyphBuf.setInt16(p, iglyph.points[c][0]), p+=2;
-								newGlyphBuf.setInt16(p, iglyph.points[c][1]), p+=2;
-
-								//console.log(component);
-								//console.log(`X,Y offset: ${iglyph.points[c][0]},${iglyph.points[c][1]}`);
-								
-							}
-
-							// padding
-							if (p%2)
-								newGlyphBuf.setUint8(p, 0), p++;
-
-							// write this glyph
-							if (node) {
-								write (fdw, newGlyphBuf, 0, p, position);
-								position += p;
-							}
-
-							// store metrics (with node, we soon lose the iglyph)
-							aws[g] = iglyph.points[iglyph.components.length+1][0]; // the x-coordinate of the numPoints+1 point
-							if (aws[g] < 0)
-								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
-							lsbs[g] = 0; // TODO: we don’t know xMin so work out a solution to replace simple glyph’s iglyph.xMin;
-
+							// OPTIMIZE: bring the 3 loops below into this loop to avoid multiple loops and duplicated tests
+							// - either don’t compress points at all, so we can write flag, x and y easily in one loop
+							// - or we write x and y into buffers and copy later
+							// - config option to select compression or speed
 						}
-						else if (glyph.numContours == 0) {
-							// space glyph
-							lsbs[g] = 0;
-							aws[g] = 0;
+						if (font.config.glyf.overlapSimple)
+							flags[0] |= 0x40; // overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
+
+						// write flags
+						for (pt=0; pt<iglyph.numPoints; pt++)
+							newGlyphBuf.setUint8(p, flags[pt]), p++; // compress this a bit more later if optimizing for space, not speed
+
+						// write point coordinates
+						// TODO: slightly better to work in terms of flags with a switch on 3 values
+						for (pt=0; pt<iglyph.numPoints; pt++) {
+							if (dx[pt] == 0)
+								continue;
+							if (dx[pt] >= -255 && dx[pt] <= 255)
+								newGlyphBuf.setUint8(p, (dx[pt]>0) ? dx[pt] : -dx[pt]), p++;
+							else
+								newGlyphBuf.setInt16(p, dx[pt]), p+=2;
 						}
-						else /* glyph.numContours > 0) */
+						for (pt=0; pt<iglyph.numPoints; pt++)
 						{
-							// simple glyph
-
-							// OPTIMIZE: Only allocate the memory once (at the biggest possible binary glyph size)
-							// - this only works in node mode of course, as frontend will normally need the whole font
-
-							// apply the variations
-							//let iglyph = glyphApplyVariations(glyph, null, instance);
-							//console.log(`Glyph #${g} (simple)`);
-
-							//console.log(`i length=${glyph.instructionLength}`);
-							let maxNewGlyphSize = 12 + glyph.instructionLength + (glyph.numContours+glyph.instructionLength) * 2 + glyph.numPoints * (2+2+1);
-							maxNewGlyphSize += glyfBufSafetyMargin;
-							newGlyphBuf = Buffer.alloc(maxNewGlyphSize);
-
-							let xMin=0,xMax=0,yMin=0,yMax=0;
-							let pt;
-							let points = iglyph.points;
-							let instructionLength = 0;
-
-							// we always have >0 points in a simple glyph
-							if (points && points[0]) {
-								[xMin,yMin] = [xMax,yMax] = points[0];
-								
-								for (pt=1; pt<iglyph.numPoints; pt++) {
-									const P = points[pt][0], Q = points[pt][1];
-									if (P<xMin) xMin=P;
-									else if (P>xMax) xMax=P;
-									if (Q<yMin) yMin=Q;
-									else if (Q>yMax) yMax=Q;
-								}
-								xMin = Math.round(xMin);
-								xMax = Math.round(xMax);
-								yMin = Math.round(yMin);
-								yMax = Math.round(yMax);
-							}
-							else {
-								// TODO: COMPOSITES and SPACE GLYPHS
-							}
-							iglyph.newLsb = xMin;
-
-							// new bbox
-							newGlyphBuf.setInt16(p, iglyph.numContours), p+=2;
-							newGlyphBuf.setInt16(p, xMin), p+=2;
-							newGlyphBuf.setInt16(p, yMin), p+=2;
-							newGlyphBuf.setInt16(p, xMax), p+=2;
-							newGlyphBuf.setInt16(p, yMax), p+=2;
-
-							// endpoints
-							for (var e=0; e<iglyph.numContours; e++)
-								newGlyphBuf.setUint16(p, iglyph.endPts[e]), p+=2;
-
-							// instructions
-							newGlyphBuf.setUint16(p, instructionLength), p+=2;
-							// write instructions here, but we don't bother for now
-							p += instructionLength;
-
-							// compress points
-							let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
-							for (pt=0; pt<iglyph.numPoints; pt++) {
-								X = dx[pt] = Math.round(points[pt][0]) - cx;
-								Y = dy[pt] = Math.round(points[pt][1]) - cy;
-								f = points[pt][2]; // on-curve = 1, off-curve = 0
-								if (X==0)
-									f |= 0x10;
-								else if (X >= -255 && X <= 255)
-									f |= (X > 0 ? 0x12 : 0x02);
-
-								if (Y==0)
-									f |= 0x20;
-								else if (Y >= -255 && Y <= 255)
-									f |= (Y > 0 ? 0x24 : 0x04);
-
-								flags[pt] = f;
-								cx = points[pt][0];
-								cy = points[pt][1];
-
-								// OPTIMIZE: bring the 3 loops below into this loop to avoid multiple loops and duplicated tests
-								// - either don’t compress points at all, so we can write flag, x and y easily in one loop
-								// - or we write x and y into buffers and copy later
-								// - config option to select compression or speed
-							}
-							if (font.config.glyf.overlapSimple)
-								flags[0] |= 0x40; // overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
-
-							// write flags
-							for (pt=0; pt<iglyph.numPoints; pt++)
-								newGlyphBuf.setUint8(p, flags[pt]), p++; // compress this a bit more later if optimizing for space, not speed
-
-							// write point coordinates
-							// TODO: slightly better to work in terms of flags with a switch on 3 values
-							for (pt=0; pt<iglyph.numPoints; pt++) {
-								if (dx[pt] == 0)
-									continue;
-								if (dx[pt] >= -255 && dx[pt] <= 255)
-									newGlyphBuf.setUint8(p, (dx[pt]>0) ? dx[pt] : -dx[pt]), p++;
-								else
-									newGlyphBuf.setInt16(p, dx[pt]), p+=2;
-							}
-							for (pt=0; pt<iglyph.numPoints; pt++)
-							{
-								if (dy[pt] == 0)
-									continue;
-								if (dy[pt] >= -255 && dy[pt] <= 255)
-									newGlyphBuf.setUint8(p, (dy[pt]>0) ? dy[pt] : -dy[pt]), p++;
-								else
-									newGlyphBuf.setInt16(p, dy[pt]), p+=2;
-							}
-
-							// padding
-							if (p%2)
-								newGlyphBuf.setUint8(p, 0), p++;
-
-							// now p == size of this compiled glyph in bytes
-
-							// record our data position
-
-							// write this glyph
-							if (node) {
-								write (fdw, newGlyphBuf, 0, p, position);
-								position += p;
-							}
-
-							// store metrics (with node, we soon lose the iglyph)
-							aws[g] = iglyph.points[iglyph.numPoints+1][0]; // the x-coordinate of the numPoints+1 point
-							if (aws[g] < 0)
-								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
-							lsbs[g] = iglyph.xMin;
+							if (dy[pt] == 0)
+								continue;
+							if (dy[pt] >= -255 && dy[pt] <= 255)
+								newGlyphBuf.setUint8(p, (dy[pt]>0) ? dy[pt] : -dy[pt]), p++;
+							else
+								newGlyphBuf.setInt16(p, dy[pt]), p+=2;
 						}
 
+						// padding
+						if (p%2)
+							newGlyphBuf.setUint8(p, 0), p++;
 
+						// now p == size of this compiled glyph in bytes
 
-						// release memory explicitly (might be more efficient to leave this to the garbage collector)
-						font.glyphs[g].tvts = undefined;
-						font.glyphs[g] = undefined;
+						// record our data position
 
-						// store location of *next* loca
-						newLocas[g+1] = newLocas[g] + p;
-						// OPTIMIZE: write this directly to locaBuf
+						// write this glyph
+						if (node) {
+							write (fdw, newGlyphBuf, 0, p, position);
+							position += p;
+						}
 
+						// store metrics (with node, we soon lose the iglyph)
+						aws[g] = iglyph.points[iglyph.numPoints+1][0]; // the x-coordinate of the numPoints+1 point
+						if (aws[g] < 0)
+							aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
+						lsbs[g] = iglyph.xMin;
 					}
 
-					// update table.length
-					table.length = newLocas[font.numGlyphs];
-
-					break;
 
 
-				case "loca":
+					// release memory explicitly (might be more efficient to leave this to the garbage collector)
+					font.glyphs[g].tvts = undefined;
+					font.glyphs[g] = undefined;
 
-					// write zeroes for now, update with real values at the end
-					// use long offsets so that we know already the size of the table
+					// store location of *next* loca
+					newLocas[g+1] = newLocas[g] + p;
+					// OPTIMIZE: write this directly to locaBuf
 
-					table.length = 4 * (font.numGlyphs+1);
-					if (node) {
-						locaBuf = Buffer.alloc(table.length); // zeroed data
-						write (fdw, locaBuf, 0, table.length, table.offset);
-						position += table.length;
-					}
-					// remember to tweak head.indexToLocFormat = 1
-					break;
+				}
 
+				// update table.length
+				table.length = newLocas[font.numGlyphs];
 
-				case "hmtx":
-
-					// write zeroes for now, update with real values at the end
-					// write all values in full even for monospace fonts
-
-					table.length = 4 * font.numGlyphs;
-					if (node) {
-						hmtxBuf = Buffer.alloc(table.length); // zeroed data
-						write (fdw, hmtxBuf, 0, table.length, table.offset);
-						position += table.length;
-					}
-					// remember to tweak hhea.numberOfHMetrics = font.numGlyphs
-					break;
+				break;
 
 
-				// TODO: customize name table, remove VF names
-				// case "name":
-				// 	break;
+			case "loca":
 
+				// write zeroes for now, update with real values at the end
+				// use long offsets so that we know already the size of the table
 
-				default:
-
-					// allocate memory for table
-					table.length = font.tables[table.tag].length; // new length == old length
-					let tableBuf = Buffer.alloc(table.length);
-
-					// read table
-					read (fd, tableBuf, 0, font.tables[table.tag].length, font.tables[table.tag].offset);
-
-					// tweak table
-					switch (table.tag) {
-						case "head":
-							tableBuf.setUint16(50, 0x0001); // long loca format makes things simpler since we know in advance how much space we need for loca
-							break;
-
-						case "hhea":
-							tableBuf.setUint16(34, font.numGlyphs); // easier if  we ignore minor compression possibilities
-							break;
-					}
-
-					//write table
-					write (fdw, tableBuf, 0, table.length, table.offset);
+				table.length = 4 * (font.numGlyphs+1);
+				if (node) {
+					locaBuf = Buffer.alloc(table.length); // zeroed data
+					write (fdw, locaBuf, 0, table.length, table.offset);
 					position += table.length;
+				}
+				// remember to tweak head.indexToLocFormat = 1
+				break;
 
-					break;
-			}
 
-			// pad table
-			let padLength = (4 - table.length%4) % 4; // no padding if table.length%4 == 0
-			if (padLength) {
-				write (fdw, zeroBuffer, 0, padLength, position); // write at current position
-				position += padLength;
-			}
+			case "hmtx":
+
+				// write zeroes for now, update with real values at the end
+				// write all values in full even for monospace fonts
+
+				table.length = 4 * font.numGlyphs;
+				if (node) {
+					hmtxBuf = Buffer.alloc(table.length); // zeroed data
+					write (fdw, hmtxBuf, 0, table.length, table.offset);
+					position += table.length;
+				}
+				// remember to tweak hhea.numberOfHMetrics = font.numGlyphs
+				break;
+
+
+			// TODO: customize name table, remove VF names
+			// case "name":
+			// 	break;
+
+
+			default:
+
+				// allocate memory for table
+				table.length = font.tables[table.tag].length; // new length == old length
+				let tableBuf = Buffer.alloc(table.length);
+
+				// read table
+				read (fd, tableBuf, 0, font.tables[table.tag].length, font.tables[table.tag].offset);
+
+				// tweak table
+				switch (table.tag) {
+					case "head":
+						tableBuf.setUint16(50, 0x0001); // long loca format makes things simpler since we know in advance how much space we need for loca
+						break;
+
+					case "hhea":
+						tableBuf.setUint16(34, font.numGlyphs); // easier if  we ignore minor compression possibilities
+						break;
+				}
+
+				//write table
+				write (fdw, tableBuf, 0, table.length, table.offset);
+				position += table.length;
+
+				break;
+		}
+
+		// pad table
+		let padLength = (4 - table.length%4) % 4; // no padding if table.length%4 == 0
+		if (padLength) {
+			write (fdw, zeroBuffer, 0, padLength, position); // write at current position
+			position += padLength;
 		}
 
 	}); // end of each table loop
@@ -552,13 +552,19 @@ function SamsaVF_compileBinaryForInstance (font, instance) {
 
 	// [4c] fix the font header
 	fileHeaderBuf.setUint32(0, font.fingerprint);
-	fileHeaderBuf.setUint16(4, newTableDirectory.length);
-	let sr, es;
-	for (sr=1, es=0; sr*2 <= newTableDirectory.length; sr*=2, es++) // TODO: this isn’t quite right according to FontValidator
-		;
-	fileHeaderBuf.setUint16(6, sr*16);
+	fileHeaderBuf.setUint16(4, newTableDirectory.length); // numTables
+
+	// calculate searchRange, entrySelector, rangeShift
+	let sr=1, es=0, rs;
+	while (sr*2 <= newTableDirectory.length) {
+		sr*=2;
+		es++;
+	}
+	sr *= 16;
+	rs = (16*newTableDirectory.length)-sr;
+	fileHeaderBuf.setUint16(6, sr);
 	fileHeaderBuf.setUint16(8, es);
-	fileHeaderBuf.setUint16(10, (16*newTableDirectory.length)-sr);
+	fileHeaderBuf.setUint16(10, rs);
 
 	// [4d] fix table offsets and sizes
 	// sort tables by tag and write the table directory
@@ -1333,8 +1339,7 @@ function SamsaVF_parseGlyph (g) {
 					else {
 						component.matchedPoints = [data.getUint8(p), data.getUint8(p+1)], p+=2;
 					}
-
-					console.log("ERROR: We don’t like the matchedPoints method!");
+					console.log("WARNING: glyf: I don’t like the matchedPoints method for positioning components!");
 				}
 
 				// transformation matrix
@@ -2119,7 +2124,6 @@ function SamsaVF (init, config) {
 			tuple: [], // normalized
 			fvs: {},
 			type: "custom",
-			namedInstance: false, // it’s a custom instance, so not "named" (in the OpenType spec sense) TODO: drop this, move to instance.type
 			static: null, // on instantiation, will contain binary data
 
 			// it’s quite possible we’d like to keep the instance binary in memory as well as know where the file is
@@ -2161,24 +2165,6 @@ function SamsaVF (init, config) {
 		console.log ("Making static instance for ", this, instance);
 		instance.static = makeStaticFont(this, instance);
 		console.log ("Finished making static instance for ", this, instance);
-	}
-
-
-	//////////////////////////////////
-	//  fvsToCSS()
-	//////////////////////////////////
-	// TODO: not sure this is workingx
-	this.fvsToCSS = fvs => {
-
-		// transforms an fvs object into a string suitable for font-variation-settings
-		console.log(fvs);
-		let fvsCSS = [];
-		this.axes.forEach((axis,a) => {
-			let val = (!fvs || fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
-			fvsCSS.push(`"${fvs[axis.tag]}" ${val}`);
-		});
-		console.log(fvsCSS.join());
-		return fvsCSS.join();
 	}
 
 
