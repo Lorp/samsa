@@ -10,7 +10,7 @@ Samsa-Core can also output static TrueType (TTF) fonts, and the Samsa web app pr
 
 Samsa is written in ES6 JavaScript with no dependencies. It is normally installed on web servers, but can also be run from any folder with no server setup by double-clicking `samsa-gui.html`.
 
-Also provided are a command-line utility, Samsa-CLI (`samsa-cli.js`, for execution via Node.js), and a simple browser VF polyfill, Samsa-Polyfill, `samsa-polyfill.js`. These are both very short scripts that depend on the Samsa-Core library.
+Also provided are: a command-line utility, Samsa-CLI (`samsa-cli.js`, for execution via Node.js); and a simple browser VF polyfill, Samsa-Polyfill, `samsa-polyfill.js`. These are both very short scripts that depend on the Samsa-Core library.
 
 ## Documentation
 
@@ -29,7 +29,17 @@ There are several ways to try Samsa:
 	* This works fine for drag-drop usage, but does not allow fonts to be loaded from a server.
 * Download the files and install on a web server
 	* You can make a symbolic link from index.html to samsa-gui.html or simply rename samsa-gui.html to index.html
-	* Edit `samsa-fonts.json` to make fonts available from the `fonts` folder on your server.
+	* Edit `samsa-fonts.json` to list fonts in Samsa’s “Fonts ready to load” panel
+	
+## Try some fonts in Samsa
+
+There are many open source variable fonts to try in Samsa, including:
+* [Google Fonts](https://fonts.google.com/?vfonly) (34 fonts, 1 axis)
+* [IBM Plex Sans Var](https://github.com/IBM/plex/tree/master/IBM-Plex-Sans-Variable) (2 fonts, 2 axis)
+* Adobe [Source Serif, Source Sans, Source Code](https://github.com/adobe-fonts) (6 fonts, 1 axis)
+* [Amstelvar](https://github.com/TypeNetwork/Amstelvar/) (2 fonts, 12 axes)
+* [Decovar](https://github.com/TypeNetwork/Decovar/) (15 axes)
+* many open source and trial fonts at [Axis-Praxis](https://www.axis-praxis.org) and [V-Fonts.com](https://v-fonts.com/)
 
 ## Background
 
