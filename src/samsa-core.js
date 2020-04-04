@@ -110,11 +110,9 @@ function fvsToCSS(fvs) {
 
 
 DataView.prototype.getTag = function (p) {
-	var tag = "";
-	var p_end = p + 4;
-	var ch;
-	while (p < p_end)
-	{
+	let ch, tag = "";
+	const p_end = p + 4;
+	while (p < p_end) {
 		ch = this.getUint8(p++);
 		if (ch >= 32 && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
 			tag += String.fromCharCode(ch);	
@@ -860,8 +858,20 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 
 				// build nameRecords and write names into dvname/nameBuf
 				let pn=0, n=0, nameRecords = [];
+
+				// get initial names from the variable font
 				font.names.forEach (function (name, nameID) {
-					nameRecords[n] = [3,1,0x0409,nameID,2*name.length,pn];
+
+					// update the style name to the current instance name
+					if (instance.type != "default") {
+						if (nameID == 2 || nameID == 17)
+							name = instance.name; // style name
+						else if (nameID == 4)
+							name = font.names[4] + " " + instance.name; // full font name
+					}
+
+					// create the namerecord
+					nameRecords[n] = [3, 1, 0x0409, nameID, 2*name.length, pn];
 					for (let c=0; c<name.length; c++)
 						dvName.setUint16(pn, name.charCodeAt(c)), pn+=2;
 					n++;

@@ -632,6 +632,10 @@ function appendInstanceEl(instance, select) {
 	// append the instance DOM element
 	panel.appendChild(li);
 
+	cell2.addEventListener("input", ev => {
+		instance.name = ev.target.value;
+	});
+
 	// make it active
 	if (select) {
 		setActiveInstance (GLOBAL.vf, li);
@@ -1163,20 +1167,11 @@ function vfLoaded (font) {
 		function setCurrentSTATinstance(font, keepInstance, ignoreInstance) {
 
 			// build STAT name and fvs
-			let statNamesAVTs = [], fvs = {}, statNamesStrs = [], elidable = true;
+			let statNamesAVTs = [], fvs = {};
 			Qall("#panel-stat select").forEach((thisSel, a) => {
 
 				let designAxis = thisSel.data.designAxis;
 				let axisValueTable = thisSel.options[thisSel.selectedIndex].data.axisValueTable;
-
-				// build STAT name
-				if (!(axisValueTable.flags & 0x0002)) // ELIDABLE_AXIS_VALUE_NAME
-					statNamesAVTs.push(axisValueTable);
-
-				// build fvs
-				fvs[designAxis.tag] = thisSel.value;
-
-				// display note
 				let note = axisValueTable.value;
 				switch (axisValueTable.format) {
 					case 2:
@@ -1187,16 +1182,19 @@ function vfLoaded (font) {
 						break;
 				}
 				thisSel.parentNode.querySelectorAll("label.axisValueNote")[a].innerText = note;
+
+				statNamesAVTs.push(axisValueTable); // build STAT name
+				fvs[designAxis.tag] = thisSel.value; // build fvs
 			});
 
+			// get final STAT name
+			let statName, elidable = true, statNamesStrs = [];
 			statNamesAVTs.forEach(statNameAVT => {
-				statNamesStrs.push(font.names[statNameAVT.nameID]);
-				if (!(statNameAVT.flags & 0x0002))
+				if (!(statNameAVT.flags & 0x0002)) {
+					statNamesStrs.push(font.names[statNameAVT.nameID]);
 					elidable = false;
+				}
 			});
-
-			// display STAT name
-			let statName;
 			if (elidable && STAT.elidedFallbackNameID !== undefined) {
 				statName = font.names[STAT.elidedFallbackNameID];
 			}
@@ -1223,7 +1221,7 @@ function vfLoaded (font) {
 			}
 		}
 
-		// for each STAT axis
+		// for each STAT designAxis
 		STAT.designAxesSorted.forEach((designAxis, a) => {
 			let label = EL("label");
 			label.innerText = font.names[designAxis.nameID];
@@ -1570,14 +1568,8 @@ function axesUpdateValues () {
 
 
 function webfontPanelUpdateVariationSettings() {
-
-	// update font-variation-settings for the loaded webfont	
-	let fvsCSS = [];
 	let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
-	Object.keys(fvs).forEach(tag => {
-		fvsCSS.push(`"${tag}" ${fvs[tag]}`);
-	});
-	Q("#panel-webfont.panel>div").style.fontVariationSettings = fvsCSS.join(); //getCurrentFvs());
+	Q("#panel-webfont.panel>div").style.fontVariationSettings = fvsToCSS(fvs);
 }
 
 
