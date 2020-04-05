@@ -1857,112 +1857,6 @@ function SamsaVF_parseSmallTable (tag) {
 }
 
 
-function SamsaVF_parse () {
-
-	//console.log ("parsing");
-	let font = this;
-	let data = this.data;
-	let config = this.config;
-	let table; 
-	let p=p_=0; // data pointers
-	let node = this.config.isNode;
-	let fd = this.fd;
-	let read, write;
-	if (node) {
-		read = this.config.fs.readSync;
-		write = this.config.fs.writeSync;
-	}
-
-
-	/////////////////////////////////////////////////////////////////////////////////
-	// sfnt first 12 bytes
-	if (node) {
-		data = Buffer.alloc(12);
-		read (fd, data, 0, 12, 0);
-	}
-	font.fingerprint = data.getUint32(0);
-	switch (font.fingerprint) {
-		case 0x00010000: // normal TrueType
-		case 0x74727565: // 'true' (as in Skia.ttf)
-		case 0x4f54544f: // 'OTTO' (as in OpenType OTF fonts)
-			break;
-		default:
-			font.errors.push ("Invalid first 4 bytes of the file. Must be one of: 0x00010000, 0x74727565, 0x4f54544f");
-			break;
-	}
-	if (!font.errors.length)
-	{
-		font.numTables = data.getUint16(4);
-		if (font.numTables > config.sfnt.maxNumTables)
-			font.errors.push (`numTables (${font.numTables}) exceeds config.sfnt.maxNumTables (${config.sfnt.maxNumTables})`);
-		else {
-
-			/////////////////////////////////////////////////////////////////////////////////
-			// get sfnt table directory
-			font.tableDirectory = [];
-			font.tables = {};
-
-			if (node) {
-				p = 0;
-				data = Buffer.alloc(16 * font.numTables);
-				read (fd, data, 0, 16 * font.numTables, 12);
-			}
-			else
-				p = 12;
-
-			for (var t=0; t<font.numTables; t++) {
-				var tag = data.getTag (p);
-				if (!tag) {
-					font.errors.push ("Tag value is invalid");
-					break;
-				}
-				font.tables[tag] = font.tableDirectory[t] = {
-					id: t,
-					tag: tag,
-					checkSum: data.getUint32(p+4),
-					offset: data.getUint32(p+8),
-					length: data.getUint32(p+12),
-				};
-				p += 16;
-			}
-		}
-	}
-
-	// parse the short sfnt tables
-	// - maxp must be first
-	// - avar must precede fvar
-	// - name must precede fvar
-	// - name must precede STAT
-	// - gvar isn’t short, but we only parse its header here
-	["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca"].forEach(tag => {
-
-		if (font.tables[tag])
-			font.parseSmallTable(tag);
-
-	});
-	
-	// parse glyf table: all glyphs!
-	if (!node) {
-
-		for (let g=0; g < font.numGlyphs; g++) {
-			font.glyphs[g] = font.parseGlyph(g); // glyf data
-			font.glyphs[g].tvts = font.parseTvts(g); // gvar data
-
-			// delete glyph if this is a big file, to save memory
-			// - which of these is better?
-			// font.glyphs[g] = undefined;
-			// delete font.glyphs[g]
-		}
-	}
-	// glyf end
-
-	// we parsed the font, get a timestamp
-	font.dateParsed = new Date();
-	font.callback(font);
-}
-
-
-
 // TODO make SamsaVFInstance a proper object
 function SamsaVFInstance (init) {
 
@@ -2063,7 +1957,6 @@ function SamsaVF (init, config) {
 	this.filesize = init.filesize;
 
 	// methods defined externally (TODO: bring them all inside the SamsaVF init function)
-	this.parse = SamsaVF_parse;
 	this.parseGlyph = SamsaVF_parseGlyph;
 	this.parseTvts = SamsaVF_parseTvts;
 	this.parseSmallTable = SamsaVF_parseSmallTable;
@@ -2109,6 +2002,112 @@ function SamsaVF (init, config) {
 			};
 			oReq.send();
 		}
+	}
+
+	//////////////////////////////////
+	//  parse()
+	//////////////////////////////////
+	this.parse = function () {
+
+		let font = this;
+		let data = this.data;
+		let config = this.config;
+		let table; 
+		let p=p_=0; // data pointers
+		let node = this.config.isNode;
+		let fd = this.fd;
+		let read, write;
+		if (node) {
+			read = this.config.fs.readSync;
+			write = this.config.fs.writeSync;
+		}
+
+
+		/////////////////////////////////////////////////////////////////////////////////
+		// sfnt first 12 bytes
+		if (node) {
+			data = Buffer.alloc(12);
+			read (fd, data, 0, 12, 0);
+		}
+		font.fingerprint = data.getUint32(0);
+		switch (font.fingerprint) {
+			case 0x00010000: // normal TrueType
+			case 0x74727565: // 'true' (as in Skia.ttf)
+			case 0x4f54544f: // 'OTTO' (as in OpenType OTF fonts)
+				break;
+			default:
+				font.errors.push ("Invalid first 4 bytes of the file. Must be one of: 0x00010000, 0x74727565, 0x4f54544f");
+				break;
+		}
+		if (!font.errors.length)
+		{
+			font.numTables = data.getUint16(4);
+			if (font.numTables > config.sfnt.maxNumTables)
+				font.errors.push (`numTables (${font.numTables}) exceeds config.sfnt.maxNumTables (${config.sfnt.maxNumTables})`);
+			else {
+
+				/////////////////////////////////////////////////////////////////////////////////
+				// get sfnt table directory
+				font.tableDirectory = [];
+				font.tables = {};
+
+				if (node) {
+					p = 0;
+					data = Buffer.alloc(16 * font.numTables);
+					read (fd, data, 0, 16 * font.numTables, 12);
+				}
+				else
+					p = 12;
+
+				for (var t=0; t<font.numTables; t++) {
+					var tag = data.getTag (p);
+					if (!tag) {
+						font.errors.push ("Tag value is invalid");
+						break;
+					}
+					font.tables[tag] = font.tableDirectory[t] = {
+						id: t,
+						tag: tag,
+						checkSum: data.getUint32(p+4),
+						offset: data.getUint32(p+8),
+						length: data.getUint32(p+12),
+					};
+					p += 16;
+				}
+			}
+		}
+
+		// parse the short sfnt tables
+		// - maxp must be first
+		// - avar must precede fvar
+		// - name must precede fvar
+		// - name must precede STAT
+		// - gvar isn’t short, but we only parse its header here
+		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca"].forEach(tag => {
+
+			if (font.tables[tag])
+				font.parseSmallTable(tag);
+
+		});
+		
+		// parse glyf table: all glyphs!
+		if (!node) {
+
+			for (let g=0; g < font.numGlyphs; g++) {
+				font.glyphs[g] = font.parseGlyph(g); // glyf data
+				font.glyphs[g].tvts = font.parseTvts(g); // gvar data
+
+				// delete glyph if this is a big file, to save memory
+				// - which of these is better?
+				// font.glyphs[g] = undefined;
+				// delete font.glyphs[g]
+			}
+		}
+		// glyf end
+
+		// we parsed the font, get a timestamp
+		font.dateParsed = new Date();
+		font.callback(font);
 	}
 
 	//////////////////////////////////
