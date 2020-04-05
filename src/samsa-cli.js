@@ -78,24 +78,24 @@ while (!((thisArg = process.argv[++i]) === undefined)) {
 	switch (thisArg) {
 		case "--instances":
 		case "--instance":
-		case "-I":
+		case "-i":
 			if (!((thisParam = process.argv[++i]) === undefined)) {
 				instanceDefs = thisParam.split(";");
 			}
 			break;
 
 		case "--list":
-		case "-L":
+		case "-l":
 			listOnly = true;
 			break;
 
 		case "--quiet":
-		case "-Q":
+		case "-q":
 			quiet = true;
 			break;
 
 		case "--output":
-		case "-O":
+		case "-o":
 			if (!((thisParam = process.argv[++i]) === undefined)) {
 				let lastDot = thisParam.lastIndexOf(".");
 				if (lastDot == -1)
@@ -114,7 +114,7 @@ while (!((thisArg = process.argv[++i]) === undefined)) {
 
 }
 
-if (init.inFile && instanceDefs.length > 0) {
+if (init.inFile) {
 
 	let vf = new samsa.SamsaVF(init, config);
 
@@ -131,7 +131,7 @@ Documentation:
 
 Arguments:
 
-  --instances, --instance, -I <instanceDef[;instanceDef]>
+  --instances, --instance, -i <instanceDef[;instanceDef]>
   Introduces a list of instance definitions, separated with ";". Use quotes 
   to avoid space and semicolon being handled incorrectly by the shell. An
   instance definition may be:
@@ -147,13 +147,13 @@ Arguments:
       the generation of very many instances in some fonts. Any Format 4 STAT 
       values are also included.
 
-  --output, -O
+  --output, -o
   Outfile filename, overrides "samsa-instance".
 
-  --quiet, -Q
+  --quiet, -q
   Quiet mode, no console output.
 
-  --list, -L
+  --list, -l
   List instances, do not write any files.
 
 Examples:
@@ -190,16 +190,56 @@ function vfLoaded (font) {
 	if (!quiet)
 		console.log(`Loaded font file "${font.inFile}" (${font.numGlyphs} glyphs)\n  parsed small tables: ${font.dateParsed - font.dateCreated} ms`);
 
+	// if no instanceDefs, print out some info from the font and return
+	if (instanceDefs.length == 0) {
+		let namedInstanceString = "";
+		let axesString = "";
+		let numNamedInstances = 0;
+
+		// build string for namedInstances
+		font.instances.forEach((instance,i) => {
+			if (instance.type == "named") {
+				numNamedInstances++;
+				namedInstanceString += `\n  ${instance.name} ${JSON.stringify(font.tupleToFvs(instance.tuple))}`;
+			}
+		});
+		namedInstanceString = ` ${numNamedInstances}` + namedInstanceString;
+
+		// build string for axes
+		axesString += ` ${font.axes.length}`;
+		font.axes.forEach((axis,a) => {
+			axesString += `\n  ${axis.tag} (${axis.name}) [${axis.min}..${axis.default}..${axis.max}]`;
+		});
+
+		console.log (`
+fullName: ${font.names[4]}
+familyName: ${font.names[1]} (nameID 1), ${font.names[16]} (nameID 16)
+subfamilyName: ${font.names[2]} (nameID 2), ${font.names[17]} (nameID 17)
+copyright: ${font.names[0]}
+version: ${font.names[5]}
+PostScript name: ${font.names[6]}
+numGlyphs: ${font.numGlyphs}
+axes:${axesString}
+namedInstances:${namedInstanceString}
+`);
+
+		// exit, no instanceDefs specified
+		return;
+	}
+
 	// assemble the list of supplied instance definitions, expanding "named" and "stat" values
 	instanceDefs.forEach(instanceDef => {
 		instanceDef = instanceDef.trim();
 		let instances = [];
 		let fvs = {}; // default
 		switch (instanceDef) {
+
+			// output all named instances
 			case "named":
 				instances = font.getNamedInstances();
 				break;
 
+			// output all instances that can be generated from STAT data
 			case "stat":
 				if (font.tables["STAT"]) {
 					let avtsByAxis = [];
@@ -224,12 +264,11 @@ function vfLoaded (font) {
 						let divider = 1;
 						let statNamesAVTs = [];
 						stat.designAxesSorted.forEach(designAxis => {
-							let tag = designAxis.tag;
 							let avts = avtsByAxis[designAxis.designAxisID];
 							let modulo = avtsByAxis[designAxis.designAxisID].length; // this is right, because designAxesSorted might not be sorted in fvar axis order
 							let avt = avts[((i / divider) >> 0) % modulo]; // this gets us the combinatorial explosion
 							statNamesAVTs.push(avt); // build STAT name
-							fvs[tag] = avt.value;
+							fvs[designAxis.tag] = avt.value;
 							divider *= avts.length;
 						});
 
@@ -266,9 +305,20 @@ function vfLoaded (font) {
 				}
 				break;
 
+			// output an instance specified by its axis locations
+			// - unspecified axes are set to default
+			// - values outside the range [min,max] will be clamped to min or max
+			// - the special value "default" sets all axes to default
+			// - TODO: handle "min", "max", "default" per axis, e.g. "wght min wdth 150"
+			// - TODO: handle ranges to generate multiple instances between two extremes,
+			//         e.g. "wght range(100,900,10)" to generate 81 instances 100,110,120 ... 890,900
 			default:
-				let instanceType = "default";;
-				if (instanceDef != "default") {
+
+				let instanceType;
+				if (instanceDef == "default") {
+					instanceType = "default";
+				}
+				else {
 					fvsParams = instanceDef.split(" ");
 					if (fvsParams.length % 2 == 0) {
 						for (let p=0; p < fvsParams.length; p+=2) {
