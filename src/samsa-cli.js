@@ -194,16 +194,13 @@ function vfLoaded (font) {
 	if (instanceDefs.length == 0) {
 		let namedInstanceString = "";
 		let axesString = "";
-		let numNamedInstances = 0;
+		let instances = font.getNamedInstances();
 
 		// build string for namedInstances
-		font.instances.forEach((instance,i) => {
-			if (instance.type == "named") {
-				numNamedInstances++;
-				namedInstanceString += `\n  ${instance.name} ${JSON.stringify(font.tupleToFvs(instance.tuple))}`;
-			}
+		namedInstanceString += ` ${instances.length}`;
+		instances.forEach((instance,i) => {
+			namedInstanceString += `\n  ${instance.name} ${JSON.stringify(font.tupleToFvs(instance.tuple))}`;
 		});
-		namedInstanceString = ` ${numNamedInstances}` + namedInstanceString;
 
 		// build string for axes
 		axesString += ` ${font.axes.length}`;
