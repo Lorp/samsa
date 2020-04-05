@@ -1196,656 +1196,6 @@ function SamsaVF_parseTvts(g) {
 }
 
 
-function SamsaVF_parseGlyph (g) {
-
-	// parse glyph g from the given font
-
-	let font = this;
-	let node = this.config.isNode;
-	let data, p;
-	let offset = font.glyphOffsets[g];
-	let size = font.glyphSizes[g];
-	let pt;
-	let glyph = {
-		font: font,
-		name: font.glyphNames[g],
-		id: g,
-		numPoints: 0,
-		numContours: 0,
-		instructionLength: 0,
-		points: [],
-		endPts: [],
-		tvts: [], // tuple variable tables (see gvar spec)
-	};
-	let fd, read, write;
-	if (node) {
-		fd = this.fd;
-		read = this.config.fs.readSync;
-		write = this.config.fs.writeSync;
-	}
-
-	// set up data and pointers
-	if (node) {
-		data = Buffer.alloc(size);
-
-		// we should compare speeds for the best optmization
-		// - reading pieces of data from file when we need it
-		// - reading a whole glyph into memory, then parsing from memory
-		// - reading a block of data from the glyf table, loading more when needed, and parsing from memory
-		// - I think it was a bit faster when we loaded all glyphs in sequence, than the present case where we load a glyph and then its tvts
-		read (fd, data, 0, size, font.tables['glyf'].offset + offset);
-		p = 0;
-	}
-	else {
-		data = font.data;
-		p = font.tables['glyf'].offset + offset;
-	}
-
-	// non-printing glyph
-	if (size == 0) {
-		glyph.numContours = 0;
-	}
-
-	// printing glyph
-	else if (size > 0) {
-
-		glyph.numContours = data.getInt16(p), p+=2;
-		glyph.xMin = data.getInt16(p), p+=2;
-		glyph.yMin = data.getInt16(p), p+=2;
-		glyph.xMax = data.getInt16(p), p+=2;
-		glyph.yMax = data.getInt16(p), p+=2;
-
-		let flag, repeat=0, x_=0, y_=0, x, y, c, r;
-
-		// simple glyph
-		if (glyph.numContours > 0) {
-
-			// end points of each contour
-			for (c=0; c<glyph.numContours; c++)
-				glyph.endPts.push(data.getUint16(p)), p+=2;
-			glyph.numPoints = glyph.endPts[glyph.numContours -1] + 1;
-
-			// instructions
-			glyph.instructionLength = data.getUint16(p), p+=2;
-			p += glyph.instructionLength;
-
-			// flags
-			let flags = [];
-			for (pt=0; pt<glyph.numPoints; ) {
-				flag = data.getUint8(p), p++;
-				flags[pt++] = flag;
-				if (flag & 0x08) {
-					repeat = data.getUint8(p), p++;
-					for (r=0; r<repeat; r++)
-						flags[pt++] = flag;
-				}
-			}
-
-			// points
-			if (flags.length == glyph.numPoints) {
-				flags.forEach(function (flag, pt) {
-					switch (flag & 0x12) { // x
-						case 0x00: x = x_ + data.getInt16(p); p+=2; break;
-						case 0x02: x = x_ - data.getUint8(p); p++; break;
-						case 0x10: x = x_; break;
-						case 0x12: x = x_ + data.getUint8(p); p++; break;
-					}
-					glyph.points[pt] = [x_ = x];
-				});
-				flags.forEach(function (flag, pt) {
-					switch (flag & 0x24) { // y
-						case 0x00: y = y_ + data.getInt16(p), p+=2; break;
-						case 0x04: y = y_ - data.getUint8(p), p++; break;
-						case 0x20: y = y_; break;
-						case 0x24: y = y_ + data.getUint8(p), p++; break;
-					}
-					glyph.points[pt].push(y_ = y, flag & 0x01);
-				});
-			}
-		}
-		
-		// composite glyph
-		// - we DO add points for composite glyphs: one per component (they are the x and y offsets), and the 4 extra metrics points
-		// - when we process these glyphs, we look at glyph.numContours and glyph.points, but NOT glyph.numPoints
-		else if (glyph.numContours < 0) {
-
-			let flag;
-			glyph.components = [];
-			do  {
-				let component = {};
-				component.flags = flag = data.getUint16(p), p+=2;
-				component.glyphId = data.getUint16(p), p+=2;
-
-				// record offsets
-				// TODO: rewrite the following 4 branches with a single "switch (flag & 0x0003) { … } " statement
-				if (flag & 0x0002) { // ARGS_ARE_XY_VALUES
-
-					if (flag & 0x0001) { // ARG_1_AND_2_ARE_WORDS
-						component.offset = [data.getInt16(p), data.getInt16(p+2)], p+=4;
-					}
-					else {
-						component.offset = [data.getInt8(p), data.getInt8(p+1)], p+=2;
-					}
-					glyph.points.push(component.offset); // this is cool, we store the offset as it was a point, then we can treat it as a point when acted on by the tvts
-				}
-
-				// record matched points
-				// - TODO: decide how to handle these (it’s possible they are never used in VFs)
-				else {
-					if (flag & 0x0001) { // ARG_1_AND_2_ARE_WORDS
-						component.matchedPoints = [data.getUint16(p), data.getUint16(p+2)], p+=4;
-					}
-					else {
-						component.matchedPoints = [data.getUint8(p), data.getUint8(p+1)], p+=2;
-					}
-					console.log("WARNING: glyf: I don’t like the matchedPoints method for positioning components!");
-				}
-
-				// transformation matrix
-				// - if component.transform is undefined, it means identity matrix is [1, 0, 0, 1]
-				if (flag & 0x0008) { // WE_HAVE_A_SCALE
-					component.transform = [data.getF2DOT14(p), 0, 0], p+=2;
-					component.transform[3] = component.transform[0];
-				}
-				else if (flag & 0x0040) { // WE_HAVE_AN_X_AND_Y_SCALE
-					component.transform = [data.getF2DOT14(p), 0, 0, data.getF2DOT14(p+2)], p+=4;
-				}
-				else if (flag & 0x0080) { // WE_HAVE_A_TWO_BY_TWO
-					component.transform = [data.getF2DOT14(p), data.getF2DOT14(p+2), data.getF2DOT14(p+4), data.getF2DOT14(p+6)], p+=8;
-				}
-
-				// store component
-				glyph.components.push(component);
-
-			} while (flag & 0x0020); // MORE_COMPONENTS
-
-			// jump over composite instructions
-			if (flag & 0x0100) { // WE_HAVE_INSTR
-				glyph.instructionLength = data.getUint16(p), p+=2;
-				p += glyph.instructionLength;
-			}
-		}
-		
-		else { // error
-			font.errors.push ("glyf: Glyph " + g + " has 0 contours, but non-zero size");
-		}
-
-	}
-
-	// glyph metrics: assign 4 phantom points for gvar processing
-	// - works on composites
-	// - works on zero-contour glyphs
-	// TODO: get height from vmtx table (if it exists)
-	glyph.points.push([0,0], [font.widths[g], 0], [0,0], [0,0]);
-
-	return glyph;
-
-}
-
-
-function SamsaVF_parseSmallTable (tag) {
-
-	let font = this;
-	let data;
-	let tableOffset, p=p_=0; // data pointers
-	let config = this.config;
-	let table = {};
-	let node = this.config.isNode;
-	let fd, read, write;
-	if (node) {
-		fd = this.fd;
-		read = this.config.fs.readSync;
-		write = this.config.fs.writeSync;
-	}
-
-	// set up data and pointers
-	if (node) {
-		data = Buffer.alloc(font.tables[tag].length);
-		read (fd, data, 0, font.tables[tag].length, font.tables[tag].offset);
-		p = tableOffset = 0;
-	}
-	else {
-		data = this.data;
-		p = tableOffset = font.tables[tag].offset;
-	}
-
-	// switch by tag to process each table
-	switch (tag) {
-
-		case "maxp":
-
-			table.version = data.getUint32(p), p+=4;
-			table.numGlyphs = data.getUint16(p), p+=2;
-			font.numGlyphs = table.numGlyphs;
-			break;
-
-
-		case "hhea":
-
-			table.majorVersion = data.getUint16(p), p+=2;
-			table.minorVersion = data.getUint16(p), p+=2;
-			table.ascender = data.getInt16(p), p+=2;
-			table.descender = data.getInt16(p), p+=2;
-			table.lineGap = data.getInt16(p), p+=2;
-			table.advanceWidthMax = data.getUint16(p), p+=2;
-			table.minLeftSideBearing = data.getInt16(p), p+=2;
-			table.minRightSideBearing = data.getInt16(p), p+=2;
-			table.xMaxExtent = data.getInt16(p), p+=2;
-			table.caretSlopeRise = data.getInt16(p), p+=2;
-			table.caretSlopeRun = data.getInt16(p), p+=2;
-			table.caretOffset = data.getInt16(p), p+=2;
-			p+=8;
-			table.metricDataFormat = data.getInt16(p), p+=2;
-			table.numberOfHMetrics = data.getUint16(p), p+=2;
-			break;
-
-
-		case "head":
-
-			table.majorVersion = data.getUint16(p), p+=2;
-			table.minorVersion = data.getUint16(p), p+=2;
-			table.fontRevision = data.getUint32(p), p+=4;
-			table.checkSumAdjustment = data.getUint32(p), p+=4;
-			table.magicNumber = data.getUint32(p), p+=4;
-			table.flags = data.getUint16(p), p+=2;
-			table.unitsPerEm = data.getUint16(p), p+=2;
-			p += 8;
-			p += 8;
-			table.xMin = data.getInt16(p), p+=2;
-			table.yMin = data.getInt16(p), p+=2;
-			table.xMax = data.getInt16(p), p+=2;
-			table.yMax = data.getInt16(p), p+=2;
-			table.macStyle = data.getUint16(p), p+=2;
-			table.lowestRecPPEM = data.getUint16(p), p+=2;
-			table.fontDirectionHint = data.getInt16(p), p+=2;
-			table.indexToLocFormat = data.getUint16(p), p+=2;
-			table.glyphDataFormat = data.getUint16(p), p+=2;
-
-			font.unitsPerEm = table.unitsPerEm;
-			break;
-
-
-		case "hmtx":
-
-			font.widths = [];
-			if (font.tables['hhea'].data.numberOfHMetrics < 1)
-				font.errors.push ("hhea: numberOfHMetrics must be >=1.")
-			for (let m=0; m<font.numGlyphs; m++) {
-				if (m < font.tables['hhea'].data.numberOfHMetrics) {
-					font.widths[m] = data.getUint16(p), p+=2;
-					p+=2; // skip lsb
-				}
-				else
-					font.widths[m] = font.widths[m-1];
-			}
-			break;
-
-
-		case "OS/2":
-
-			table.version = data.getUint16(p), p+=2;
-			table.xAvgCharWidth = data.getInt16(p), p+=2;
-			table.usWeightClass = data.getUint16(p), p+=2;
-			table.usWidthClass = data.getUint16(p), p+=2;
-			table.fsType = data.getUint16(p), p+=2;
-			table.ySubscriptXSize = data.getInt16(p), p+=2;
-			table.ySubscriptYSize = data.getInt16(p), p+=2;
-			table.ySubscriptXOffset = data.getInt16(p), p+=2;
-			table.ySubscriptYOffset = data.getInt16(p), p+=2;
-			table.ySuperscriptXSize = data.getInt16(p), p+=2;
-			table.ySuperscriptYSize = data.getInt16(p), p+=2;
-			table.ySuperscriptXOffset = data.getInt16(p), p+=2;
-			table.ySuperscriptYOffset = data.getInt16(p), p+=2;
-			table.yStrikeoutSize = data.getInt16(p), p+=2;
-			table.yStrikeoutPosition = data.getInt16(p), p+=2;
-			table.sFamilyClass = data.getInt16(p), p+=2;
-			table.panose = [data.getUint8(p), data.getUint8(p+1), data.getUint8(p+2), data.getUint8(p+3), data.getUint8(p+4), data.getUint8(p+5), data.getUint8(p+6), data.getUint8(p+7), data.getUint8(p+8), data.getUint8(p+9)];
-			p+=10;
-			table.ulUnicodeRange1 = data.getUint32(p), p+=4;
-			table.ulUnicodeRange2 = data.getUint32(p), p+=4;
-			table.ulUnicodeRange3 = data.getUint32(p), p+=4;
-			table.ulUnicodeRange4 = data.getUint32(p), p+=4;
-			table.achVendID = getStringFromData (data, p, 4), p+=4;
-			table.fsSelection = data.getUint16(p), p+=2;
-			table.usFirstCharIndex = data.getUint16(p), p+=2;
-			table.usLastCharIndex = data.getUint16(p), p+=2;
-			table.sTypoAscender = data.getInt16(p), p+=2;
-			table.sTypoDescender = data.getInt16(p), p+=2;
-			table.sTypoLineGap = data.getInt16(p), p+=2;
-			table.usWinAscent = data.getUint16(p), p+=2;
-			table.usWinDescent = data.getUint16(p), p+=2;
-			break;
-
-
-		case "name":
-
-			table.format = data.getUint16(p), p+=2;
-			table.count = data.getUint16(p), p+=2;
-			table.stringOffset = data.getUint16(p), p+=2;
-			table.nameRecords = [];
-			font.names = [];
-			for (let n=0; n < table.count; n++) {
-				let nameRecord = {};
-				let str = "";
-				let nameRecordStart, nameRecordEnd;
-
-				nameRecord.platformID = data.getUint16(p), p+=2;
-				nameRecord.encodingID = data.getUint16(p), p+=2;
-				nameRecord.languageID = data.getUint16(p), p+=2;
-				nameRecord.nameID = data.getUint16(p), p+=2;
-				nameRecord.length = data.getUint16(p), p+=2;
-				nameRecord.offset = data.getUint16(p), p+=2;
-
-				nameRecordStart = tableOffset + table.stringOffset + nameRecord.offset;
-				nameRecordEnd = nameRecordStart + nameRecord.length;
-				if (nameRecordEnd > tableOffset + font.tables['name'].length) // safety check
-					continue;
-
-				p_ = p;
-				p = nameRecordStart;
-				switch (nameRecord.platformID)
-				{
-					case 1:
-						if (nameRecord.languageID == 0)
-						// TODO: treat 1,0 strings as MacRoman
-							if (nameRecord.encodingID == 0)
-							{
-								while (p < nameRecordEnd)
-									str += String.fromCharCode(data.getUint8(p)), p++;
-								nameRecord.string = str;
-							}
-						break;
-
-					case 3:
-						if (nameRecord.languageID == 0x0409)
-						{
-							switch (nameRecord.encodingID)
-							{
-								case 0:
-								case 1:
-									while (p < nameRecordEnd)
-										str += String.fromCharCode(data.getUint16(p)), p+=2;
-									nameRecord.string = str;
-									break;
-
-								case 10:
-									while (p < nameRecordEnd) {
-										// this obtains the Unicode index for codes >= 0x10000
-										str += (String.fromCharCode(data.getUint16(p))), p+=2;
-									}
-									nameRecord.string = str;
-									break; // the sample text in the 2016 Zycon uses this to store an Emoji string
-									// TODO: hmm, it’s the same code, because we store them like this in UTF-8
-							}
-
-						}
-				}
-
-				// set up working name strings that might be taken from Windows (3) or Macintosh (1) strings
-				// the Windows strings will overwrite the Mac strings, as nameRecords are sorted by platformID as well as nameID
-				if (nameRecord.hasOwnProperty('string'))
-					font.names[nameRecord.nameID] = str; // sparse array
-
-				table.nameRecords.push(nameRecord);
-				p = p_; // restore pointer ready for the next nameRecord
-			}
-			break;
-
-
-		case "post":
-
-			font.glyphNames = []; // store the names separately because the glyph often has not been loaded
-			table.format = data.getUint32(p+0);
-			font.italicAngle = data.getInt32(p+4) / 65536;
-
-			// most fonts are format 2
-			if (table.format == 0x00020000) {
-
-				// parse names data
-				p = tableOffset + 32 + 2 + 2 * font.numGlyphs; // jump past header and glyphNameIndex array
-				let extraNames = [];
-				while (p < tableOffset + font.tables['post'].length) {
-					let str="", len=data.getUint8(p++); // Pascal style strings: first byte is length, the rest is the string
-					while (len--) {
-						str += String.fromCharCode(data.getUint8(p++));
-					}
-					extraNames.push(str);
-				}
-
-				// parse glyphNameIndex array
-				p = tableOffset + 32; // jump past header
-				p += 2;
-				for (let g=0; g<font.numGlyphs; g++) {
-					let gni = data.getUint16(p + g*2);
-					font.glyphNames[g] = gni < 258 ? config.postscriptNames[gni] : extraNames[gni-258];
-				}
-			}
-			break;
-		
-
-		case "loca":
-
-			let shortOffsets = (font.tables['head'].data.indexToLocFormat == 0);
-			font.glyphOffsets[0] = 0;
-			for (let g=0; g < font.numGlyphs; g++) {
-
-				if (shortOffsets)
-					font.glyphOffsets[g+1] = 2 * data.getUint16(tableOffset + 2 * (g+1));
-				else
-					font.glyphOffsets[g+1] = data.getUint32(tableOffset + 4 * (g+1));
-
-				font.glyphSizes[g] = font.glyphOffsets[g+1] - font.glyphOffsets[g];
-			}
-			break;
-
-
-		case "fvar":
-
-			table.majorVersion = data.getUint16(p), p+=2;
-			table.minorVersion = data.getUint16(p), p+=2;
-			table.offsetToAxesArray = data.getUint16(p), p+=2;
-			table.countSizePairs = data.getUint16(p), p+=2;
-			table.axisCount = data.getUint16(p), p+=2;
-			table.axisSize = data.getUint16(p), p+=2;
-			table.instanceCount = data.getUint16(p), p+=2;
-			table.instanceSize = data.getUint16(p), p+=2;
-
-			// build axes
-			font.axes = [];
-			font.axisTagToId = {}; // TODO: better as an object where each property has value as the axis array item? and add id as an axis property
-			for (let a=0; a<table.axisCount; a++)
-			{
-				let axis = { id: a };
-				axis.tag = getStringFromData (data, p, 4), p+=4;
-				axis.min = data.getInt32(p)/65536, p+=4;
-				axis.default = data.getInt32(p)/65536, p+=4;
-				axis.max = data.getInt32(p)/65536, p+=4;
-				axis.flags = data.getUint16(p), p+=2;
-				if (axis.flags & 0x0001)
-					axis.hidden = true;
-				axis.axisNameID = data.getUint16(p), p+=2;
-				axis.name = font.names[axis.axisNameID];
-				if (axis.name === undefined)
-					axis.name = axis.tag; // for fonts without name table, e.g. optimized webfonts
-				font.axes.push(axis);
-				font.axisTagToId[axis.tag] = a;
-			}
-
-			// build instances
-			// - insert default instance as well as the instances in the fvar table
-			// - flag named instances with namedInstance=true
-			font.instances = [];
-			for (let i=0; i<table.instanceCount+1; i++) // +1 allows for default instance
-			{
-				let instance = {
-					id: i,
-					glyphs: [],
-					tuple:[],
-					fvs: {},
-					static: null, // if this is instantiated as a static font, this can point to the data or url
-				};
-
-				if (i>0) {
-					instance.subfamilyNameID = data.getUint16(p), p+=2;
-					p+=2; // skip over flags
-				}
-
-				font.axes.forEach((axis, a) => {
-					instance.tuple[a] = axis.default;
-					if (i==0)
-						instance.tuple[a] = axis.default; // user-facing value
-					else
-						instance.tuple[a] = data.getInt32(p)/65536, p+=4; // user-facing value
-					instance.fvs[axis.tag] = instance.tuple[a];
-					instance.tuple[a] = font.axisNormalize(axis, instance.tuple[a]);
-				});
-
-				if (i==0) {
-					instance.name = "Default";
-					instance.type = "default"; // one of default, named, stat, custom
-				}
-				else {
-					if (table.instanceSize == table.axisCount * 4 + 6)
-						instance.postScriptNameID = data.getUint16(p), p+=2;
-					instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed! (TODO: fallback if no name table)
-					instance.type = "named"; // one of default, named, stat, custom
-				}
-				font.instances.push(instance);
-			}
-
-			font.axisCount = table.axisCount;
-			break;
-
-
-		case "avar":
-			table.majorVersion = data.getUint16(p), p+=2;
-			table.minorVersion = data.getUint16(p), p+=2;
-			if (!(table.majorVersion === 1 && table.minorVersion === 0))
-				break;
-			p+=2
-			table.axisCount = data.getUint16(p), p+=2;
-			for (let a=0; a<font.axisCount; a++) {
-				font.avar[a] = [];
-				let positionMapCount = data.getUint16(p); p+=2;
-				for (let m=0; m<positionMapCount; m++) {
-					font.avar[a][m] = [data.getF2DOT14(p), data.getF2DOT14(p+2)], p+=4; // = [<fromCoordinate>,<toCoordinate>]
-				}
-			}
-			break;
-
-
-		case "gvar":
-
-			// NOTE: this only parses the table header!
-			// the main data, tuple variation tables for each glyph, is processed in SamsaVF_parseTvts()
-			table.majorVersion = data.getUint16(p), p+=2;
-			table.minorVersion = data.getUint16(p), p+=2;
-			table.axisCount = data.getUint16(p), p+=2;
-			table.sharedTupleCount = data.getUint16(p), p+=2;
-			table.offsetToSharedTuples = data.getUint32(p), p+=4;
-			table.glyphCount = data.getUint16(p), p+=2;
-			table.flags = data.getUint16(p), p+=2;
-			table.offsetToData = data.getUint32(p), p+=4;
-			table.sizeofTuple = table.axisCount * 2; // sizeof (F2DOT14)
-			//table.sizeofOffset = (table.flags & 0x01) ? 4 : 2;
-
-			// get sharedTuples array - working nicely!
-			table.sharedTuples = [];
-			let ps = tableOffset + table.offsetToSharedTuples;
-			for (let t=0; t < table.sharedTupleCount; t++) {
-				let tuple = [];
-				for (var a=0; a<table.axisCount; a++)
-					tuple.push(data.getF2DOT14(ps)), ps+=2;
-				table.sharedTuples.push (tuple);
-			}
-
-			// store tvt offsets: we create an index into the tuple store for each glyph
-			font.tupleOffsets[0] = 0;
-			for (let g=0; g < font.numGlyphs; g++) {
-				if (table.flags & 0x01) // offsets are Offset32
-					font.tupleOffsets[g+1] = data.getUint32(tableOffset + 20 + 4 * (g+1));
-				else // offsets are 2*Offset16
-					font.tupleOffsets[g+1] = 2 * data.getUint16(tableOffset + 20 + 2 * (g+1));
-				font.tupleSizes[g] = font.tupleOffsets[g+1] - font.tupleOffsets[g];
-			}
-			font.sharedTuples = table.sharedTuples;
-			break;
-
-
-		case "STAT":
-
-			table.majorVersion = data.getUint16(p+0);
-			table.minorVersion = data.getUint16(p+2);
-			let designAxisSize = data.getUint16(p+4);
-			table.designAxisCount = data.getUint16(p+6);
-			let designAxesOffset = data.getUint32(p+8);
-			table.axisValueCount = data.getUint16(p+12);
-			let offsetToAxisValueOffsets = data.getUint32(p+14);
-			if (table.majorVersion >= 1 && table.minorVersion >= 1) {
-				table.elidedFallbackNameID = data.getUint16(p+18);
-			}
-			table.designAxes = [];
-			table.designAxesSorted = [];
-			table.axisValueTables = [];
-
-			// parse designAxes
-			for (let a=0; a<table.designAxisCount; a++) {
-				p = tableOffset + designAxesOffset + a*designAxisSize;
-				let designAxis = {
-					designAxisID: a, // in case we are enumerating a sorted array
-					tag:          data.getTag(p),
-					nameID:       data.getUint16(p+4),
-					axisOrdering: data.getUint16(p+6),
-				};
-				table.designAxes.push(designAxis);
-				table.designAxesSorted[designAxis.axisOrdering] = designAxis;
-			}
-
-			// parse axisValueTables
-			for (let a=0; a<table.axisValueCount; a++) {
-				p = tableOffset + offsetToAxisValueOffsets + 2*a;
-				let axisValueOffset = data.getUint16(p);
-				p = tableOffset + offsetToAxisValueOffsets + axisValueOffset;
-				let format = data.getUint16(p);
-				if (format < 1 || format > 4)
-					continue;
-				let axisValueTable = {
-					format:      format,
-					axisIndex:   data.getUint16(p+2),
-					flags:       data.getUint16(p+4),
-					nameID: data.getUint16(p+6),
-				};
-				if (axisValueTable.format >= 1 && axisValueTable.format <= 3) {
-					axisValueTable.value = data.getInt32(p+8)/65536;
-				}
-				if (axisValueTable.format == 2) {
-					axisValueTable.min = data.getInt32(p+12)/65536;
-					axisValueTable.max = data.getInt32(p+16)/65536;
-				}
-				else if (axisValueTable.format == 3) {
-					axisValueTable.linkedValue = data.getInt32(p+12)/65536;
-				}
-				else if (axisValueTable.format == 4) {
-
-					axisValueTable.axisCount = axisValueTable.axisIndex;
-					axisValueTable.axisIndex = []; // now array, not numeric
-					axisValueTable.value = []; // now array, not numeric
-					p += 8;
-					for (let a=0; a < axisValueTable.axisCount; a++) {
-						axisValueTable.axisIndex.push(data.getUint16(p+a*6));
-						axisValueTable.value.push(data.getInt32(p+a*6+2)/65536);
-					}
-				}
-				table.axisValueTables.push(axisValueTable);
-			}
-			break;
-
-	}
-	
-	font.tables[tag].data = table;
-}
-
-
 // TODO make SamsaVFInstance a proper object
 function SamsaVFInstance (init) {
 
@@ -1946,9 +1296,7 @@ function SamsaVF (init, config) {
 	this.filesize = init.filesize;
 
 	// methods defined externally (TODO: bring them all inside the SamsaVF init function)
-	this.parseGlyph = SamsaVF_parseGlyph;
 	this.parseTvts = SamsaVF_parseTvts;
-	this.parseSmallTable = SamsaVF_parseSmallTable;
 	this.compileBinaryForInstance = SamsaVF_compileBinaryForInstance;
 
 	// methods defined internally
@@ -1956,7 +1304,7 @@ function SamsaVF (init, config) {
 	//////////////////////////////////
 	//  load()
 	//////////////////////////////////
-	this.load = function () {
+	this.load = () => {
 
 		if (this.config.isNode) {
 
@@ -1996,7 +1344,7 @@ function SamsaVF (init, config) {
 	//////////////////////////////////
 	//  parse()
 	//////////////////////////////////
-	this.parse = function () {
+	this.parse = () => {
 
 		let font = this;
 		let data = this.data;
@@ -2097,6 +1445,659 @@ function SamsaVF (init, config) {
 		// we parsed the font, get a timestamp
 		font.dateParsed = new Date();
 		font.callback(font);
+	}
+
+	//////////////////////////////////
+	//  parseSmallTable()
+	//////////////////////////////////
+	this.parseSmallTable = tag => {
+		let font = this;
+		let data;
+		let tableOffset, p=p_=0; // data pointers
+		let config = this.config;
+		let table = {};
+		let node = this.config.isNode;
+		let fd, read, write;
+		if (node) {
+			fd = this.fd;
+			read = this.config.fs.readSync;
+			write = this.config.fs.writeSync;
+		}
+
+		// set up data and pointers
+		if (node) {
+			data = Buffer.alloc(font.tables[tag].length);
+			read (fd, data, 0, font.tables[tag].length, font.tables[tag].offset);
+			p = tableOffset = 0;
+		}
+		else {
+			data = this.data;
+			p = tableOffset = font.tables[tag].offset;
+		}
+
+		// switch by tag to process each table
+		switch (tag) {
+
+			case "maxp":
+
+				table.version = data.getUint32(p), p+=4;
+				table.numGlyphs = data.getUint16(p), p+=2;
+				font.numGlyphs = table.numGlyphs;
+				break;
+
+
+			case "hhea":
+
+				table.majorVersion = data.getUint16(p), p+=2;
+				table.minorVersion = data.getUint16(p), p+=2;
+				table.ascender = data.getInt16(p), p+=2;
+				table.descender = data.getInt16(p), p+=2;
+				table.lineGap = data.getInt16(p), p+=2;
+				table.advanceWidthMax = data.getUint16(p), p+=2;
+				table.minLeftSideBearing = data.getInt16(p), p+=2;
+				table.minRightSideBearing = data.getInt16(p), p+=2;
+				table.xMaxExtent = data.getInt16(p), p+=2;
+				table.caretSlopeRise = data.getInt16(p), p+=2;
+				table.caretSlopeRun = data.getInt16(p), p+=2;
+				table.caretOffset = data.getInt16(p), p+=2;
+				p+=8;
+				table.metricDataFormat = data.getInt16(p), p+=2;
+				table.numberOfHMetrics = data.getUint16(p), p+=2;
+				break;
+
+
+			case "head":
+
+				table.majorVersion = data.getUint16(p), p+=2;
+				table.minorVersion = data.getUint16(p), p+=2;
+				table.fontRevision = data.getUint32(p), p+=4;
+				table.checkSumAdjustment = data.getUint32(p), p+=4;
+				table.magicNumber = data.getUint32(p), p+=4;
+				table.flags = data.getUint16(p), p+=2;
+				table.unitsPerEm = data.getUint16(p), p+=2;
+				p += 8;
+				p += 8;
+				table.xMin = data.getInt16(p), p+=2;
+				table.yMin = data.getInt16(p), p+=2;
+				table.xMax = data.getInt16(p), p+=2;
+				table.yMax = data.getInt16(p), p+=2;
+				table.macStyle = data.getUint16(p), p+=2;
+				table.lowestRecPPEM = data.getUint16(p), p+=2;
+				table.fontDirectionHint = data.getInt16(p), p+=2;
+				table.indexToLocFormat = data.getUint16(p), p+=2;
+				table.glyphDataFormat = data.getUint16(p), p+=2;
+
+				font.unitsPerEm = table.unitsPerEm;
+				break;
+
+
+			case "hmtx":
+
+				font.widths = [];
+				if (font.tables['hhea'].data.numberOfHMetrics < 1)
+					font.errors.push ("hhea: numberOfHMetrics must be >=1.")
+				for (let m=0; m<font.numGlyphs; m++) {
+					if (m < font.tables['hhea'].data.numberOfHMetrics) {
+						font.widths[m] = data.getUint16(p), p+=2;
+						p+=2; // skip lsb
+					}
+					else
+						font.widths[m] = font.widths[m-1];
+				}
+				break;
+
+
+			case "OS/2":
+
+				table.version = data.getUint16(p), p+=2;
+				table.xAvgCharWidth = data.getInt16(p), p+=2;
+				table.usWeightClass = data.getUint16(p), p+=2;
+				table.usWidthClass = data.getUint16(p), p+=2;
+				table.fsType = data.getUint16(p), p+=2;
+				table.ySubscriptXSize = data.getInt16(p), p+=2;
+				table.ySubscriptYSize = data.getInt16(p), p+=2;
+				table.ySubscriptXOffset = data.getInt16(p), p+=2;
+				table.ySubscriptYOffset = data.getInt16(p), p+=2;
+				table.ySuperscriptXSize = data.getInt16(p), p+=2;
+				table.ySuperscriptYSize = data.getInt16(p), p+=2;
+				table.ySuperscriptXOffset = data.getInt16(p), p+=2;
+				table.ySuperscriptYOffset = data.getInt16(p), p+=2;
+				table.yStrikeoutSize = data.getInt16(p), p+=2;
+				table.yStrikeoutPosition = data.getInt16(p), p+=2;
+				table.sFamilyClass = data.getInt16(p), p+=2;
+				table.panose = [data.getUint8(p), data.getUint8(p+1), data.getUint8(p+2), data.getUint8(p+3), data.getUint8(p+4), data.getUint8(p+5), data.getUint8(p+6), data.getUint8(p+7), data.getUint8(p+8), data.getUint8(p+9)];
+				p+=10;
+				table.ulUnicodeRange1 = data.getUint32(p), p+=4;
+				table.ulUnicodeRange2 = data.getUint32(p), p+=4;
+				table.ulUnicodeRange3 = data.getUint32(p), p+=4;
+				table.ulUnicodeRange4 = data.getUint32(p), p+=4;
+				table.achVendID = getStringFromData (data, p, 4), p+=4;
+				table.fsSelection = data.getUint16(p), p+=2;
+				table.usFirstCharIndex = data.getUint16(p), p+=2;
+				table.usLastCharIndex = data.getUint16(p), p+=2;
+				table.sTypoAscender = data.getInt16(p), p+=2;
+				table.sTypoDescender = data.getInt16(p), p+=2;
+				table.sTypoLineGap = data.getInt16(p), p+=2;
+				table.usWinAscent = data.getUint16(p), p+=2;
+				table.usWinDescent = data.getUint16(p), p+=2;
+				break;
+
+
+			case "name":
+
+				table.format = data.getUint16(p), p+=2;
+				table.count = data.getUint16(p), p+=2;
+				table.stringOffset = data.getUint16(p), p+=2;
+				table.nameRecords = [];
+				font.names = [];
+				for (let n=0; n < table.count; n++) {
+					let nameRecord = {};
+					let str = "";
+					let nameRecordStart, nameRecordEnd;
+
+					nameRecord.platformID = data.getUint16(p), p+=2;
+					nameRecord.encodingID = data.getUint16(p), p+=2;
+					nameRecord.languageID = data.getUint16(p), p+=2;
+					nameRecord.nameID = data.getUint16(p), p+=2;
+					nameRecord.length = data.getUint16(p), p+=2;
+					nameRecord.offset = data.getUint16(p), p+=2;
+
+					nameRecordStart = tableOffset + table.stringOffset + nameRecord.offset;
+					nameRecordEnd = nameRecordStart + nameRecord.length;
+					if (nameRecordEnd > tableOffset + font.tables['name'].length) // safety check
+						continue;
+
+					p_ = p;
+					p = nameRecordStart;
+					switch (nameRecord.platformID)
+					{
+						case 1:
+							if (nameRecord.languageID == 0)
+							// TODO: treat 1,0 strings as MacRoman
+								if (nameRecord.encodingID == 0)
+								{
+									while (p < nameRecordEnd)
+										str += String.fromCharCode(data.getUint8(p)), p++;
+									nameRecord.string = str;
+								}
+							break;
+
+						case 3:
+							if (nameRecord.languageID == 0x0409)
+							{
+								switch (nameRecord.encodingID)
+								{
+									case 0:
+									case 1:
+										while (p < nameRecordEnd)
+											str += String.fromCharCode(data.getUint16(p)), p+=2;
+										nameRecord.string = str;
+										break;
+
+									case 10:
+										while (p < nameRecordEnd) {
+											// this obtains the Unicode index for codes >= 0x10000
+											str += (String.fromCharCode(data.getUint16(p))), p+=2;
+										}
+										nameRecord.string = str;
+										break; // the sample text in the 2016 Zycon uses this to store an Emoji string
+										// TODO: hmm, it’s the same code, because we store them like this in UTF-8
+								}
+
+							}
+					}
+
+					// set up working name strings that might be taken from Windows (3) or Macintosh (1) strings
+					// the Windows strings will overwrite the Mac strings, as nameRecords are sorted by platformID as well as nameID
+					if (nameRecord.hasOwnProperty('string'))
+						font.names[nameRecord.nameID] = str; // sparse array
+
+					table.nameRecords.push(nameRecord);
+					p = p_; // restore pointer ready for the next nameRecord
+				}
+				break;
+
+
+			case "post":
+
+				font.glyphNames = []; // store the names separately because the glyph often has not been loaded
+				table.format = data.getUint32(p+0);
+				font.italicAngle = data.getInt32(p+4) / 65536;
+
+				// most fonts are format 2
+				if (table.format == 0x00020000) {
+
+					// parse names data
+					p = tableOffset + 32 + 2 + 2 * font.numGlyphs; // jump past header and glyphNameIndex array
+					let extraNames = [];
+					while (p < tableOffset + font.tables['post'].length) {
+						let str="", len=data.getUint8(p++); // Pascal style strings: first byte is length, the rest is the string
+						while (len--) {
+							str += String.fromCharCode(data.getUint8(p++));
+						}
+						extraNames.push(str);
+					}
+
+					// parse glyphNameIndex array
+					p = tableOffset + 32; // jump past header
+					p += 2;
+					for (let g=0; g<font.numGlyphs; g++) {
+						let gni = data.getUint16(p + g*2);
+						font.glyphNames[g] = gni < 258 ? config.postscriptNames[gni] : extraNames[gni-258];
+					}
+				}
+				break;
+			
+
+			case "loca":
+
+				let shortOffsets = (font.tables['head'].data.indexToLocFormat == 0);
+				font.glyphOffsets[0] = 0;
+				for (let g=0; g < font.numGlyphs; g++) {
+
+					if (shortOffsets)
+						font.glyphOffsets[g+1] = 2 * data.getUint16(tableOffset + 2 * (g+1));
+					else
+						font.glyphOffsets[g+1] = data.getUint32(tableOffset + 4 * (g+1));
+
+					font.glyphSizes[g] = font.glyphOffsets[g+1] - font.glyphOffsets[g];
+				}
+				break;
+
+
+			case "fvar":
+
+				table.majorVersion = data.getUint16(p), p+=2;
+				table.minorVersion = data.getUint16(p), p+=2;
+				table.offsetToAxesArray = data.getUint16(p), p+=2;
+				table.countSizePairs = data.getUint16(p), p+=2;
+				table.axisCount = data.getUint16(p), p+=2;
+				table.axisSize = data.getUint16(p), p+=2;
+				table.instanceCount = data.getUint16(p), p+=2;
+				table.instanceSize = data.getUint16(p), p+=2;
+
+				// build axes
+				font.axes = [];
+				font.axisTagToId = {}; // TODO: better as an object where each property has value as the axis array item? and add id as an axis property
+				for (let a=0; a<table.axisCount; a++)
+				{
+					let axis = { id: a };
+					axis.tag = getStringFromData (data, p, 4), p+=4;
+					axis.min = data.getInt32(p)/65536, p+=4;
+					axis.default = data.getInt32(p)/65536, p+=4;
+					axis.max = data.getInt32(p)/65536, p+=4;
+					axis.flags = data.getUint16(p), p+=2;
+					if (axis.flags & 0x0001)
+						axis.hidden = true;
+					axis.axisNameID = data.getUint16(p), p+=2;
+					axis.name = font.names[axis.axisNameID];
+					if (axis.name === undefined)
+						axis.name = axis.tag; // for fonts without name table, e.g. optimized webfonts
+					font.axes.push(axis);
+					font.axisTagToId[axis.tag] = a;
+				}
+
+				// build instances
+				// - insert default instance as well as the instances in the fvar table
+				// - flag named instances with namedInstance=true
+				font.instances = [];
+				for (let i=0; i<table.instanceCount+1; i++) // +1 allows for default instance
+				{
+					let instance = {
+						id: i,
+						glyphs: [],
+						tuple:[],
+						fvs: {},
+						static: null, // if this is instantiated as a static font, this can point to the data or url
+					};
+
+					if (i>0) {
+						instance.subfamilyNameID = data.getUint16(p), p+=2;
+						p+=2; // skip over flags
+					}
+
+					font.axes.forEach((axis, a) => {
+						instance.tuple[a] = axis.default;
+						if (i==0)
+							instance.tuple[a] = axis.default; // user-facing value
+						else
+							instance.tuple[a] = data.getInt32(p)/65536, p+=4; // user-facing value
+						instance.fvs[axis.tag] = instance.tuple[a];
+						instance.tuple[a] = font.axisNormalize(axis, instance.tuple[a]);
+					});
+
+					if (i==0) {
+						instance.name = "Default";
+						instance.type = "default"; // one of default, named, stat, custom
+					}
+					else {
+						if (table.instanceSize == table.axisCount * 4 + 6)
+							instance.postScriptNameID = data.getUint16(p), p+=2;
+						instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed! (TODO: fallback if no name table)
+						instance.type = "named"; // one of default, named, stat, custom
+					}
+					font.instances.push(instance);
+				}
+
+				font.axisCount = table.axisCount;
+				break;
+
+
+			case "avar":
+				table.majorVersion = data.getUint16(p), p+=2;
+				table.minorVersion = data.getUint16(p), p+=2;
+				if (!(table.majorVersion === 1 && table.minorVersion === 0))
+					break;
+				p+=2
+				table.axisCount = data.getUint16(p), p+=2;
+				for (let a=0; a<font.axisCount; a++) {
+					font.avar[a] = [];
+					let positionMapCount = data.getUint16(p); p+=2;
+					for (let m=0; m<positionMapCount; m++) {
+						font.avar[a][m] = [data.getF2DOT14(p), data.getF2DOT14(p+2)], p+=4; // = [<fromCoordinate>,<toCoordinate>]
+					}
+				}
+				break;
+
+
+			case "gvar":
+
+				// NOTE: this only parses the table header!
+				// the main data, tuple variation tables for each glyph, is processed in SamsaVF_parseTvts()
+				table.majorVersion = data.getUint16(p), p+=2;
+				table.minorVersion = data.getUint16(p), p+=2;
+				table.axisCount = data.getUint16(p), p+=2;
+				table.sharedTupleCount = data.getUint16(p), p+=2;
+				table.offsetToSharedTuples = data.getUint32(p), p+=4;
+				table.glyphCount = data.getUint16(p), p+=2;
+				table.flags = data.getUint16(p), p+=2;
+				table.offsetToData = data.getUint32(p), p+=4;
+				table.sizeofTuple = table.axisCount * 2; // sizeof (F2DOT14)
+				//table.sizeofOffset = (table.flags & 0x01) ? 4 : 2;
+
+				// get sharedTuples array - working nicely!
+				table.sharedTuples = [];
+				let ps = tableOffset + table.offsetToSharedTuples;
+				for (let t=0; t < table.sharedTupleCount; t++) {
+					let tuple = [];
+					for (var a=0; a<table.axisCount; a++)
+						tuple.push(data.getF2DOT14(ps)), ps+=2;
+					table.sharedTuples.push (tuple);
+				}
+
+				// store tvt offsets: we create an index into the tuple store for each glyph
+				font.tupleOffsets[0] = 0;
+				for (let g=0; g < font.numGlyphs; g++) {
+					if (table.flags & 0x01) // offsets are Offset32
+						font.tupleOffsets[g+1] = data.getUint32(tableOffset + 20 + 4 * (g+1));
+					else // offsets are 2*Offset16
+						font.tupleOffsets[g+1] = 2 * data.getUint16(tableOffset + 20 + 2 * (g+1));
+					font.tupleSizes[g] = font.tupleOffsets[g+1] - font.tupleOffsets[g];
+				}
+				font.sharedTuples = table.sharedTuples;
+				break;
+
+
+			case "STAT":
+
+				table.majorVersion = data.getUint16(p+0);
+				table.minorVersion = data.getUint16(p+2);
+				let designAxisSize = data.getUint16(p+4);
+				table.designAxisCount = data.getUint16(p+6);
+				let designAxesOffset = data.getUint32(p+8);
+				table.axisValueCount = data.getUint16(p+12);
+				let offsetToAxisValueOffsets = data.getUint32(p+14);
+				if (table.majorVersion >= 1 && table.minorVersion >= 1) {
+					table.elidedFallbackNameID = data.getUint16(p+18);
+				}
+				table.designAxes = [];
+				table.designAxesSorted = [];
+				table.axisValueTables = [];
+
+				// parse designAxes
+				for (let a=0; a<table.designAxisCount; a++) {
+					p = tableOffset + designAxesOffset + a*designAxisSize;
+					let designAxis = {
+						designAxisID: a, // in case we are enumerating a sorted array
+						tag:          data.getTag(p),
+						nameID:       data.getUint16(p+4),
+						axisOrdering: data.getUint16(p+6),
+					};
+					table.designAxes.push(designAxis);
+					table.designAxesSorted[designAxis.axisOrdering] = designAxis;
+				}
+
+				// parse axisValueTables
+				for (let a=0; a<table.axisValueCount; a++) {
+					p = tableOffset + offsetToAxisValueOffsets + 2*a;
+					let axisValueOffset = data.getUint16(p);
+					p = tableOffset + offsetToAxisValueOffsets + axisValueOffset;
+					let format = data.getUint16(p);
+					if (format < 1 || format > 4)
+						continue;
+					let axisValueTable = {
+						format:      format,
+						axisIndex:   data.getUint16(p+2),
+						flags:       data.getUint16(p+4),
+						nameID: data.getUint16(p+6),
+					};
+					if (axisValueTable.format >= 1 && axisValueTable.format <= 3) {
+						axisValueTable.value = data.getInt32(p+8)/65536;
+					}
+					if (axisValueTable.format == 2) {
+						axisValueTable.min = data.getInt32(p+12)/65536;
+						axisValueTable.max = data.getInt32(p+16)/65536;
+					}
+					else if (axisValueTable.format == 3) {
+						axisValueTable.linkedValue = data.getInt32(p+12)/65536;
+					}
+					else if (axisValueTable.format == 4) {
+
+						axisValueTable.axisCount = axisValueTable.axisIndex;
+						axisValueTable.axisIndex = []; // now array, not numeric
+						axisValueTable.value = []; // now array, not numeric
+						p += 8;
+						for (let a=0; a < axisValueTable.axisCount; a++) {
+							axisValueTable.axisIndex.push(data.getUint16(p+a*6));
+							axisValueTable.value.push(data.getInt32(p+a*6+2)/65536);
+						}
+					}
+					table.axisValueTables.push(axisValueTable);
+				}
+				break;
+
+		}
+		
+		font.tables[tag].data = table;
+	}
+
+	//////////////////////////////////
+	//  parseGlyph()
+	//////////////////////////////////
+	this.parseGlyph = g => {
+
+		// parse glyph g from the given font
+
+		let font = this;
+		let node = this.config.isNode;
+		let data, p;
+		let offset = font.glyphOffsets[g];
+		let size = font.glyphSizes[g];
+		let pt;
+		let glyph = {
+			font: font,
+			name: font.glyphNames[g],
+			id: g,
+			numPoints: 0,
+			numContours: 0,
+			instructionLength: 0,
+			points: [],
+			endPts: [],
+			tvts: [], // tuple variable tables (see gvar spec)
+		};
+		let fd, read, write;
+		if (node) {
+			fd = this.fd;
+			read = this.config.fs.readSync;
+			write = this.config.fs.writeSync;
+		}
+
+		// set up data and pointers
+		if (node) {
+			data = Buffer.alloc(size);
+
+			// we should compare speeds for the best optmization
+			// - reading pieces of data from file when we need it
+			// - reading a whole glyph into memory, then parsing from memory
+			// - reading a block of data from the glyf table, loading more when needed, and parsing from memory
+			// - I think it was a bit faster when we loaded all glyphs in sequence, than the present case where we load a glyph and then its tvts
+			read (fd, data, 0, size, font.tables['glyf'].offset + offset);
+			p = 0;
+		}
+		else {
+			data = font.data;
+			p = font.tables['glyf'].offset + offset;
+		}
+
+		// non-printing glyph
+		if (size == 0) {
+			glyph.numContours = 0;
+		}
+
+		// printing glyph
+		else if (size > 0) {
+
+			glyph.numContours = data.getInt16(p), p+=2;
+			glyph.xMin = data.getInt16(p), p+=2;
+			glyph.yMin = data.getInt16(p), p+=2;
+			glyph.xMax = data.getInt16(p), p+=2;
+			glyph.yMax = data.getInt16(p), p+=2;
+
+			let flag, repeat=0, x_=0, y_=0, x, y, c, r;
+
+			// simple glyph
+			if (glyph.numContours > 0) {
+
+				// end points of each contour
+				for (c=0; c<glyph.numContours; c++)
+					glyph.endPts.push(data.getUint16(p)), p+=2;
+				glyph.numPoints = glyph.endPts[glyph.numContours -1] + 1;
+
+				// instructions
+				glyph.instructionLength = data.getUint16(p), p+=2;
+				p += glyph.instructionLength;
+
+				// flags
+				let flags = [];
+				for (pt=0; pt<glyph.numPoints; ) {
+					flag = data.getUint8(p), p++;
+					flags[pt++] = flag;
+					if (flag & 0x08) {
+						repeat = data.getUint8(p), p++;
+						for (r=0; r<repeat; r++)
+							flags[pt++] = flag;
+					}
+				}
+
+				// points
+				if (flags.length == glyph.numPoints) {
+					flags.forEach(function (flag, pt) {
+						switch (flag & 0x12) { // x
+							case 0x00: x = x_ + data.getInt16(p); p+=2; break;
+							case 0x02: x = x_ - data.getUint8(p); p++; break;
+							case 0x10: x = x_; break;
+							case 0x12: x = x_ + data.getUint8(p); p++; break;
+						}
+						glyph.points[pt] = [x_ = x];
+					});
+					flags.forEach(function (flag, pt) {
+						switch (flag & 0x24) { // y
+							case 0x00: y = y_ + data.getInt16(p), p+=2; break;
+							case 0x04: y = y_ - data.getUint8(p), p++; break;
+							case 0x20: y = y_; break;
+							case 0x24: y = y_ + data.getUint8(p), p++; break;
+						}
+						glyph.points[pt].push(y_ = y, flag & 0x01);
+					});
+				}
+			}
+			
+			// composite glyph
+			// - we DO add points for composite glyphs: one per component (they are the x and y offsets), and the 4 extra metrics points
+			// - when we process these glyphs, we look at glyph.numContours and glyph.points, but NOT glyph.numPoints
+			else if (glyph.numContours < 0) {
+
+				let flag;
+				glyph.components = [];
+				do  {
+					let component = {};
+					component.flags = flag = data.getUint16(p), p+=2;
+					component.glyphId = data.getUint16(p), p+=2;
+
+					// record offsets
+					// TODO: rewrite the following 4 branches with a single "switch (flag & 0x0003) { … } " statement
+					if (flag & 0x0002) { // ARGS_ARE_XY_VALUES
+
+						if (flag & 0x0001) { // ARG_1_AND_2_ARE_WORDS
+							component.offset = [data.getInt16(p), data.getInt16(p+2)], p+=4;
+						}
+						else {
+							component.offset = [data.getInt8(p), data.getInt8(p+1)], p+=2;
+						}
+						glyph.points.push(component.offset); // this is cool, we store the offset as it was a point, then we can treat it as a point when acted on by the tvts
+					}
+
+					// record matched points
+					// - TODO: decide how to handle these (it’s possible they are never used in VFs)
+					else {
+						if (flag & 0x0001) { // ARG_1_AND_2_ARE_WORDS
+							component.matchedPoints = [data.getUint16(p), data.getUint16(p+2)], p+=4;
+						}
+						else {
+							component.matchedPoints = [data.getUint8(p), data.getUint8(p+1)], p+=2;
+						}
+						console.log("WARNING: glyf: I don’t like the matchedPoints method for positioning components!");
+					}
+
+					// transformation matrix
+					// - if component.transform is undefined, it means identity matrix is [1, 0, 0, 1]
+					if (flag & 0x0008) { // WE_HAVE_A_SCALE
+						component.transform = [data.getF2DOT14(p), 0, 0], p+=2;
+						component.transform[3] = component.transform[0];
+					}
+					else if (flag & 0x0040) { // WE_HAVE_AN_X_AND_Y_SCALE
+						component.transform = [data.getF2DOT14(p), 0, 0, data.getF2DOT14(p+2)], p+=4;
+					}
+					else if (flag & 0x0080) { // WE_HAVE_A_TWO_BY_TWO
+						component.transform = [data.getF2DOT14(p), data.getF2DOT14(p+2), data.getF2DOT14(p+4), data.getF2DOT14(p+6)], p+=8;
+					}
+
+					// store component
+					glyph.components.push(component);
+
+				} while (flag & 0x0020); // MORE_COMPONENTS
+
+				// jump over composite instructions
+				if (flag & 0x0100) { // WE_HAVE_INSTR
+					glyph.instructionLength = data.getUint16(p), p+=2;
+					p += glyph.instructionLength;
+				}
+			}
+			
+			else { // error
+				font.errors.push ("glyf: Glyph " + g + " has 0 contours, but non-zero size");
+			}
+
+		}
+
+		// glyph metrics: assign 4 phantom points for gvar processing
+		// - works on composites
+		// - works on zero-contour glyphs
+		// TODO: get height from vmtx table (if it exists)
+		glyph.points.push([0,0], [font.widths[g], 0], [0,0], [0,0]);
+
+		return glyph;
+
 	}
 
 	//////////////////////////////////
