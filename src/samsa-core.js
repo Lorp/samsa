@@ -948,17 +948,6 @@ function makeStaticFont (font, instance) // use the current settings in font.axe
 }
 
 
-function fontHasTables (font, tables)
-{
-	let n=0;
-	tables.forEach(function (tag) {
-		if (font.tables[tag])
-			n++;
-	});
-	return (n == tables.length);
-}
-
-
 function SamsaVF_parseTvts(g) {
 
 	// must work for memory and file models
