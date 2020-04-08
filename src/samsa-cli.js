@@ -338,7 +338,7 @@ namedInstances:${namedInstanceString}
 		let extraName = instance.name === undefined ? "" : `(${instance.name})`;
 		instance.filename = `${init.outFile}-${i}${extraName}.ttf`;
 		if (!listOnly) {
-			samsa.SamsaVF_compileBinaryForInstance(font, instance);
+			font.exportInstance(instance);
 			totalSize += instance.size;
 		}
 
