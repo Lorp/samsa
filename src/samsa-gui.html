@@ -153,7 +153,12 @@ CONFIG.uiModes = {
 			shape: "■", // one of ■●▲+x
 			shapeOffCurve: "●",
 			opacity: 1,
-		},		
+		},
+
+		pointNumbers: {
+			angle: 90,
+			offset: 8,
+		},
 
 		glyphDefault: {
 			fill: "#ddd",
@@ -779,9 +784,11 @@ function vfLoaded (font) {
 		});
 		uiModeHTML += `</select><br>`;
 		panel.innerHTML += uiModeHTML;
-		panel.innerHTML += "<label>Deltas</label>&nbsp;";
-		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">split</label>&nbsp;`;
-		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">total</label><br>`;
+		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">Split deltas</label>`;
+		panel.innerHTML += "&nbsp;";
+		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">Total deltas</label>`;
+		panel.innerHTML += "&nbsp;";
+		panel.innerHTML += `<input id="point-numbers" class="ui-arrows" type="checkbox"><label for="point-numbers">Point numbers</label>`;
 
 		/*
 		panel.innerHTML += "<label>Delta colours</label>&nbsp;";
@@ -2004,6 +2011,8 @@ function setActiveGlyph (g, instance) {
 	layerIds.push(5);
 	if (Q("#arrows-split").checked && ui.arrow.strokeWidth)
 		layerIds.push(6);
+	if (Q("#point-numbers").checked && ui.arrow.strokeWidth)
+		layerIds.push(8);
 
 	layerIds.forEach(L => {
 
@@ -2458,6 +2467,45 @@ function setActiveGlyph (g, instance) {
 
 				svgg.appendChild(svgg2);
 				break;
+
+			// point numbers
+			case 8: 
+
+				layer.id = "layer-pointnumbers";
+
+				svgg2 = SVG("g");
+				svgg2.id = layer.id;
+				svgg2.attrsSVG({
+					"fill": "black",
+					"stroke": "none",
+				});
+
+				iglyph.points.forEach((point, pt) => {
+
+					// make a text element for each point
+					let svgText = SVG("text");
+					svgText.textContent = pt;
+					let xOffset = yOffset = ui.pointNumbers.offset || 10;
+					let angle = ui.pointNumbers.angle * Math.PI/180 || 0;
+					angle = Math.PI - angle;
+					xOffset *= Math.sin(angle);
+					yOffset *= Math.cos(angle);
+
+					svgText.attrsSVG({
+						x: point[0]+xOffset,
+						y: point[1]+yOffset,
+						style: `font-weight: normal; font-size: ${24*uiScale}px;`,
+						class: "point-number",
+						transform: `translate(0,${2*point[1]}) scale(1,-1)`,
+					});
+					//svgg3.appendChild(svgText);
+					svgg2.appendChild(svgText);
+				});
+
+				svgg.appendChild(svgg2);
+				break;
+
+
 		}
 
 
