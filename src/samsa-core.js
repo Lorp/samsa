@@ -124,11 +124,15 @@ DataView.prototype.getF2DOT14 = function (p) {
 	return this.getInt16(p) / 16384.0; // signed
 }
 
-function copyBytes(source, target, zs, zt, n)
-{
-	// copies n bytes from DataView source (starting at zs) to DataView target (starting at zt)
-	for (const end = zt+n; zt<end; zt++,zs++)
-		target.setUint8(zt, source.getUint8(zs));
+
+function copyBytes(source, target, zs, zt, n) {
+
+	// copies n bytes from source (starting at zs) to target (starting at zt)
+	// - source and target are typically DataView, but they can be any TypedArray
+	const src = new Uint8Array(source.buffer, source.byteOffset + zs, n);
+	const tgt = new Uint8Array(target.buffer, target.byteOffset + zt, n);
+	for (let i=0; i < n; i++)
+		tgt[i] = src[i]; // this seems to be the quickest way to copy between two ArrayBuffers, see benchmark at https://www.measurethat.net/Benchmarks/Show/7537/0/copy-arraybuffer-dataview-vs-uint8arrayset-vs-float64ar
 }
 
 
@@ -1312,8 +1316,6 @@ function SamsaVF (init, config) {
 			fd = font.fd;
 			read = font.config.fs.readSync;
 			write = font.config.fs.writeSync;
-			zeroBuffer = Buffer.alloc(16); // a convenient zeroed buffer in case we need to fill something with zeroes
-			//console.log ("In node");
 		}
 
 		if (!instance.filename)
@@ -1323,8 +1325,10 @@ function SamsaVF (init, config) {
 		// [0] setup
 		// - node: open file
 		// - frontend: allocate memory
-		if (node)
+		if (node) {
 			fdw = font.config.fs.openSync(instance.filename, "w");
+			zeroBuffer = Buffer.alloc(16); // a convenient zeroed buffer in case we need to fill something with zeroes
+		}
 		else
 			fontBuffer = new DataView(new ArrayBuffer(font.config.sfnt.maxSize));
 
@@ -1658,6 +1662,9 @@ function SamsaVF (init, config) {
 
 				case "name":
 					// allocate max possible space needed
+					// - TODO: calculate size of nameBuf accurately, then we can:
+					//         delete config.name.maxSize
+					//         write directly into font file in frontend mode
 					const nameBuf = new DataView(new ArrayBuffer(font.config.name.maxSize));
 					let newNames = [];
 
@@ -1916,10 +1923,11 @@ function SamsaVF (init, config) {
 		//  - if it is a fvs object, we first add the instance then proceed below
 		//  - so makeInstance will addInstance if it does not exist
 		//  - we should check if the static binary exists already, and if it does, do nothing unless a flag tells us to update and overwrite (because of outline editing for example)
-		console.log ("Making static instance for ", this, instance);
+		//console.log ("Making static instance for ", this, instance);
 		instance.static = this.exportInstance(instance);
-		console.log ("Finished making static instance for ", this, instance);
-	}
+		//console.log ("Finished making static instance for ", this, instance);
+		//console.log (`${instance.timer} ms`);
+}
 
 
 	//////////////////////////////////
