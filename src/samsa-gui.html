@@ -157,7 +157,7 @@ CONFIG.uiModes = {
 
 		pointNumbers: {
 			angle: 90,
-			offset: 8,
+			offset: 10,
 		},
 
 		glyphDefault: {
@@ -245,6 +245,12 @@ CONFIG.uiModes = {
 			strokeWidth: 2,
 		},
 
+		pointNumbers: {
+			angle: 90,
+			offset: 10,
+			color: "blue",
+		},
+
 		glyphDefault: {
 			fill: "#555",
 			stroke: "none",
@@ -326,6 +332,8 @@ CONFIG.uiModes = {
 			opacity: 1,
 		},		
 
+		pointNumbers: {},
+
 		glyphDefault: {
 			fill: "none",
 			stroke: "none",
@@ -404,6 +412,8 @@ CONFIG.uiModes = {
 		point: {
 			size: 0, // disable points
 		},		
+
+		pointNumbers: {},
 
 		glyphDefault: {
 			fill: "none", // disable the default glyph
@@ -2476,20 +2486,21 @@ function setActiveGlyph (g, instance) {
 				svgg2 = SVG("g");
 				svgg2.id = layer.id;
 				svgg2.attrsSVG({
-					"fill": "black",
+					"fill": ui.pointNumbers.color || "black",
 					"stroke": "none",
 				});
+
+				let xOffset = yOffset = ui.pointNumbers.offset || 0;
+				let angle = ui.pointNumbers.angle * Math.PI/180 || 0;
+				angle = Math.PI - angle;
+				xOffset *= Math.sin(angle) * uiScale;
+				yOffset *= Math.cos(angle) * uiScale;
 
 				iglyph.points.forEach((point, pt) => {
 
 					// make a text element for each point
 					let svgText = SVG("text");
 					svgText.textContent = pt;
-					let xOffset = yOffset = ui.pointNumbers.offset || 10;
-					let angle = ui.pointNumbers.angle * Math.PI/180 || 0;
-					angle = Math.PI - angle;
-					xOffset *= Math.sin(angle);
-					yOffset *= Math.cos(angle);
 
 					svgText.attrsSVG({
 						x: point[0]+xOffset,
@@ -2498,14 +2509,17 @@ function setActiveGlyph (g, instance) {
 						class: "point-number",
 						transform: `translate(0,${2*point[1]}) scale(1,-1)`,
 					});
-					//svgg3.appendChild(svgText);
+
+					if (xOffset < 0)
+						svgText.attrsSVG({
+							"text-anchor": "end",
+						});
+
 					svgg2.appendChild(svgText);
 				});
 
 				svgg.appendChild(svgg2);
 				break;
-
-
 		}
 
 
