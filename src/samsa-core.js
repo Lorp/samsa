@@ -1592,6 +1592,7 @@ function SamsaVF (init, config) {
 							if (aws[g] < 0)
 								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
 							lsbs[g] = iglyph.xMin;
+
 						}
 
 
@@ -1664,22 +1665,33 @@ function SamsaVF (init, config) {
 					const nameBuf = new DataView(new ArrayBuffer(font.config.name.maxSize));
 					let newNames = [];
 
-					// get initial names from the variable font
-					// - remember that font.names is generally sparse, so n!=nameID
+					// generate a subfamilyName from axis settings if this instance does not have a name
+					let subfamilyName = instance.name;
+					if (subfamilyName === undefined) {
+						subfamilyName = "";
+						let fvs = font.tupleToFvs(instance.tuple);
+						Object.keys(fvs).forEach(tag => {
+							subfamilyName += `${tag} ${fvs[tag]} `;
+						});
+						subfamilyName = subfamilyName.trim(); // e.g. "wght 500 wdth 98"
+					}
+
+					// get names from the variable font
+					// - remember that font.names is generally sparse, so newNames.length!=nameID
 					font.names.forEach ((name, nameID) => {
 						if (instance.type != "default") {
 							switch (nameID) {
-								case 2: // style name: update to the current instance name
+								case 2: // subfamily name: update to the current instance name or subfamilyName calculated above
 								case 17:
-									name = instance.name;
+									name = subfamilyName;
 									if (!font.names[17])
 										newNames.push([17, name]); // add typographic subfamily name if it’s not there
 									break;
 								case 4: // full font name: append current instance name
-									name = `${font.names[4]} ${instance.name}`;
+									name = `${font.names[4]} ${subfamilyName}`;
 									break;
-								case 6: // postscript name: append current instance name
-									name = `${font.names[6]}-${instance.name.replace(" ", "")}`; // remove spaces
+								case 6: // postscript name: append subfamilyName
+									name = `${font.names[6]}-${subfamilyName.replace(" ", "")}`; // remove spaces
 									break;
 							}
 						}
@@ -1716,7 +1728,7 @@ function SamsaVF (init, config) {
 					if (node)
 						write (fdw, nameBuf, 0, table.length, table.offset);
 					else
-						copyBytes (nameBuf, fontBuffer, 0, position, table.length);
+						copyBytes (nameBuf, fontBuffer, 0, table.offset, table.length);
 					position += table.length;
 					break;
 
