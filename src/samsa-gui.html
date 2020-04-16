@@ -1104,17 +1104,17 @@ function vfLoaded (font) {
 
 		// double-click sets the axis to default
 		li.querySelector(".tag").addEventListener("dblclick", ev => {
-			let fvs = getCurrentFvs();
+
+			let fvsFromSliders = getCurrentFvs();
+			let fvs = font.tupleToFvs(GLOBAL.tuple);
 			let tag = ev.target.innerText;
-			GLOBAL.vf.axes.forEach((axis, a) => {
-				if (axis.tag == tag)
-					fvs[tag] = axis.default;
-			});
+			fvs[tag] = axis.default;
 
 			setAxes (font, fvs);
 			let instance = font.addInstance(fvs);
 			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 			axesUpdateValues();
+			updateSTATPanel();
 			webfontPanelUpdateVariationSettings();
 			font.instances.pop();
 		});
@@ -1172,7 +1172,6 @@ function vfLoaded (font) {
 	panel.innerText = "";
 	if (font.tables.STAT) {
 		const STAT = font.tables.STAT.data;
-		let allowAddInstance = true;
 		
 		// create grid layout
 		let grid = document.createElement("div");
@@ -1181,125 +1180,130 @@ function vfLoaded (font) {
 		grid.style.gridTemplateColumns = "30% 35% 1fr";
 		grid.style.gridColumnGap = "3px";
 
-		function setCurrentSTATinstance(font, keepInstance, ignoreInstance) {
+		let label, select, note;
 
-			// build STAT name and fvs
-			let statNamesAVTs = [], fvs = {};
-			Qall("#panel-stat select").forEach((thisSel, a) => {
-
-				let designAxis = thisSel.data.designAxis;
-				let axisValueTable = thisSel.options[thisSel.selectedIndex].data.axisValueTable;
-				let note = axisValueTable.value;
-				switch (axisValueTable.format) {
-					case 2:
-						note += ` [${axisValueTable.min},${axisValueTable.max}]`;
-						break;
-					case 3:
-						note += ` → ${axisValueTable.linkedValue}`;
-						break;
-				}
-				thisSel.parentNode.querySelectorAll("label.axisValueNote")[a].innerText = note;
-
-				statNamesAVTs.push(axisValueTable); // build STAT name
-				fvs[designAxis.tag] = thisSel.value; // build fvs
-			});
-
-			// get final STAT name
-			let statName, elidable = true, statNamesStrs = [];
-			statNamesAVTs.forEach(statNameAVT => {
-				if (!(statNameAVT.flags & 0x0002)) {
-					statNamesStrs.push(font.names[statNameAVT.nameID]);
-					elidable = false;
-				}
-			});
-			if (elidable && STAT.elidedFallbackNameID !== undefined) {
-				statName = font.names[STAT.elidedFallbackNameID];
-			}
-			else {
-				statName = statNamesStrs.join(" ");
-			}
-			Q("#stat-name").value = statName;
-
-
-			if (!ignoreInstance) { // we might just want to set the STAT instance name
-				// create temporary instance
-				setAxes (font, fvs);
-				let instance = font.addInstance(fvs, {type: "stat", name: statName});
-				setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-				axesUpdateValues();
-				webfontPanelUpdateVariationSettings();
-
-				if (keepInstance)
-					return instance;
-				else {
-					font.instances.pop();
-					return null;
-				}
-			}
-		}
-
-		// for each STAT designAxis
-		STAT.designAxesSorted.forEach((designAxis, a) => {
-			let label = EL("label");
-			label.innerText = font.names[designAxis.nameID];
+		// for each STAT designAxis create a <select>; plus a <select> for multiaxis axisValueTables
+		let selects = [];
+		for (let a=0; a <= STAT.designAxesSorted.length; a++) { // we build 1+designAxes.length selects
 			let select = EL("select");
-			select.data = { designAxis: designAxis };
-			let note = EL("label")
-			note.classList.add("axisValueNote");
+			select.data = {};
+			
+			if (a < STAT.designAxes.length)
+				select.data.designAxis = STAT.designAxesSorted[a]; // we make 1 per designAxis, plus another for multiaxis (format 4)
 
-			let selectedIndex=0, thisIndex=0;
-			if (STAT.axisValueTables.length == 0) {
+			let option = EL("option");
+			option.value = -1;
+			option.innerText = "[no match]";
+			select.appendChild(option)
+
+			selects.push(select);
+		}
+		
+		// go thru all axisValueTables, assigning them to their correct <select>
+		STAT.axisValueTables.forEach((avt, a) => {
+
+			let option = EL("option");
+			option.value = a; // for easy retrieval of the axisValueTable later
+			option.data = { axisValueTable: avt };
+			option.innerText = font.names[avt.nameID];
+			if (avt.flags & 0x0002) { // ELIDABLE_AXIS_VALUE_NAME
+				option.innerText = "(" + option.innerText + ")";
+			}
+
+			switch (avt.format) {
+
+				case 1: case 2: case 3:
+					let designAxis = STAT.designAxes[avt.axisIndex];
+					selects[designAxis.axisOrdering].appendChild(option); // TODO: vulnerability when axisOrdering values are not well formed, zero-indexed ids
+					break;
+
+				case 4:
+					selects[STAT.designAxesSorted.length].appendChild(option); // append to the last select (for multi-axis records)
+					break;
+			}
+
+		});
+
+		selects.forEach(select => {
+
+			label = EL("label");
+
+			if (select.querySelectorAll("option").length == 0) {
+				// handle a <select> without options
 				let option = EL("option");
-				option.innerText = "no axisValueTables";
+				option.innerText = "(none)";
 				select.appendChild(option);
 				select.disabled = true;
-				allowAddInstance = false;
 			}
 			else {
-				STAT.axisValueTables.forEach(axisValueTable => {
-					switch (axisValueTable.format) {
-						case 1: case 2: case 3:
-							if (axisValueTable.axisIndex == designAxis.designAxisID) { // note that "a" is different from designAxis.designAxisID if STAT.designAxesSorted is not ordered as STAT.designAxes
-								let option = EL("option");
-								option.innerText = font.names[axisValueTable.nameID];
-								option.value = axisValueTable.value;
-								option.data = { axisValueTable: axisValueTable };
-								select.appendChild(option);
-								if (axisValueTable.flags & 0x0002) { // ELIDABLE_AXIS_VALUE_NAME
-									option.innerText = "(" + option.innerText + ")";
-									if (selectedIndex==0) {
-										selectedIndex = thisIndex; // select the first elidable avt
-									}
-								}
-								thisIndex++;
-							}
-							break;
+				// handle changes in this <select>
+				select.addEventListener("change", ev => {
+
+					const STAT = font.tables.STAT.data;
+					let note = "";
+					if (ev.target.value != -1) {
+
+						const STAT = GLOBAL.vf.tables.STAT.data;
+						let avt = STAT.axisValueTables[ev.target.value];
+						let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
+						let axisIndices = avt.axisIndex;
+						let values = avt.value;
+						if (avt.format != 4) { // for format 4, they are already arrays
+							axisIndices = [axisIndices];
+							values = [values];
+							note = avt.value;
+						}
+
+						// upadte the fvs from the axisValueTable
+						axisIndices.forEach((axisIndex, a) => {
+							fvs[STAT.designAxes[axisIndex].tag] = values[a];
+						});
+
+						// update the rest of the Samsa UI
+						setAxes (font, fvs);
+						let instance = font.addInstance(fvs, {type: "custom"});
+						setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+						axesUpdateValues();
+						updateSTATPanel(fvs);
+						webfontPanelUpdateVariationSettings();
+						font.instances.pop();
+
 					}
+
+					// set the note
+					ev.target.nextSibling.innerText = note; // vulnerable to layout changes but concise! (requires <label> of the note to immediately follow the <select>)
+
 				});
 			}
 
+			if (select.data && select.data.designAxis)
+				label.innerText = font.names[select.data.designAxis.nameID];
+			else
+				label.innerText = "Multi-axis";
+
+			// disable selection for any <select> with no options
+			if (select.options.length <= 1)
+				select.disabled = true;	
+
+			// append these to the grid
 			grid.appendChild(label);
 			grid.appendChild(select);
-			grid.appendChild(note);
-			select.selectedIndex = selectedIndex;
+			grid.appendChild(EL("label"));
 
-			// when we change the selection
-			select.addEventListener("change", ev => {
-				setCurrentSTATinstance(font);
-			});
 		});
 
-		let input = document.createElement("input");
-		input.id = "stat-name";
-		input.value = "<STAT font name>";
+		label = EL("label");
+		let input = EL("input");
+
+		input.id = "stat-composed-name";
 		input.readOnly = true;
 
-		let label = document.createElement("label");
 		label.innerText = "Composed name";
-
 		grid.appendChild(label);
 		grid.appendChild(input);
+
 		panel.appendChild(grid);
+
 
 		// "Add instance" button
 		let addInstanceEl = document.createElement("button");
@@ -1308,15 +1312,12 @@ function vfLoaded (font) {
 		grid.appendChild(addInstanceEl);
 
 		// set current STAT instance and add it to the Instances panel
-		if (allowAddInstance) {		
-			addInstanceEl.addEventListener("click", ()=>{
-				let instance = setCurrentSTATinstance(font, true);
-				appendInstanceEl(instance, true);
-			});
-		}
-		else {
-			addInstanceEl.disabled = true;
-		}
+		addInstanceEl.addEventListener("click", () => {
+
+			let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
+			let instance = font.addInstance(fvs, { type: "stat", name: Q("#stat-composed-name").value });
+			appendInstanceEl(instance, true);
+		});
 	}
 
 	else {
@@ -1481,10 +1482,6 @@ function vfLoaded (font) {
 		updateDesignSpaceMoved(e);
 	});
 
-	if (font.tables.STAT) {
-		setCurrentSTATinstance(font, false, false); // this must be after the Glyphs panel is created
-	}
-
 }
 
 
@@ -1590,18 +1587,24 @@ function webfontPanelUpdateVariationSettings() {
 }
 
 
-function axisInput() {
+function axisInput(ev) {
 
 	let font = GLOBAL.vf;
+	let fvsFromSliders = getCurrentFvs();
+	let fvs = font.tupleToFvs(GLOBAL.tuple);
+	let tag = ev.target.data.axis.tag;
+	fvs[tag] = fvsFromSliders[tag];
+	let instance = font.addInstance(fvs); // { name: "Custom", tuple: [] };
 
 	// create instance
-	let instance = font.addInstance(getCurrentFvs()); // { name: "Custom", tuple: [] };
+	//let instance = font.addInstance(getCurrentFvs()); // { name: "Custom", tuple: [] };
 
 	let glyph = font.glyphs[GLOBAL.currentGlyphId];
 	let iglyph = glyphApplyVariations(glyph, null, instance);
 	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 	
 	axesUpdateValues();
+	updateSTATPanel();
 	webfontPanelUpdateVariationSettings();
 
 	// delete instance? definitely!
@@ -1677,9 +1680,124 @@ function updateDesignspace() {
 
 }
 
+
+function updateSTATPanel(fvs) {
+
+	const font = GLOBAL.vf;
+	if (!font.tables["STAT"])
+		return;
+
+	const STAT = font.tables["STAT"].data;
+	if (fvs === undefined)
+		fvs = font.tupleToFvs(GLOBAL.tuple);
+	let selectValues = {};
+	const axisTags = Object.keys(fvs);
+	let statName, elidable = true, statNamesStrs = [];
+
+	// find the avt’s which match this fvs
+	let avtIndexMulti = -1;
+	for (let a=0; a<STAT.axisValueTables.length; a++) {
+		const avt = STAT.axisValueTables[a];
+		axisTags.forEach(tag => {
+
+			// TODO: are we sure rounding is ok here? If not we can roud-trip through tuple representation
+
+			// do we have a match?
+			if (avt.format < 4 && 
+				selectValues[tag] === undefined && 
+				(fvs[tag] == avt.value || (avt.format == 2 && fvs[tag] >= avt.min && fvs[tag] <= avt.max)) && 
+				tag == STAT.designAxes[avt.axisIndex].tag) {
+
+				selectValues[tag] = {};
+				selectValues[tag].avtIndex = a; // index of this axisValueTable in STAT.axisValueTables
+				selectValues[tag].note = "";
+			}
+			else if (avt.format == 4 && avtIndexMulti == -1) {
+				let match = true;
+				avt.axisIndex.forEach((axisIndex, a) => { // axisIndex is an array because format 4
+					if (avt.value[a] != fvs[STAT.designAxes[axisIndex].tag])
+						match = false;
+				});
+				if (match)
+					avtIndexMulti = a;
+			}
+		});
+	}
+
+	// for each <select>, select the right option
+	Qall("#panel-stat select").forEach((select, a) => {
+		let tag;
+		if (a < STAT.designAxes.length) {
+			//let selectValue;
+			tag = select.data.designAxis.tag;
+			if (fvs[select.data.designAxis.tag] === undefined) // this fvs needs to specify all fvar axes
+				select.value = select.options[1].value; // set designAxes which are not in the font to the (only) valid option
+			else
+				select.value = (selectValues[tag] === undefined) ? -1 : selectValues[tag].avtIndex;
+		}
+		else {
+			select.value = avtIndexMulti;
+		}
+
+		// set the note
+		let note = "";
+		let axisIndices = [], values = [];
+		if (select.value != -1) {
+
+			let avt = STAT.axisValueTables[select.value];
+			axisIndices = avt.axisIndex;
+			let values = avt.value;
+			if (avt.format != 4) {
+				axisIndices = [axisIndices];
+				values = [values];
+				note = avt.value;
+			}
+
+			// get stat name component
+			let name = font.names[avt.nameID];
+			let thisElidable = avt.flags & 0x0002;
+
+			if (avt.format == 2 && fvs[tag] != values[0]) {
+				name += `[${Math.round(fvs[tag]*100)/100}]`;
+				thisElidable = false; // make "Regular" no longer elidable if we’ve appended a value
+			}
+
+			if (!thisElidable) {
+				if (a < STAT.designAxes.length)
+					statNamesStrs.push(name); // append multiaxis names
+				else
+					statNamesStrs.unshift(name); // prepend multiaxis names
+				elidable = false; // global elidable
+			}
+
+			// determine the fvs
+			axisIndices.forEach((axisIndex, a) => {
+				fvs[STAT.designAxes[axisIndex].tag] = values[a];
+			});
+
+			// augment the note
+			switch (avt.format) {
+				case 2: note += ` [${avt.min},${avt.max}]`; break;
+				case 3: note += ` (→ ${avt.linkedValue})`; break;
+				case 4: note = JSON.stringify(fvs); break;
+			}
+		}
+
+		select.nextSibling.innerText = note;
+	});
+
+	// finalize and display statName
+	if (elidable && STAT.elidedFallbackNameID !== undefined)
+		statName = font.names[STAT.elidedFallbackNameID];
+	else
+		statName = statNamesStrs.join(" ");
+	Q("#stat-composed-name").value = statName;
+}
+
+
 function updateGlyphsPanel(instance) {
 
-	console.log("Updating glyphs panel: START");
+	//console.log("Updating glyphs panel: START");
 	const font = GLOBAL.vf;
 
 	///////////////////////////////////////////////////////
@@ -1768,7 +1886,7 @@ function updateGlyphsPanel(instance) {
 		panel.appendChild(glyphThumb);
 	}
 
-	console.log("Updating glyphs panel: END");
+	//console.log("Updating glyphs panel: END");
 	setActiveGlyph(GLOBAL.currentGlyphId, instance);
 }
 
@@ -1819,6 +1937,7 @@ function setActiveInstance (font, target) {
 			instanceApplyVariations (font, instance);
 			updateGlyphsPanel (instance);
 			axesUpdateValues();
+			updateSTATPanel();
 			webfontPanelUpdateVariationSettings();
 		}
 		else {
@@ -2760,12 +2879,12 @@ document.onclick = function (event) {
 		else
 			redraw = false;
 
-		if (redraw) {		
-			GLOBAL.tuple = GLOBAL.vf.fvsToTuple(fvs);
-			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		if (redraw) {
+			let instance = font.addInstance(fvs);
 			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 			font.instances.pop();
 			axesUpdateValues();
+			updateSTATPanel();
 			setAxes (GLOBAL.vf, fvs);
 		}
 	}
@@ -2981,7 +3100,6 @@ if (["http:", "https:"].includes(window.location.protocol)) {
 
 	fetch("samsa-fonts.json")
 	.then(response => {
-			console.log(response);
 			return response.json(); // another promise, not a string!
 		}, 
 		error => {
