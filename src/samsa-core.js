@@ -46,7 +46,7 @@ let CONFIG = {
 
 	glyf: {
 		overlapSimple: true,
-		maxSize: 10000000, // TODO: work out the max theoretical size for each glyph (each coordinate is USHORT, etc)
+		bufferSize: 500000, // for writing to files (ignored for in-memory instantiation)
 	},
 
 	name: {
@@ -1343,7 +1343,7 @@ function SamsaVF (init, config) {
 		let glyfBuffer;
 		let position = 0;
 		let fdw;
-		const glyfBufSafetyMargin = 256;
+		const glyfBufSafetyMargin = 64;
 
 		if (node) {
 			fd = font.fd;
@@ -1410,7 +1410,7 @@ function SamsaVF (init, config) {
 			// set the new offset
 			table.offset = position;
 			let originalTable = font.tables[table.tag];
-			let p; // the current data offset where the binary glyph is being written in memory
+			let p; // the current data offset in glyfBuffer, where the binary glyph is being written in memory
 
 			switch (table.tag) {
 
@@ -1418,10 +1418,29 @@ function SamsaVF (init, config) {
 
 					// OPTIMIZE: write to a large buffer, handle overflows: the large write data size should be faster
 
-					if (!node) {
-						p = 0;
+					let glyfBufferOffset = 0;
+
+					p = 0;
+					if (node) {
+
+						var flushGlyfBuffer = function () {
+
+							if (p > 0) {
+								write (fdw, glyfBuffer, 0, p, position + glyfBufferOffset); // flush the old buffer to disk
+								glyfBufferOffset += p;
+							}
+
+							glyfBuffer = Buffer.alloc(font.config.glyf.bufferSize); // create a new buffer
+							p = 0; // reset the pointer to the start of the glyfBuffer
+
+						}
+
+						flushGlyfBuffer();
+					}
+					else {
 						glyfBuffer = new DataView(fontBuffer.buffer, position);
 					}
+
 
 					for (let g=0; g<font.numGlyphs; g++) {
 
@@ -1430,92 +1449,24 @@ function SamsaVF (init, config) {
 							font.glyphs[g] = font.parseGlyph(g); // glyf data
 						let glyph = font.glyphs[g];
 						
+						if (node)
+							glyph.tvts = font.parseTvts(g); // gvar data, one glyph at a time for memory efficiency with very large fonts
 
-						if (node) {
-							glyph.tvts = font.parseTvts(g); // gvar data
-							p = 0; // node: one glyph at a time for memory efficiency with very large fonts
-						}
-
-						// Same function for all glyphs: simple, composite, zero-contour
+						// apply variations to the glyph
+						// - same function for all glyphs: simple, composite, zero-contour
 						let iglyph = glyphApplyVariations(glyph, null, instance);
 
-						if (glyph.numContours < 0) {
-							// composite glyph
+						// SIMPLE GLYPH
+						if (glyph.numContours > 0) {
 
-							// max size of each composite glyph is:
-							//      10 bytes header
-							//    + 16 bytes (6..8 bytes + 0..8 bytes) for each component
-							//    +  2 bytes for instruction length
-							//    +  length of instructions
-							let maxNewGlyphSize = 10 + 16 * iglyph.components.length + 2 + glyph.instructionLength;
-							maxNewGlyphSize += glyfBufSafetyMargin;
-
-							if (node)
-								glyfBuffer = Buffer.alloc(maxNewGlyphSize);
-
-							// glyph header
-							glyfBuffer.setInt16(p, -1), p+=2;
-							glyfBuffer.setInt16(p, glyph.xMin), p+=2;
-							glyfBuffer.setInt16(p, glyph.yMin), p+=2;
-							glyfBuffer.setInt16(p, glyph.xMax), p+=2;
-							glyfBuffer.setInt16(p, glyph.yMax), p+=2;
-
-							// components
-							for (let c=0; c<iglyph.components.length; c++) {
-								let component = iglyph.components[c];
-
-								// set up the flags
-								let flags = 0;
-								flags |= 0x0001; // ARG_1_AND_2_ARE_WORDS (could compress the component a tiny bit if we cared about this)
-								flags |= 0x0002; // ARGS_ARE_XY_VALUES
-								if (c < iglyph.components.length-1)
-									flags |= 0x0020; // MORE_COMPONENTS
-								if (component.flags & 0x0200)
-									flags |= 0x0200; // USE_MY_METRICS (copy from the original glyph)
-								// flag 0x0100 WE_HAVE_INSTRUCTIONS is set to zero
-
-								// write this component
-								glyfBuffer.setUint16(p, flags), p+=2;
-								glyfBuffer.setUint16(p, component.glyphId), p+=2;
-								glyfBuffer.setInt16(p, iglyph.points[c][0]), p+=2;
-								glyfBuffer.setInt16(p, iglyph.points[c][1]), p+=2;								
-							}
-
-							// padding
-							if (p%2)
-								glyfBuffer.setUint8(p, 0), p++;
-
-							// write this glyph
-							if (node) {
-								write (fdw, glyfBuffer, 0, p, position);
-								position += p;
-							}
-
-							// store metrics (with node, we soon lose the iglyph)
-							aws[g] = iglyph.points[iglyph.components.length+1][0]; // the x-coordinate of the iglyph.components.length+1 point
-							if (aws[g] < 0)
-								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
-							lsbs[g] = 0; // TODO: we don’t know xMin so work out a solution to replace simple glyph’s iglyph.xMin;
-
-						}
-						else if (glyph.numContours == 0) {
-							// space glyph
-							// TODO: fix metrics
-							lsbs[g] = 0;
-							aws[g] = 0;
-						}
-						else /* glyph.numContours > 0) */
-						{
-							// simple glyph
-
-							// OPTIMIZE: Only allocate the memory once (at the biggest possible binary glyph size)
-							// - this only works in node mode of course, as frontend will normally need the whole font
-
-							// apply the variations
+							// calculate max size
 							let maxNewGlyphSize = 12 + glyph.instructionLength + (glyph.numContours+glyph.instructionLength) * 2 + glyph.numPoints * (2+2+1);
 							maxNewGlyphSize += glyfBufSafetyMargin;
-							if (node)
-								glyfBuffer = Buffer.alloc(maxNewGlyphSize);
+
+							// flush buffer if we need to
+							if (node && (p + maxNewGlyphSize) > font.config.glyf.bufferSize) {
+								flushGlyfBuffer(); // assigns new glyfBuffer and p
+							}
 
 							let xMin,xMax,yMin,yMax;
 							let pt;
@@ -1538,9 +1489,6 @@ function SamsaVF (init, config) {
 								xMax = Math.round(xMax);
 								yMin = Math.round(yMin);
 								yMax = Math.round(yMax);
-							}
-							else {
-								// TODO: COMPOSITES and SPACE GLYPHS
 							}
 							iglyph.newLsb = xMin;
 
@@ -1611,18 +1559,8 @@ function SamsaVF (init, config) {
 							}
 
 							// padding
-							if (p%2)
+							if ((glyfBufferOffset+p)%2)
 								glyfBuffer.setUint8(p, 0), p++;
-
-							// now p == size of this compiled glyph in bytes
-
-							// record our data position
-
-							// write this glyph
-							if (node) {
-								write (fdw, glyfBuffer, 0, p, position);
-								position += p;
-							}
 
 							// store metrics (with node, we soon lose the iglyph)
 							aws[g] = iglyph.points[iglyph.numPoints+1][0]; // the x-coordinate of the numPoints+1 point
@@ -1630,7 +1568,72 @@ function SamsaVF (init, config) {
 								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
 							lsbs[g] = iglyph.xMin;
 
-						}
+						} // simple glyph end
+
+						// COMPOSITE GLYPH
+						else if (glyph.numContours < 0) {
+
+							// calculate max size
+							// max size of each composite glyph is:
+							//      10 bytes header
+							//    + 16 bytes (6..8 bytes + 0..8 bytes) for each component
+							//    +  2 bytes for instruction length
+							//    +  length of instructions
+							let maxNewGlyphSize = 10 + 16 * iglyph.components.length + 2 + glyph.instructionLength;
+							maxNewGlyphSize += glyfBufSafetyMargin;
+
+							// flush buffer if we need to
+							if (node && (p + maxNewGlyphSize) > font.config.glyf.bufferSize) {
+								flushGlyfBuffer(); // assigns new glyfBuffer and p
+							}
+
+							// glyph header
+							// TODO: recalculate composite bbox (tricky in general, not bad for simple translations)
+							glyfBuffer.setInt16(p, -1), p+=2;
+							glyfBuffer.setInt16(p, glyph.xMin), p+=2;
+							glyfBuffer.setInt16(p, glyph.yMin), p+=2;
+							glyfBuffer.setInt16(p, glyph.xMax), p+=2;
+							glyfBuffer.setInt16(p, glyph.yMax), p+=2;
+
+							// components
+							for (let c=0; c<iglyph.components.length; c++) {
+								let component = iglyph.components[c];
+
+								// set up the flags
+								let flags = 0;
+								flags |= 0x0001; // ARG_1_AND_2_ARE_WORDS (could compress the component a tiny bit if we cared about this)
+								flags |= 0x0002; // ARGS_ARE_XY_VALUES
+								if (c < iglyph.components.length-1)
+									flags |= 0x0020; // MORE_COMPONENTS
+								if (component.flags & 0x0200)
+									flags |= 0x0200; // USE_MY_METRICS (copy from the original glyph)
+								// flag 0x0100 WE_HAVE_INSTRUCTIONS is set to zero
+
+								// write this component
+								glyfBuffer.setUint16(p, flags), p+=2;
+								glyfBuffer.setUint16(p, component.glyphId), p+=2;
+								glyfBuffer.setInt16(p, iglyph.points[c][0]), p+=2;
+								glyfBuffer.setInt16(p, iglyph.points[c][1]), p+=2;								
+							}
+
+							// padding
+							if ((glyfBufferOffset+p)%2)
+								glyfBuffer.setUint8(p, 0), p++;
+
+							// store metrics (with node, we soon lose the iglyph)
+							aws[g] = iglyph.points[iglyph.components.length+1][0]; // the x-coordinate of the iglyph.components.length+1 point
+							if (aws[g] < 0)
+								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
+							lsbs[g] = 0; // TODO: we don’t know xMin so work out a solution to replace simple glyph’s iglyph.xMin;
+
+						} // composite glyph end
+
+						// EMPTY GLYPH
+						else { // (glyph.numContours == 0)
+							// TODO: fix metrics
+							lsbs[g] = 0;
+							aws[g] = 0;
+						} // empty glyph end
 
 
 						// release memory explicitly (might be more efficient to leave this to the garbage collector)
@@ -1642,18 +1645,21 @@ function SamsaVF (init, config) {
 
 						// store location of *next* loca
 						if (node)
-							newLocas[g+1] = newLocas[g] + p;
+							newLocas[g+1] = glyfBufferOffset + p;
 						else
 							newLocas[g+1] = p;
 
 						// OPTIMIZE: write locations directly to locaBuf
 					}
 
+					// final flush
+					// - this is the only write to disk for glyf tables with length < font.config.glyf.bufferSize
+					if (node)
+						flushGlyfBuffer();
+
 					// update table.length
 					table.length = newLocas[font.numGlyphs];
-
-					if (!node)
-						position += table.length;
+					position += table.length;
 
 					break;
 
