@@ -14,43 +14,8 @@ let config = {
 };
 
 
-// mappings from DataView methods to Buffer methods
-// TODO?: move these to samsa-core.js
-Buffer.prototype.getUint32 = Buffer.prototype.readUInt32BE;
-Buffer.prototype.getInt32  = Buffer.prototype.readInt32BE;
-Buffer.prototype.getUint16 = Buffer.prototype.readUInt16BE;
-Buffer.prototype.getInt16  = Buffer.prototype.readInt16BE;
-Buffer.prototype.getUint8  = Buffer.prototype.readUInt8;
-Buffer.prototype.getInt8   = Buffer.prototype.readInt8;
-
-Buffer.prototype.setUint32 = function (p,v) {this.writeUInt32BE(v,p);}
-Buffer.prototype.setInt32  = function (p,v) {this.writeInt32BE(v,p);}
-Buffer.prototype.setUint16 = function (p,v) {this.writeUInt16BE(v,p);}
-Buffer.prototype.setInt16  = function (p,v) {this.writeInt16BE(v,p);}
-Buffer.prototype.setUint8  = function (p,v) {this.writeUInt8(v,p);}
-Buffer.prototype.setInt8   = function (p,v) {this.writeInt8(v,p);}
-
-// add new Buffer methods
-Buffer.prototype.getTag = function (p) {
-	var tag = "";
-	var p_end = p + 4; // global
-	var ch;
-	while (p < p_end)
-	{
-		ch = this.readUInt8(p++);
-		if (ch >= 32 && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
-			tag += String.fromCharCode(ch);	
-	}
-	return tag.length == 4 ? tag : false;
-}
-
-Buffer.prototype.getF2DOT14 = function (p) {
-	return this.getInt16(p) / 16384.0; /* signed */
-}
-
 
 // import modules
-// TODO?: move these to samsa-core.js
 module.paths.push(config.path);
 let fs = require('fs');
 let samsa = require("samsa-core.js");
@@ -164,20 +129,20 @@ Examples:
   Make static fonts for all named instances 
   % node samsa-cli.js Gingham.ttf --instances named
 
-  Make static fonts for all named instances (switching to short -I syntax)
-  % node samsa-cli.js Gingham.ttf -I named
+  Make static fonts for all named instances (switching to short -i syntax)
+  % node samsa-cli.js Gingham.ttf -i named
 
   Make static fonts for all stat instances
-  % node samsa-cli.js SourceSans.ttf -I stat
+  % node samsa-cli.js SourceSans.ttf -i stat
 
   Make a static font for the custom instance at wght 245, wdth 89
-  % node samsa-cli.js Skia.ttf -I "wght 345 wdth 89"
+  % node samsa-cli.js Skia.ttf -i "wght 345 wdth 89"
 
   Make a static font for the default instance
-  % node samsa-cli.js Skia.ttf -I default
+  % node samsa-cli.js Skia.ttf -i default
 
   Make static fonts using multiple instance specifications separated with ";"
-  % node samsa-cli.js Skia.ttf -I "named;stat;wght 345 wdth 89;wght 811 wdth 180;default"
+  % node samsa-cli.js Skia.ttf -i "named;stat;wght 345 wdth 89;wght 811 wdth 180;default"
 `);
 
 }

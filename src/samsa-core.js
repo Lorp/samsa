@@ -61,6 +61,43 @@ let CONFIG = {
 
 };
 
+
+if (CONFIG.isNode) {
+	// mappings from DataView methods to Buffer methods
+	Buffer.prototype.getUint32 = Buffer.prototype.readUInt32BE;
+	Buffer.prototype.getInt32  = Buffer.prototype.readInt32BE;
+	Buffer.prototype.getUint16 = Buffer.prototype.readUInt16BE;
+	Buffer.prototype.getInt16  = Buffer.prototype.readInt16BE;
+	Buffer.prototype.getUint8  = Buffer.prototype.readUInt8;
+	Buffer.prototype.getInt8   = Buffer.prototype.readInt8;
+
+	Buffer.prototype.setUint32 = function (p,v) {this.writeUInt32BE(v,p);}
+	Buffer.prototype.setInt32  = function (p,v) {this.writeInt32BE(v,p);}
+	Buffer.prototype.setUint16 = function (p,v) {this.writeUInt16BE(v,p);}
+	Buffer.prototype.setInt16  = function (p,v) {this.writeInt16BE(v,p);}
+	Buffer.prototype.setUint8  = function (p,v) {this.writeUInt8(v,p);}
+	Buffer.prototype.setInt8   = function (p,v) {this.writeInt8(v,p);}
+
+	// add new Buffer methods
+	Buffer.prototype.getTag = function (p) {
+		var tag = "";
+		var p_end = p + 4; // global
+		var ch;
+		while (p < p_end)
+		{
+			ch = this.readUInt8(p++);
+			if (ch >= 32 && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
+				tag += String.fromCharCode(ch);	
+		}
+		return tag.length == 4 ? tag : false;
+	}
+
+	Buffer.prototype.getF2DOT14 = function (p) {
+		return this.getInt16(p) / 16384.0; /* signed */
+	}
+}
+
+
 let fonts = [];
 let glyph = {
 	font: undefined,
@@ -266,8 +303,6 @@ function SamsaVF (init, config) {
 			oReq.SamsaVF = this;
 			oReq.onload = function(oEvent) {
 
-				//this.data = new DataView(this.response);
-				//this.parse();
 				oReq.SamsaVF.data = new DataView(this.response);
 				oReq.SamsaVF.filesize = oReq.SamsaVF.data.byteLength;
 				oReq.SamsaVF.parse();
@@ -306,7 +341,10 @@ function SamsaVF (init, config) {
 		switch (font.fingerprint) {
 			case 0x00010000: // normal TrueType
 			case 0x74727565: // 'true' (as in Skia.ttf)
+				font.flavor = "truetype";
+				break;
 			case 0x4f54544f: // 'OTTO' (as in OpenType OTF fonts)
+				font.flavor = "cff";
 				break;
 			default:
 				font.errors.push ("Invalid first 4 bytes of the file. Must be one of: 0x00010000, 0x74727565, 0x4f54544f");
@@ -675,10 +713,9 @@ function SamsaVF (init, config) {
 
 				// build instances
 				// - insert default instance as well as the instances in the fvar table
-				// - flag named instances with namedInstance=true
 				font.instances = [];
-				for (let i=0; i<table.instanceCount+1; i++) // +1 allows for default instance
-				{
+				for (let i=0; i<table.instanceCount+1; i++) { // +1 allows for default instance
+
 					let instance = {
 						id: i,
 						glyphs: [],
@@ -1662,6 +1699,7 @@ function SamsaVF (init, config) {
 					// - TODO: calculate size of nameBuf accurately, then we can:
 					//         delete config.name.maxSize
 					//         write directly into font file in frontend mode
+
 					const nameBuf = new DataView(new ArrayBuffer(font.config.name.maxSize));
 					let newNames = [];
 
@@ -1739,8 +1777,8 @@ function SamsaVF (init, config) {
 					// - in node, we call this *before* writing to the file
 					// - memory, we call this *after* copying to the new file in memory
 					// - this helps avoid allocating temporary memory to edit
-					let tweakTables = () => {
-						switch (table.tag) {
+					const tweakTable = tag => {
+						switch (tag) {
 							case "head":
 								tableBuffer.setUint16(50, 0x0001); // long loca format makes things simpler since we know in advance how much space we need for loca
 								break;
@@ -1758,9 +1796,10 @@ function SamsaVF (init, config) {
 
 					// read table
 					if (node) {
-						tableBuffer = Buffer.alloc(table.length);
+						//tableBuffer = Buffer.alloc(table.length);
+						tableBuffer = new DataView(new ArrayBuffer(table.length));
 						read (fd, tableBuffer, 0, table.length, font.tables[table.tag].offset);
-						// OPTIMIZE: only read these short tables once
+						// OPTIMIZE: don’t read these short tables again if we already read them when parsing
 					}
 					else {
 						tableBuffer = new DataView(fontBuffer.buffer, table.offset, table.length); // looks into new font
@@ -1768,14 +1807,14 @@ function SamsaVF (init, config) {
 					}
 
 					// write table
-					// - note tweaking happens *before* write in node, but *after* copy in memory
+					// - note tweaking happens *before* the write in node, but *after* the copy in memory
 					if (node) {
-						tweakTables();
+						tweakTable(table.tag);
 						write (fdw, tableBuffer, 0, table.length, table.offset);
 					}
 					else {
-						copyBytes(sourceTableBuffer, tableBuffer, 0, 0, table.length); // copy from original table to new table
-						tweakTables();
+						copyBytes(sourceTableBuffer, tableBuffer, 0, 0, table.length); // copy from original table to new table without intermediate
+						tweakTable(table.tag);
 					}
 
 					position += table.length;
