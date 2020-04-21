@@ -125,6 +125,12 @@ CONFIG.uiModes = {
 			strokeWidth: 1,
 		},
 
+		metrics: {
+			stroke: "#31b8e7",
+			strokeWidth: 1,
+			dashArray: [3,3],
+		},
+
 		arrow: {
 			strokeWidth: 3,
 			tipLength: 20,
@@ -210,6 +216,12 @@ CONFIG.uiModes = {
 		cartesianAxes: {
 			stroke: "lightblue",
 			strokeWidth: 1,
+		},
+
+		metrics: {
+			stroke: "#31b8e7",
+			strokeWidth: 1,
+			dashArray: [3,3],
 		},
 
 		arrow: {
@@ -298,6 +310,12 @@ CONFIG.uiModes = {
 			strokeWidth: 1,
 		},
 
+		metrics: {
+			stroke: "#31b8e7",
+			strokeWidth: 1,
+			dashArray: [3,3],
+		},
+
 		arrow: {
 			strokeWidth: 0,
 		},
@@ -382,8 +400,13 @@ CONFIG.uiModes = {
 		name: "preview",
 
 		cartesianAxes: {
-			stroke: "lightblue",
-			strokeWidth: 1,
+			stroke: "none",
+			strokeWidth: 0,
+		},
+
+		metrics: {
+			stroke: "none",
+			strokeWidth: 0,
 		},
 
 		arrow: {
@@ -2154,18 +2177,42 @@ function setActiveGlyph (g, instance) {
 
 		switch (L) {
 
-			// cartesian axes, the grid
+			// cartesian axes, the grid (and metrics!)
 			case 0:
-				layer.id = "layer-grid";
-				svgPath = SVG("path");
-				svgPath.id = layer.id;
-				svgPath.attrsSVG({
-					d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
-					stroke: ui.cartesianAxes.stroke,
-					"stroke-width": ui.cartesianAxes.strokeWidth * uiScale,
-					fill: "none",
-				});
-				svgg.appendChild(svgPath);
+				if (ui.cartesianAxes.strokeWidth > 0 || ui.cartesianAxes.stroke != "none") {
+					layer.id = "layer-grid";
+					svgPath = SVG("path");
+					svgPath.id = layer.id;
+					svgPath.attrsSVG({
+						d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
+						stroke: ui.cartesianAxes.stroke,
+						"stroke-width": ui.cartesianAxes.strokeWidth * uiScale,
+						fill: "none",
+					});
+					svgg.appendChild(svgPath);
+				}
+
+				if (ui.metrics.strokeWidth > 0 || ui.metrics.stroke != "none") {
+					let svgLine = SVG("line");
+					svgLine.attrsSVG({
+						x1: iglyph.points[glyph.numPoints+1][0],
+						y1: -10000,
+						x2: iglyph.points[glyph.numPoints+1][0],
+						y2: 10000,
+						stroke: ui.metrics.stroke,
+						"stroke-width": ui.metrics.strokeWidth * uiScale,
+					});
+					if (ui.metrics.dashArray) {
+						let dashStr = "";
+						ui.metrics.dashArray.forEach(dash => {
+							dashStr += `${dash*uiScale} `;
+						});
+						svgLine.attrsSVG({
+							"stroke-dasharray": dashStr,
+						});
+					}
+					svgg.appendChild(svgLine);
+				}
 
 				break;
 
