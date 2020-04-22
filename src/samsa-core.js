@@ -390,7 +390,7 @@ function SamsaVF (init, config) {
 
 		// parse the short sfnt tables
 		// - maxp must be first
-		// - avar must precede fvar
+		// - avar must precede fvar (because of normalizing code in fvar parsing)
 		// - name must precede fvar
 		// - name must precede STAT
 		// - gvar isn’t short, but we only parse its header here
@@ -763,9 +763,9 @@ function SamsaVF (init, config) {
 					break;
 				p+=2
 				table.axisCount = data.getUint16(p), p+=2;
-				for (let a=0; a<font.axisCount; a++) {
+				for (let a=0; a<table.axisCount; a++) { // not font.axisCount, because we have not yet parsed fvar
 					font.avar[a] = [];
-					let positionMapCount = data.getUint16(p); p+=2;
+					let positionMapCount = data.getUint16(p); p+=2; // TODO: if positionMapCount==3 (NOOP), don’t store anything
 					for (let m=0; m<positionMapCount; m++) {
 						font.avar[a][m] = [data.getF2DOT14(p), data.getF2DOT14(p+2)], p+=4; // = [<fromCoordinate>,<toCoordinate>]
 					}
@@ -2005,11 +2005,10 @@ function SamsaVF (init, config) {
 
 		// transforms a normalized tuple into an fvs object
 		let fvs = {};
-		//let tupleNormalized = []; // this is not yet normalized
 		this.axes.forEach((axis,a) => {
 			let n = tuple[a];
 
-			// avar detransformation
+			// avar denormalization
 			if (this.avar && this.avar[a]) {
 
 				let map = this.avar[a];
@@ -2025,6 +2024,7 @@ function SamsaVF (init, config) {
 							else
 								n = map[m-1][0] + (map[m][0] - map[m-1][0]) * ( ( n - map[m-1][1] ) / ( map[m][1] - map[m-1][1] ) )
 						}
+						break;
 					}
 				}
 			}
@@ -2063,7 +2063,7 @@ function SamsaVF (init, config) {
 	//////////////////////////////////
 	//  axisNormalize(axis, t)
 	//////////////////////////////////
-	this.axisNormalize = (axis, t) => {
+	this.axisNormalize = (axis, t, avarIgnore) => {
 
 		// noramalizes t into n, which is returned
 
@@ -2090,30 +2090,33 @@ function SamsaVF (init, config) {
 		// basic normalization
 		if (t == axis.default)
 			n = 0;
-		else if (t > axis.default)
+		else if (t > axis.default) {
 			if (t > axis.max)
 				n = 1;
 			else
 				n = axis.max==axis.default? 0 : (t-axis.default)/(axis.max-axis.default);
-		else
+		}
+		else {
 			if (t < axis.min)
 				n = -1;
 			else
 				n = axis.min==axis.default? 0 : (axis.default-t)/(axis.min-axis.default);
+		}
 
 		// "avar" table transformation
 		// - see https://docs.microsoft.com/en-us/typography/opentype/spec/avar
-		if (this.avar && this.avar[axis.id]) {
+		if (this.avar && this.avar[axis.id] && !avarIgnore) {
 			let map = this.avar[axis.id];
 			for (let m=0; m<map.length; m++) {
 
 				if (map[m][0] >= n) {
-					if (map[m][0] == n) {
+
+					if (map[m][0] == n)
 						n = map[m][1];
-					}
-					else {
-						n = map[m-1][1] + (map[m][1] - map[m-1][1]) * ( ( n - map[m-1][0] ) / ( map[m][0] - map[m-1][0] ) )
-					}
+					else
+						n = map[m-1][1] + (map[m][1] - map[m-1][1]) * ( ( n - map[m-1][0] ) / ( map[m][0] - map[m-1][0] ) );
+
+					break;
 				}
 			}
 		}

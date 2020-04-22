@@ -64,7 +64,7 @@
 	</div>
 
 	<div id="panel-tvts" class="panel open">
-		<h2><span class="icon bold reveal">&#xf04b;</span> Tuple Variations</h2>
+		<h2><span class="icon bold reveal">&#xf04b;</span> Delta sets</h2>
 		<div style="overflow-x: scroll;"></div>
 	</div>
 
@@ -795,12 +795,16 @@ function vfLoaded (font) {
 	// Info panel
 	///////////////////////////////////////////////////////
 	panel = Q("#panel-info>div");
-	panel.innerText = "";
-	panel.innerHTML += `${font.filename} (${font.filesize || "<em>n</em>"} bytes)<br>`;
-	panel.innerHTML += `Full name: ${font.names[4]}<br>`;
-	//panel.innerHTML += `Date: ${Date(font.date).toString()}<br>`;
-
-
+	panel.style.fontSize = "75%";
+	panel.style.wordBreak = "break-all";
+	[
+		["File", font.filename],
+		["Size", font.filesize],
+		["Full name", font.names[4]],
+		["Version", font.names[5]],
+	].forEach(item => {
+		panel.innerHTML += `<em>${item[0]}:</em> ${item[1]}<br>`;
+	});
 
 	///////////////////////////////////////////////////////
 	// UI Panel
@@ -1120,9 +1124,10 @@ function vfLoaded (font) {
 		slider.setAttribute("max", 1.0);
 		slider.setAttribute("step", 0.001);
 
-		slider.data = {axis: axis};
-
 		panel.appendChild(slider);
+
+		slider.data = li.data = {axis: axis, current: axis.default};
+
 		slider.addEventListener("input", axisInput);
 
 		// double-click sets the axis to default
@@ -1162,12 +1167,137 @@ function vfLoaded (font) {
 	let axisValueLabel = EL("label");
 	axisValueLabel.innerText = "Number format";
 
-	
 	grid.appendChild(axisValueLabel);
-	grid.appendChild(axisValueFormat)
-	grid.appendChild(addInstanceEl)
+	grid.appendChild(axisValueFormat);
+	grid.appendChild(addInstanceEl);
+
+	// avar toggle
+	if (font.avar.length > 0) {
+		let avarLabel = EL("label");
+		let avarChk = EL("input");
+		avarChk.setAttribute("type", "checkbox");
+		avarChk.id = "avarChk";
+		avarLabel.innerText = "Show avar";
+		avarLabel.setAttribute("for", avarChk)
+		grid.appendChild(avarLabel);
+		grid.appendChild(avarChk);
+
+		avarChk.addEventListener("change", ev => {
+			Q(`#avar`).style.display = avarChk.checked ? "block" : "none";
+		});
+	}
+
 	panel.appendChild(grid);
 
+	// avar ui
+	const avarDiv = EL("div");
+	avarDiv.id = "avar";
+	avarDiv.style.width = "100%";
+	avarDiv.style.minHeight = "100px";
+	avarDiv.style.display = "none";
+
+	if (font.avar.length > 0) {
+		let avarSVGwidth = 340, avarSVGheight = 100;
+		let avarMapColor = "grey", avarCurrentColor = "limegreen";
+		font.avar.forEach((axisMaps, a) => {
+			if (axisMaps.length > 0) {
+				const avarSVG = SVG("svg");
+
+				avarSVG.classList.add("avar-axis-svg");
+				avarSVG.data = {axis: font.axes[a]};
+				avarSVG.attrsSVG({
+					width: 360,
+					height: 116,
+				});
+
+				let rect = SVG("rect");
+				rect.attrsSVG({
+					x: 10,
+					y: 10,
+					width: avarSVGwidth,
+					height: avarSVGheight,
+					stroke: "black",
+					"stroke-width": 0.25,
+					fill: "none",
+				});
+				avarSVG.appendChild(rect);
+
+				axisMaps.forEach(map => {
+
+					let arrowLine = SVG("line");
+					let arrowHead = SVG("path");
+					let arrow = getArrowParams({
+						x1: 10 + (map[0]+1)/2 * avarSVGwidth,
+						y1: 10,
+						x2: 10 + (map[1]+1)/2 * avarSVGwidth,
+						y2: 10 + avarSVGheight,
+						tipWid: 5,
+						tipLen: 10,
+					});
+
+					arrowLine.attrsSVG({
+						x1: arrow.x1,
+						y1: arrow.y1,
+						x2: arrow.newX2,
+						y2: arrow.newY2,
+						stroke: avarMapColor,
+						"stroke-width": 1,
+						fill: avarMapColor,
+					});
+
+					arrowHead.attrsSVG({
+						d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
+						fill: avarMapColor,
+					});
+
+					avarSVG.appendChild(arrowLine);
+					avarSVG.appendChild(arrowHead);
+				});
+
+				// current line
+				let avarCurrentLine = SVG("line");
+				let avarCurrentHead = SVG("path");
+				let arrow = getArrowParams({
+					x1: 10 + 1/2 * avarSVGwidth,
+					y1: 10,
+					x2: 10 + 1/2 * avarSVGwidth,
+					y2: 10+avarSVGheight,
+					tipWid: 10,
+					tipLen: 20,
+				});
+				avarCurrentLine.attrsSVG({
+					stroke: avarCurrentColor,
+					"stroke-width": 3,
+					x1: arrow.x1,
+					y1: arrow.y1,
+					x2: arrow.newX2,
+					y2: arrow.newY2,
+				});
+
+				avarCurrentHead.attrsSVG({
+					d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
+					fill: avarCurrentColor,
+				});
+
+				avarCurrentLine.classList.add("avar-current");
+				avarCurrentHead.classList.add("avar-current");
+
+				avarSVG.appendChild(avarCurrentLine);
+				avarSVG.appendChild(avarCurrentHead);
+
+				let titleEl = SVG("title");
+				titleEl.textContent = `${font.axes[a].default} → ${0} → ${0}`;
+				avarSVG.appendChild(titleEl);
+
+				avarDiv.appendChild(avarSVG);
+			}
+
+		});
+	}
+	panel.appendChild(avarDiv);
+
+	// handle events
+	
 	// event: click
 	addInstanceEl.addEventListener("click", ()=>{
 		appendInstanceEl(undefined, true);
@@ -1590,11 +1720,59 @@ function numberFormat(val, axis) {
 
 function axesUpdateValues () {
 	// update axis values
-	let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
-	GLOBAL.vf.axes.forEach((axis,a) => {
+	const font = GLOBAL.vf;
+	let fvs = font.tupleToFvs(GLOBAL.tuple);
+	font.axes.forEach((axis,a) => {
 		let currentVal = fvs[axis.tag] === undefined ? axis.default : fvs[axis.tag];
 		Q(`#axis-${a}>.axis-current`).value = numberFormat(currentVal, axis);
 	});
+
+	// update avar
+	if (font.avar) {
+
+		let avarSVGs = Qall(".avar-axis-svg");
+
+		console.log(avarSVGs);
+		if (avarSVGs.length > 0) {
+			avarSVGs.forEach(avarSVG => {
+
+				let avarSVGwidth = 340, avarSVGheight = 100;
+				let axis = avarSVG.data.axis;
+				let userVal = Q(`#axis-${axis.id}`).data.current;
+				let initial = font.axisNormalize(axis, userVal, true); // set avarIgnore arg to true
+				let final = GLOBAL.tuple[axis.id]; // == font.axisNormalize(axis, userVal); // i.e. avarIgnore == undefined
+				let avarCurrentLine = avarSVG.querySelector("line.avar-current");
+				let avarCurrentHead = avarSVG.querySelector("path.avar-current");
+				let arrow = getArrowParams({
+					x1: 10 + (initial+1)/2 * avarSVGwidth,
+					y1: 10,
+					x2: 10 + (final+1)/2 * avarSVGwidth,
+					y2: 10 + avarSVGheight,
+					tipWid: 10,
+					tipLen: 20,
+				});
+
+				// adjust the arrow’s line and head attributes
+				avarCurrentLine.attrsSVG({
+					x1: arrow.x1,
+					y1: arrow.y1,
+					x2: arrow.newX2,
+					y2: arrow.newY2,
+				});
+				avarCurrentHead.attrsSVG({
+					d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
+				});
+
+				// set title tooltip
+				avarSVG.querySelector("title").textContent = `${userVal} → ${initial} → ${final}`;
+			});
+		}
+
+		font.axes.forEach((axis, a) => {
+			axis.id
+
+		});
+	}
 }
 
 
@@ -1611,7 +1789,9 @@ function axisInput(ev) {
 	let fvs = font.tupleToFvs(GLOBAL.tuple);
 	let tag = ev.target.data.axis.tag;
 	fvs[tag] = fvsFromSliders[tag];
+	ev.target.data.current = fvs[tag];
 	let instance = font.addInstance(fvs); // { name: "Custom", tuple: [] };
+
 
 	// create instance
 	//let instance = font.addInstance(getCurrentFvs()); // { name: "Custom", tuple: [] };
@@ -1924,6 +2104,7 @@ function setAxes (font, fvs) {
 			val = axis.max;
 
 		sliders[a].value = (val - axis.min) / (axis.max - axis.min);
+		sliders[a].data.current = val;
 	});
 }
 
@@ -1979,28 +2160,23 @@ function getActiveGlyph () {
 	// return font.currentGlyphId;
 }
 
-function getArrowParams (x1, y1, x2, y2) {
 
-	let arrow;
-	let newX2, newY2;
-	let len;
-	const ui = GLOBAL.vf.config.ui;
+function getArrowParams (arrow) {
 
+	// call with getArrowParams({x1: x1, x2: x2, y1: y1, y2: y2, tipLen: tipLen, tipWid, tipWid})
+
+	const x1 = arrow.x1, y1 = arrow.y1, x2 = arrow.x2, y2 = arrow.y2;
+	const tipLen = arrow.tipLen, tipWid = arrow.tipWid;
 	if (x2!=x1 || y2!=y1) {
-		let tipWidth = ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000;
-		let tipLength = ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000;
-		len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
-		let arrowBackX = (y2-y1) * tipWidth/2/len;
-		let arrowBackY = (x2-x1) * tipWidth/2/len;
+		const len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+		const arrowBackX = (y2-y1) * tipWid/2/len, arrowBackY = (x2-x1) * tipWid/2/len;
 
-		arrow = {
-			newX2: newX2 = x1 + (x2-x1) * (len-tipLength)/len, // assignement helps 2 lines on
-			newY2: newY2 = y1 + (y2-y1) * (len-tipLength)/len, // assignement helps 2 lines on
-			arrowX1: newX2+arrowBackX,
-			arrowY1: newY2-arrowBackY,
-			arrowX2: newX2-arrowBackX,
-			arrowY2: newY2+arrowBackY,
-		};
+		arrow.arrowX1 = arrow.arrowX2 = arrow.newX2 = x1 + (x2-x1) * (len-tipLen)/len;
+		arrow.arrowY1 = arrow.arrowY2 = arrow.newY2 = y1 + (y2-y1) * (len-tipLen)/len;
+		arrow.arrowX1 += arrowBackX;
+		arrow.arrowY1 -= arrowBackY;
+		arrow.arrowX2 -= arrowBackX;
+		arrow.arrowY2 += arrowBackY;
 	}
 	return arrow;
 }
@@ -2193,12 +2369,9 @@ function setActiveGlyph (g, instance) {
 				}
 
 				if (ui.metrics.strokeWidth > 0 || ui.metrics.stroke != "none") {
-					let svgLine = SVG("line");
-					svgLine.attrsSVG({
-						x1: iglyph.points[glyph.numPoints+1][0],
-						y1: -10000,
-						x2: iglyph.points[glyph.numPoints+1][0],
-						y2: 10000,
+					svgPath = SVG("path");
+					svgPath.attrsSVG({
+						d: `M${iglyph.points[glyph.numPoints+1][0]} -10000V10000`,
 						stroke: ui.metrics.stroke,
 						"stroke-width": ui.metrics.strokeWidth * uiScale,
 					});
@@ -2207,11 +2380,11 @@ function setActiveGlyph (g, instance) {
 						ui.metrics.dashArray.forEach(dash => {
 							dashStr += `${dash*uiScale} `;
 						});
-						svgLine.attrsSVG({
+						svgPath.attrsSVG({
 							"stroke-dasharray": dashStr,
 						});
 					}
-					svgg.appendChild(svgLine);
+					svgg.appendChild(svgPath);
 				}
 
 				break;
@@ -2365,7 +2538,8 @@ function setActiveGlyph (g, instance) {
 					}
 					else {
 						// get the arrow parameters so we can draw a truncated line (maybe dotted) plus arrow head
-						let arrow = getArrowParams (x1, y1, x2, y2);
+						//let arrow = getArrowParams (x1, y1, x2, y2);
+						let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000});
 						let svgLine = SVG("line");
 						let svgArrowHead = SVG("path");
 						svgLine.attrsSVG({ x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2 });
@@ -2483,7 +2657,8 @@ function setActiveGlyph (g, instance) {
 							// It might be more efficient to draw each tuple’s lines as one path
 							// - but the resulting SVG would be ugly to edit
 							// - and we’d also have to make separate paths for IUP and non-IUP arrows
-							let arrow = getArrowParams (x1, y1, x2, y2);
+							//let arrow = getArrowParams (x1, y1, x2, y2);
+							let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000});
 
 							// make the line
 							let svgLine = SVG("line");
@@ -2714,7 +2889,7 @@ function setActiveGlyph (g, instance) {
 			let liH = document.createElement("li");
 			liH.style.display = "grid";
 			liH.style.gridTemplateColumns = `1.5em 80px 45px repeat(${GLOBAL.vf.axisCount}, 45px)`
-			liH.innerHTML = `<label>TVT</label><label>IUP</label><label>Scalar</label>`;
+			liH.innerHTML = `<label>ID</label><label>Deltas</label><label>Scalar</label>`;
 			GLOBAL.vf.axes.forEach(axis => {
 				liH.innerHTML += `<label style="width:100%; text-align:center;"><tt>${axis.tag}</tt></label>`;
 			});
@@ -2744,7 +2919,7 @@ function setActiveGlyph (g, instance) {
 			if (tvt.deltas[p] !== null)
 				numDeltas++;
 		}
-		tvtDeltas.innerText = `${tvt.deltas.length-numDeltas}`;
+		tvtDeltas.innerHTML = `&nbsp;<span class="icon bold reveal open" style="position: static;">&#xf04b;</span>` + ` ${numDeltas}`;
 		tvtDeltas.setAttribute("title", `This tuple variation moves ${tvt.deltas.length-numDeltas} points via IUP.`);
 
 		// draw S value as bar graph
