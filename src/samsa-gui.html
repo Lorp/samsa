@@ -1286,7 +1286,7 @@ function vfLoaded (font) {
 				avarSVG.appendChild(avarCurrentHead);
 
 				let titleEl = SVG("title");
-				titleEl.textContent = `${font.axes[a].default} → ${0} → ${0}`;
+				titleEl.textContent = `${font.axes[a].default}\n→ ${0}\n → ${0}\n${font.axes[a].default}`;
 				avarSVG.appendChild(titleEl);
 
 				avarDiv.appendChild(avarSVG);
@@ -1297,7 +1297,7 @@ function vfLoaded (font) {
 	panel.appendChild(avarDiv);
 
 	// handle events
-	
+
 	// event: click
 	addInstanceEl.addEventListener("click", ()=>{
 		appendInstanceEl(undefined, true);
@@ -1738,7 +1738,7 @@ function axesUpdateValues () {
 
 				let avarSVGwidth = 340, avarSVGheight = 100;
 				let axis = avarSVG.data.axis;
-				let userVal = Q(`#axis-${axis.id}`).data.current;
+				let userVal = Q(`#axis-${axis.id}`).data.current, userValTrans = axis.default;
 				let initial = font.axisNormalize(axis, userVal, true); // set avarIgnore arg to true
 				let final = GLOBAL.tuple[axis.id]; // == font.axisNormalize(axis, userVal); // i.e. avarIgnore == undefined
 				let avarCurrentLine = avarSVG.querySelector("line.avar-current");
@@ -1764,7 +1764,11 @@ function axesUpdateValues () {
 				});
 
 				// set title tooltip
-				avarSVG.querySelector("title").textContent = `${userVal} → ${initial} → ${final}`;
+				if (final > 0)
+					userValTrans += final * (axis.max - axis.default);
+				else if (final < 0)
+					userValTrans += final * (axis.default - axis.min);
+				avarSVG.querySelector("title").textContent = `${userVal}\n→ ${initial}\n→ ${final}\n→ ${userValTrans}`;
 			});
 		}
 
