@@ -1163,7 +1163,6 @@ function SamsaVF (init, config) {
 			}
 
 			// [[ 2 ]] get each tvt
-			// get the tvt
 			for (let t=0; t < tupleCount; t++) {
 
 				let tupleSize, tupleIndex, tupleIntermediate, tuplePrivatePointNumbers, tupleNumPoints, impliedAllPoints;
@@ -1419,7 +1418,6 @@ function SamsaVF (init, config) {
 					// OPTIMIZE: write to a large buffer, handle overflows: the large write data size should be faster
 
 					let glyfBufferOffset = 0;
-
 					p = 0;
 					if (node) {
 
@@ -1431,6 +1429,8 @@ function SamsaVF (init, config) {
 							}
 
 							glyfBuffer = Buffer.alloc(font.config.glyf.bufferSize); // create a new buffer
+							// if (!glyfBuffer) // this condition doesn’t seem to speed things up
+							// 	glyfBuffer = Buffer.alloc(font.config.glyf.bufferSize); // create a new buffer
 							p = 0; // reset the pointer to the start of the glyfBuffer
 
 						}
@@ -1631,8 +1631,8 @@ function SamsaVF (init, config) {
 						// EMPTY GLYPH
 						else { // (glyph.numContours == 0)
 							// TODO: fix metrics
+							aws[g] = iglyph.points[1][0]; // the x-coordinate of the numPoints+1 point;
 							lsbs[g] = 0;
-							aws[g] = 0;
 						} // empty glyph end
 
 
@@ -2271,7 +2271,6 @@ function glyphApplyVariations (glyph, userTuple, instance, extra) {
 		yMin: undefined,
 		xMax: undefined,
 		yMax: undefined,
-		advanceWidth: 0,
 		flags: glyph.flags, // do we need this?
 	};
 	let round = CONFIG.deltas.round;
@@ -2452,9 +2451,9 @@ function glyphApplyVariations (glyph, userTuple, instance, extra) {
 	}
 	
 	if (instance) {
-		//console.log(`Saving this transformed glyph in instance.glyphs[${glyph.id}]`);
 		instance.glyphs[glyph.id] = newGlyph;
 	}
+
 	return newGlyph;
 }
 
