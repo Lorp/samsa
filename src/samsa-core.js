@@ -2432,8 +2432,8 @@ function glyphApplyVariations (glyph, userTuple, instance, extra) {
 
 	}); // end of processing the tvts
 
-	// new extremes
-	// - ignore for composites
+	// new bbox extremes
+	// - TODO: fix for composites and non-printing glyphs (even though the latter don’t record a bbox)
 	if (glyph.tvts.length) {
 		newGlyph.xMin = newGlyph.yMin = 32767;
 		newGlyph.xMax = newGlyph.yMax = -32768;
@@ -2450,10 +2450,6 @@ function glyphApplyVariations (glyph, userTuple, instance, extra) {
 		}
 	}
 	
-	if (instance) {
-		instance.glyphs[glyph.id] = newGlyph;
-	}
-
 	return newGlyph;
 }
 
