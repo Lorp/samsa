@@ -546,7 +546,7 @@ function getCurrentFvs() {
 }
 
 
-// TODO: this is needless duplication of what SamsaVF.addInstance() already does
+// TODO: this is needless duplication of what SamsaFont.addInstance() already does
 // - we can assign the ui object in the options argument
 function appendInstanceEl(instance, select) {
 
@@ -2357,6 +2357,8 @@ function setActiveGlyph (g, instance) {
 
 			// cartesian axes, the grid (and metrics!)
 			case 0:
+
+				// draw cartesian axes
 				if (ui.cartesianAxes.strokeWidth > 0 || ui.cartesianAxes.stroke != "none") {
 					layer.id = "layer-grid";
 					svgPath = SVG("path");
@@ -2370,10 +2372,11 @@ function setActiveGlyph (g, instance) {
 					svgg.appendChild(svgPath);
 				}
 
+				// draw advance width
 				if (ui.metrics.strokeWidth > 0 || ui.metrics.stroke != "none") {
 					svgPath = SVG("path");
 					svgPath.attrsSVG({
-						d: `M${iglyph.points[glyph.numPoints+1][0]} -10000V10000`,
+						d: `M${iglyph.points[glyph.points.length-3][0]} -10000V10000`, // glyph.points.length works for simple, composite and empty
 						stroke: ui.metrics.stroke,
 						"stroke-width": ui.metrics.strokeWidth * uiScale,
 					});
@@ -3037,7 +3040,7 @@ document.onclick = function (event) {
 		
 		Q("body").style.cursor = "wait";
 
-		let vf = new SamsaVF({
+		let vf = new SamsaFont({
 			fontFamily: "DefaultFont",
 			url: `${GLOBAL.fontList.directory}/${GLOBAL.fontList.default}`, // "fonts/MutatorSans.ttf"
 			callback: vfLoaded,
@@ -3190,7 +3193,7 @@ document.onclick = function (event) {
 	else if (target = event.target.closest("#panel-font-list .font-file")) {
 
 		// load font from the list
-		let vf = new SamsaVF({
+		let vf = new SamsaFont({
 
 			fontFamily: "FontNameShouldGoHere",
 			url: `${GLOBAL.fontList.directory}/${target.innerText}`,
@@ -3226,7 +3229,7 @@ function dropHandler(ev) {
 			//console.log (event.target.result);
 			//console.log (event.target);
 			console.log(this.__file__.size)
-			let vf = new SamsaVF({
+			let vf = new SamsaFont({
 
 				arrayBuffer: event.target.result,
 				inFile: this.__file__.name,

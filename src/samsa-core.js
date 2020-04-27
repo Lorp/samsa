@@ -233,7 +233,7 @@ function SamsaVFGlyph (init) {
 }
 
 
-function SamsaVF (init, config) {
+function SamsaFont (init, config) {
 
 	// initialize config, and update it with updates passed to constructor
 	this.config = CONFIG;
@@ -300,12 +300,12 @@ function SamsaVF (init, config) {
 			let oReq = new XMLHttpRequest();
 			oReq.open("GET", this.url, true);
 			oReq.responseType = "arraybuffer";
-			oReq.SamsaVF = this;
+			oReq.font = this;
 			oReq.onload = function(oEvent) {
 
-				oReq.SamsaVF.data = new DataView(this.response);
-				oReq.SamsaVF.filesize = oReq.SamsaVF.data.byteLength;
-				oReq.SamsaVF.parse();
+				oReq.font.data = new DataView(this.response);
+				oReq.font.filesize = oReq.font.data.byteLength;
+				oReq.font.parse();
 
 			};
 			oReq.send();
@@ -2161,6 +2161,7 @@ function getGlyphSVGpath(glyph)
 	// composite? handle them recursively
 	// - ok, this could lead to an array of arrays of arrays…
 	// - we only process them 1 level deep, a limitation shared with macOS
+	// - TODO: process to an arbitrary depth (macOS no longer has this limitation)
 	if (glyph.numContours == -1) {
 		let paths = [];
 		glyph.components.forEach((component, c) => {
@@ -2498,8 +2499,7 @@ function quit(obj) {
 // exports for node.js
 if (CONFIG.isNode) {
 	module.exports = {
-		SamsaVF: SamsaVF,
-		//SamsaFont: SamsaFont,
+		SamsaFont: SamsaFont,
 		//SamsaGlyph: SamsaGlyph,
 	};
 }
