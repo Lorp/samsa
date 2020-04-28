@@ -1786,7 +1786,11 @@ function SamsaFont (init, config) {
 					const tweakTable = tag => {
 						switch (tag) {
 							case "head":
-								tableBuffer.setUint16(50, 0x0001); // long loca format makes things simpler since we know in advance how much space we need for loca
+								let longDateTime = Math.floor(new Date().getTime()/1000) + ((1970-1904) * 365 + Math.floor((1970-1904)/4)+1) * 24 * 60 * 60; // seconds since 1904-01-01 00:00:00... new Date().getTime() is UTC; Math.floor((1970-1904)/4)+1 = 17 leap years between 1904 and 1970
+								tableBuffer.setUint32(28, Math.floor(longDateTime / 0x100000000)); // modified LONGDATETIME (high 4 bytes)
+								tableBuffer.setUint32(32, longDateTime % 0x100000000); // modified LONGDATETIME (low 4 bytes)
+
+								tableBuffer.setUint16(50, 0x0001); // force long loca format (makes things simpler since we know in advance how much space we need for loca)
 								break;
 
 							case "hhea":
