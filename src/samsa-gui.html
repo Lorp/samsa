@@ -1082,7 +1082,7 @@ function vfLoaded (font) {
 	let liH = document.createElement("li");
 	liH.classList.add("header");
 	liH.style.display = "grid";
-	liH.style.gridTemplateColumns = `35px 20px 1fr 50px 50px 50px 50px`;
+	liH.style.gridTemplateColumns = `35px 20px 1fr 50px 50px 50px 50px 10px`;
 	liH.innerHTML = `<label>Tag</label><label class="icon bold">&#xf129;</label><label>Name</label><label class="min icon bold" style="text-align:center;">&#xf13a;</label><label class="default icon bold" style="text-align:center;">&#xf015;</label><label class="max icon bold" style="text-align:center;">&#xf139;</label><label class="icon bold" style="text-align:center;">&#xf007;</label>`;
 	panel.appendChild(liH);
 
@@ -1113,9 +1113,61 @@ function vfLoaded (font) {
 		li.innerHTML += `<input class="axis-min" value="${axis.min}" readonly style="text-align:right;">`;
 		li.innerHTML += `<input class="axis-default" value="${axis.default}" readonly style="text-align:right;">`;
 		li.innerHTML += `<input class="axis-max" value="${axis.max}" readonly style="text-align:right;">`;
-		li.innerHTML += `<input class="axis-current active" value="${axis.default}" style="text-align:right; font-weight: bold;">`; // current
+		li.innerHTML += `<input class="axis-current active" value="${axis.default}" style="text-align:right; font-weight: 900;">`; // current
+
+		let nudger = EL("div");
+		nudger.style.height = "1rem";
+		nudger.classList.add("no-select");
+		nudger.style.fontSize = "0.5rem";
+		nudger.innerHTML += `<div class="axis-nudge">+</div>`;
+		nudger.innerHTML += `<div class="axis-nudge">−</div>`;
+		li.appendChild(nudger);
 
 		panel.appendChild(li);
+
+		// handle text input
+		li.querySelector(".axis-current").addEventListener("change", ev => {
+
+			const font = GLOBAL.vf;
+			const axis = ev.target.closest("li").data.axis;
+
+			// parse the number in base 10 or base 16
+			const numFormat = Q("#axis-value-format").value;
+			let number;
+			switch (numFormat) {
+				case "user": case "norm":
+					number = parseFloat(ev.target.value);
+					break;
+				case "userhex": case "normhex":
+					number = parseInt(ev.target.value, 16);
+					if (numFormat == "userhex") {
+						if (number >= 0x80000000)
+							number -= 0x100000000;
+						number /= 0x10000;
+					}
+					else { // numFormat == "normhex"
+						if (number >= 0xc000)
+							number -= 0x10000;
+						number /= 0x4000;
+					}
+					break;
+			}
+
+			if (numFormat == "user" || numFormat == "userhex") {
+				number = GLOBAL.vf.axisNormalize(axis, number);
+			}
+
+			if (number>1) number = 1;
+			if (number<-1) number = -1;
+			GLOBAL.tuple[axis.id] = number;
+			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+			setAxes (font, font.tupleToFvs(GLOBAL.tuple));
+			axesUpdateValues();
+			panelSTAT_handleChange();
+			panelWebfont_handleChange();
+			font.instances.pop();
+		});
 
 		let slider = EL("input");
 		slider.classList.add("slider");
@@ -1142,8 +1194,8 @@ function vfLoaded (font) {
 			let instance = font.addInstance(fvs);
 			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 			axesUpdateValues();
-			updateSTATPanel();
-			webfontPanelUpdateVariationSettings();
+			panelSTAT_handleChange();
+			panelWebfont_handleChange();
 			font.instances.pop();
 		});
 
@@ -1415,8 +1467,8 @@ function vfLoaded (font) {
 						let instance = font.addInstance(fvs, {type: "custom"});
 						setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 						axesUpdateValues();
-						updateSTATPanel(fvs);
-						webfontPanelUpdateVariationSettings();
+						panelSTAT_handleChange(fvs);
+						panelWebfont_handleChange();
 						font.instances.pop();
 
 					}
@@ -1678,7 +1730,7 @@ function updateDesignSpaceMoved(e) {
 	font.instances.pop();
 
 	axesUpdateValues();
-	webfontPanelUpdateVariationSettings();
+	panelWebfont_handleChange();
 }
 
 function numberFormat(val, axis) {
@@ -1778,7 +1830,7 @@ function axesUpdateValues () {
 }
 
 
-function webfontPanelUpdateVariationSettings() {
+function panelWebfont_handleChange() {
 	let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
 	Q("#panel-webfont.panel>div").style.fontVariationSettings = fvsToCSS(fvs);
 }
@@ -1803,8 +1855,8 @@ function axisInput(ev) {
 	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 	
 	axesUpdateValues();
-	updateSTATPanel();
-	webfontPanelUpdateVariationSettings();
+	panelSTAT_handleChange();
+	panelWebfont_handleChange();
 
 	// delete instance? definitely!
 	font.instances.pop();
@@ -1880,7 +1932,7 @@ function updateDesignspace() {
 }
 
 
-function updateSTATPanel(fvs) {
+function panelSTAT_handleChange(fvs) {
 
 	const font = GLOBAL.vf;
 	if (!font.tables["STAT"])
@@ -2138,8 +2190,8 @@ function setActiveInstance (font, target) {
 			instanceApplyVariations (font, instance);
 			updateGlyphsPanel (instance);
 			axesUpdateValues();
-			updateSTATPanel();
-			webfontPanelUpdateVariationSettings();
+			panelSTAT_handleChange();
+			panelWebfont_handleChange();
 		}
 		else {
 			el.classList.remove("active");
@@ -3106,7 +3158,8 @@ document.onclick = function (event) {
 			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 			font.instances.pop();
 			axesUpdateValues();
-			updateSTATPanel();
+			panelSTAT_handleChange();
+			panelWebfont_handleChange();
 			setAxes (GLOBAL.vf, fvs);
 		}
 	}
@@ -3188,6 +3241,27 @@ document.onclick = function (event) {
 		setActiveGlyph(g, instance);
 		font.instances.pop();
 
+	}
+
+	else if (event.target.classList.contains("axis-nudge")) {
+
+		const delta = event.target.innerHTML == "+" ? 1 : -1; // is the delta +1 or -1? the decrementer innerHTML can be - (hyphen-minus) or − (minus sign) or in fact anything except +
+		const axis = event.target.closest("li").data.axis; // which axis is this?
+		GLOBAL.tuple[axis.id] += delta/16384; // adjust the tuple
+		if (GLOBAL.tuple[axis.id] > 1)
+			GLOBAL.tuple[axis.id] = 1;
+		if (GLOBAL.tuple[axis.id] < -1)
+			GLOBAL.tuple[axis.id] = -1;
+
+		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		setActiveGlyph(GLOBAL.currentGlyphId, instance);
+		axesUpdateValues();
+		panelSTAT_handleChange();
+		panelWebfont_handleChange();
+		setAxes (font, font.tupleToFvs(GLOBAL.tuple));
+		font.instances.pop();
+	
+		return false;
 	}
 
 	else if (target = event.target.closest("#panel-font-list .font-file")) {

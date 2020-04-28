@@ -261,3 +261,20 @@ tt {
 	grid-template-columns: 1fr 1fr;
 	border-top: 1px solid lightgrey;
 }
+
+.axis-nudge {
+	width: 100%;
+	text-align: center;
+	margin-top: 1px;
+	background-color: grey;
+	color: white;
+	font-weight: bold;
+	border-radius: 3px;
+}
+
+.no-select {
+	-webkit-user-select: none;  
+	-moz-user-select: none;    
+	-ms-user-select: none;      
+	user-select: none;
+}

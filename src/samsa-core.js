@@ -2125,6 +2125,9 @@ function SamsaFont (init, config) {
 			}
 		}
 
+		// rounding
+		n = Math.round(n * 16384) / 16384;
+
 		return n;
 	}
 
