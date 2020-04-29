@@ -31,7 +31,7 @@ let CONFIG = {
 		method: "default", // sets apple overlap bit
 		// method: "dummy-fvar", // does not set apple overlap bit
 		// method: "no-overlap-bit", // does not set apple overlap bit
-		skipTables: ["gvar","fvar","cvar","avar","STAT","MVAR","HVAR","DSIG"],
+		skipTables: ["gvar","fvar","cvar","avar","STAT","MVAR","HVAR","VVAR","DSIG"],
 		ignoreIUP: false,
 	},
 
