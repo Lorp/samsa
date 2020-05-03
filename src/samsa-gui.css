@@ -49,12 +49,19 @@ body {
 	padding: 0;
 }
 
+h1 {
+	font-size: 4rem;
+	font-style: normal;
+	font-weight: 400;
+}
+
 #container {
 	width: 100vw;
 	height: 100vh;
 	display: grid;
 	grid-template-columns: 360px 1fr;
 	grid-template-rows: 80px 1fr;
+	background-color: beige; /* on font load becomes transparent */
 }
 
 #title {
@@ -64,7 +71,6 @@ body {
 }
 
 #title h1 {
-	font-size: 4rem;
 	font-weight: 700;
 	padding: 0;
 	margin: 0;
@@ -103,7 +109,6 @@ body {
 	padding-left: 1em;
 	margin: 0;
 	border-bottom: 1px solid black;
-	
 	padding-left: 2em;
 }
 
@@ -277,4 +282,24 @@ tt {
 	-moz-user-select: none;    
 	-ms-user-select: none;      
 	user-select: none;
+}
+
+#drag-drop-zone	{
+	display: flex;
+	position: relative;
+	color: grey;
+	grid-area: 1 / 2 / 3 / 3;
+	background-color: beige;
+	align-items: center;
+	justify-content: center;
+	border: 4px dashed grey;
+	margin: 10px;
+}
+
+#drag-drop-zone>div {
+	text-align: center;
+}
+
+#drag-drop-zone>div>p {
+	cursor: default;
 }

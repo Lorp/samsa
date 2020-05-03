@@ -22,8 +22,17 @@
 	<div class="subtitle"></div>
 </div>
 
-<div id="font-file" class="inactive">
-	&lt;drop a variable font here&gt;
+<div id="drag-drop-zone" style="position: relative;">
+	<div>
+		<h1>Drop a variable font here</h1>
+		<p style="text-decoration: underline;">or click to select a variable font from your computer</p>
+		<p>or choose from the list of variable fonts on the left</p>
+	</div>
+	<input id="file-upload-input" type="file" style="position: absolute; left: 0; top: 0; opacity: 0.0; width: 100%; height: 100%;">
+</div>
+
+<div id="font-file" class="inactive" style="display:none;">
+	<!-- &lt;drop a variable font here&gt; -->
 </div>
 
 <div id="controls">
@@ -113,7 +122,7 @@
 
 </div>
 
-<div id="drawing"></div>
+<div id="drawing" style="display:none;"></div>
 
 </div>
 
@@ -795,6 +804,15 @@ function vfLoaded (font) {
 	font.axes.forEach(() => {
 		GLOBAL.tuple.push(0);
 	});
+
+
+	///////////////////////////////////////////////////////
+	// Main container grid: hide overlay and show main UI
+	///////////////////////////////////////////////////////
+	Q("#drag-drop-zone").style.display = "none";
+	Q("#font-file").style.display = "block";
+	Q("#drawing").style.display = "block";
+	Q("#container").style.backgroundColor = "transparent";
 
 
 	///////////////////////////////////////////////////////
@@ -1995,10 +2013,12 @@ function panelSTAT_handleChange(fvs) {
 		if (a < STAT.designAxes.length) {
 			//let selectValue;
 			tag = select.data.designAxis.tag;
-			if (fvs[select.data.designAxis.tag] === undefined) // this fvs needs to specify all fvar axes
-				select.value = select.options[1].value; // set designAxes which are not in the font to the (only) valid option
-			else
-				select.value = (selectValues[tag] === undefined) ? -1 : selectValues[tag].avtIndex;
+			if (select.options.length > 1) {
+				if (fvs[tag] === undefined) // this fvs needs to specify all fvar axes
+					select.value = select.options[1].value; // set designAxes which are not in the font to the (only) valid option
+				else
+					select.value = (selectValues[tag] === undefined) ? -1 : selectValues[tag].avtIndex;
+			}
 		}
 		else {
 			select.value = avtIndexMulti;
@@ -2006,45 +2026,47 @@ function panelSTAT_handleChange(fvs) {
 
 		// calculate the note for this <select>
 		let note = "";
-		let axisIndices = [], values = [];
-		if (select.value != -1) {
+		if (select.options.length > 1) {
+			let axisIndices = [], values = [];
+			if (select.value != -1) {
 
-			let avt = STAT.axisValueTables[select.value];
-			axisIndices = avt.axisIndex;
-			let values = avt.value;
-			if (avt.format != 4) {
-				axisIndices = [axisIndices];
-				values = [values];
-				note = avt.value;
-			}
+				let avt = STAT.axisValueTables[select.value];
+				axisIndices = avt.axisIndex;
+				let values = avt.value;
+				if (avt.format != 4) {
+					axisIndices = [axisIndices];
+					values = [values];
+					note = avt.value;
+				}
 
-			// get stat name component
-			let name = font.names[avt.nameID];
-			let thisElidable = avt.flags & 0x0002;
+				// get stat name component
+				let name = font.names[avt.nameID];
+				let thisElidable = avt.flags & 0x0002;
 
-			if (avt.format == 2 && fvs[tag] != values[0]) {
-				name += `[${Math.round(fvs[tag]*100)/100}]`;
-				thisElidable = false; // make "Regular" no longer elidable if we’ve appended a value
-			}
+				if (avt.format == 2 && fvs[tag] != values[0]) {
+					name += `[${Math.round(fvs[tag]*100)/100}]`;
+					thisElidable = false; // make "Regular" no longer elidable if we’ve appended a value
+				}
 
-			if (!thisElidable) {
-				if (a < STAT.designAxes.length)
-					statNamesStrs.push(name); // append multiaxis names
-				else
-					statNamesStrs.unshift(name); // prepend multiaxis names (the OpenType spec doesn’t not say what happens for these names… perhaps they should be ignored if their axes have already been accounted for by single-axis axisValueTables)
-				elidable = false; // global elidable
-			}
+				if (!thisElidable) {
+					if (a < STAT.designAxes.length)
+						statNamesStrs.push(name); // append multiaxis names
+					else
+						statNamesStrs.unshift(name); // prepend multiaxis names (the OpenType spec doesn’t not say what happens for these names… perhaps they should be ignored if their axes have already been accounted for by single-axis axisValueTables)
+					elidable = false; // global elidable
+				}
 
-			// determine the fvs
-			axisIndices.forEach((axisIndex, a) => {
-				fvs[STAT.designAxes[axisIndex].tag] = values[a];
-			});
+				// determine the fvs
+				axisIndices.forEach((axisIndex, a) => {
+					fvs[STAT.designAxes[axisIndex].tag] = values[a];
+				});
 
-			// augment the note
-			switch (avt.format) {
-				case 2: note += ` [${avt.min},${avt.max}]`; break;
-				case 3: note += ` (→ ${avt.linkedValue})`; break;
-				case 4: note = JSON.stringify(fvs); break;
+				// augment the note
+				switch (avt.format) {
+					case 2: note += ` [${avt.min},${avt.max}]`; break;
+					case 3: note += ` (→ ${avt.linkedValue})`; break;
+					case 4: note = JSON.stringify(fvs); break;
+				}
 			}
 		}
 
@@ -3291,45 +3313,80 @@ document.onclick = function (event) {
 		return false;
 	}
 
+
 	//return false;
 
 }
 
+
+// handle click to upload file
+Q("#file-upload-input").addEventListener("change", ev => {
+
+	console.log("ok we got input");
+	console.log(ev.target.files[0]);
+
+	const file = ev.target.files[0];
+
+    const reader = new FileReader();
+    reader.__file__ = file;
+    reader.onload = function (event) {
+
+		console.log (this.result);
+		console.log (event.target);
+		console.log(this.__file__.size);
+		let vf = new SamsaFont({
+
+			arrayBuffer: this.result,
+			inFile: this.__file__.name,
+			filesize: this.__file__.size,
+			date: this.__file__.lastModified,  // doesn't retrieve the real file date
+			callback: vfLoaded,
+		});
+	};
+
+	reader.readAsArrayBuffer(file); // https://stackoverflow.com/questions/22659164/read-a-drag-and-dropped-file
+
+});
+
+// show that dragging is active
+Q("#file-upload-input").addEventListener("dragenter", ev => {
+	Q("#drag-drop-zone").style.borderColor = "limegreen"; //"#d0f473";
+});
+Q("#file-upload-input").addEventListener("dragleave", ev => {
+	Q("#drag-drop-zone").style.borderColor = "grey";
+});
+
+// handle the drag-drop
+// - https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
 function dropHandler(ev) {
+  
+	console.log("dropHandler");
+	ev.preventDefault(); // prevent default behavior (which is to open the file)
 
-// https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
-  // Prevent default behavior (Prevent file from being opened)
-  //alert ('File(s) dropped');
-  ev.preventDefault();
+	if (ev.dataTransfer.items) {
+		const numItems = 1; // ev.dataTransfer.items.length; // for now, only process the first file dropped
 
-  if (ev.dataTransfer.items) {
-    // Use DataTransferItemList interface to access the file(s)
+		for (let i = 0; i < numItems; i++) {
 
-    for (var i = 0; i < 1 /* ev.dataTransfer.items.length */ ; i++) { // limit to processing of first file dropped
+			// if this item is not a file, reject it
+			if (ev.dataTransfer.items[i].kind === "file") {
+				const file = ev.dataTransfer.items[i].getAsFile();
+				const reader = new FileReader();
+				reader.__file__ = file;
+				reader.onload = function (event) {
 
-      // If dropped items aren't files, reject them
-      if (ev.dataTransfer.items[i].kind === 'file') {
-        var file = ev.dataTransfer.items[i].getAsFile();
-        let reader = new FileReader();
-        reader.__file__ = file;
-        reader.onload = function (event) {
-
-			//console.log (event.target.result);
-			//console.log (event.target);
-			console.log(this.__file__.size)
-			let vf = new SamsaFont({
-
-				arrayBuffer: event.target.result,
-				inFile: this.__file__.name,
-				filesize: this.__file__.size,
-				date: this.__file__.lastModified,  // doesn't retrieve the real file date
-				callback: vfLoaded,
-			});
-		};
-		reader.readAsArrayBuffer(file); // https://stackoverflow.com/questions/22659164/read-a-drag-and-dropped-file
-      }
-    }
-  }
+					let vf = new SamsaFont({
+						arrayBuffer: event.target.result,
+						inFile: this.__file__.name,
+						filesize: this.__file__.size,
+						date: this.__file__.lastModified,  // doesn't retrieve the real file date
+						callback: vfLoaded,
+					});
+				};
+			reader.readAsArrayBuffer(file); // https://stackoverflow.com/questions/22659164/read-a-drag-and-dropped-file
+			}
+		}
+	}
 }
 
 Q("#font-file").addEventListener("drop", dropHandler);
