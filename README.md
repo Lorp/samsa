@@ -1,5 +1,7 @@
 # Samsa
 
+[**Samsa web app**](https://lorp.github.io/samsa/src/samsa-gui.html) ← _click to start_
+
 Samsa is a web app that visualizes how variable fonts (VF) work. Type designers, font developers, front end developers and others can use Samsa to open VFs, then inspect VF glyph outlines and other data as they explore the VF designspace using sliders and other UI controls.
 
 ![Mutator](screenshots/20191119%20Mutator%20S.png?raw=true)
