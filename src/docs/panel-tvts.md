@@ -1,1 +1,3 @@
-../../docs/panel-tvts.md
+## Delta sets panel
+
+[to write]

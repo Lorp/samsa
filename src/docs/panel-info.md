@@ -1,1 +1,3 @@
-../../docs/panel-info.md
+## Info panel
+
+[to write]

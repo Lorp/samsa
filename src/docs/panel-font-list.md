@@ -1,1 +1,3 @@
-../../docs/panel-font-list.md
+## Font list panel
+
+[to write]

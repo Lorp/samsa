@@ -1,3 +1,0 @@
-## Glyphs panel
-
-[to write]

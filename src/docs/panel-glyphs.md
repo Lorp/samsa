@@ -1,1 +1,3 @@
-../../docs/panel-glyphs.md
+## Glyphs panel
+
+[to write]

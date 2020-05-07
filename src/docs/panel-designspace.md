@@ -1,1 +1,3 @@
-../../docs/panel-designspace.md
+## Designspace panel
+
+[to write]

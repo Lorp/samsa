@@ -1,1 +1,0 @@
-../../docs/panel-gui.md
