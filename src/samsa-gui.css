@@ -95,6 +95,10 @@ h1 {
 	white-space: nowrap;
 }
 
+.font-file {
+	text-decoration: underline;
+}
+
 #controls {
 	background-color: beige;
 	overflow-y: scroll;
