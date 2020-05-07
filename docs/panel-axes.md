@@ -24,3 +24,8 @@ These buttons increment and decrement the current normalized value by the smalle
 
 ### avar table
 If the font has an `avar` table, that is shown graphically if you click the checkbox to make it visible.
+
+### References
+
+* [OpenType specification: fvar](https://docs.microsoft.com/en-us/typography/opentype/spec/fvar)
+* [OpenType specification: avar](https://docs.microsoft.com/en-us/typography/opentype/spec/avar)

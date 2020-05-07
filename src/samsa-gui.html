@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -3224,17 +3225,48 @@ document.onclick = function (event) {
 
 		fetch(`docs/${nameOfHelpFile}`)
 		.then(response => {
-				//return response.json(); // another promise, not a string!
-				return response.text(); // another promise, not a string!
+				return response.text();
 			}, 
 			error => {
 				console.log (error);
 			}
 		)
-		.then(responseMarkdown => { // then for the json() promise
-			// populate the font list panel
-			alert (responseMarkdown);
-			console.log(responseMarkdown);
+		.then(responseMarkdown => {
+			let string = responseMarkdown;
+
+			string = string.replace(/\n\n/g, "<br>\n");
+			string = string.replace(/### (.*)\n/g, "<h3>$1</h3>\n");
+			string = string.replace(/## (.*)\n/g, "<h2>$1</h2>\n");
+			string = string.replace(/# (.*)\n/g, "<h1>$1</h1>\n");
+			string = string.replace(/\* (.*?)\n/g, "<li>$1</li>\n");
+			string = string.replace(/\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`);
+
+			const help = EL("div");
+			help.id = "help-overlay";
+			help.style.position = "absolute";
+			help.style.top = "0";
+			help.style.left = "0";
+			help.style.backgroundColor = "beige";
+			help.style.boxSizing = "border-box";
+			help.style.padding = "2vw 20vh";
+			help.style.width = "100%";
+			help.style.height = "100%";
+			help.innerHTML = string;
+			document.body.appendChild(help);
+
+			const closeButton = EL("button");
+			closeButton.style.position = "absolute";
+			closeButton.style.top = "0";
+			closeButton.style.left = "0";
+			closeButton.innerText = "Close";
+			document.body.appendChild(closeButton);
+
+			closeButton.addEventListener("click", event => {
+
+				Q("#help-overlay").remove();
+				event.target.remove();
+			});
+			
 		});
 		handled = true;
 	}
