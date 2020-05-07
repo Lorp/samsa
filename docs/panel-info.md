@@ -1,0 +1,3 @@
+## Info panel
+
+[to write]
