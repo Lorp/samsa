@@ -3121,7 +3121,8 @@ document.onclick = function (event) {
 	// - order matters! (e.g. an icon within an instance row must be handled before the instance row itself)
 	let target;
 	let font = GLOBAL.vf;
-
+	const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
+	let handled = false;
 
 	// load default font
 	if (event.target == Q("#font-file")) {
@@ -3133,6 +3134,8 @@ document.onclick = function (event) {
 			url: `${GLOBAL.fontList.directory}/${GLOBAL.fontList.default}`, // "fonts/MutatorSans.ttf"
 			callback: vfLoaded,
 		});
+
+		handled = true;
 	}
 
 	// else if (event.target.id == "dsAxesMultiple") {
@@ -3161,11 +3164,13 @@ document.onclick = function (event) {
 		fauxLink.click();
 		fauxLink.remove();
 
+		handled = true;
 	}
 
 	else if (target = event.target.closest(".instance")) {
 
 		setActiveInstance(GLOBAL.vf, target);
+		handled = true;
 	}
 
 	else if (target = event.target.closest("#panel-axes .header .icon")) {
@@ -3198,11 +3203,13 @@ document.onclick = function (event) {
 			panelWebfont_handleChange();
 			setAxes (GLOBAL.vf, fvs);
 		}
+		handled = true;
 	}
 
 	else if (event.target.classList.contains("ctrl-pt")) {
 		console.log("click pt", event.target);
 		console.log(event.target.data.point);
+		handled = true;
 	}
 
 	else if (target = event.target.closest("#panel-glyphs>h2") 
@@ -3244,6 +3251,7 @@ document.onclick = function (event) {
 		// let iglyph = glyphApplyVariations(glyph, null, instance);
 		// setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 
+		handled = true;
 	}
 
 	else if (target = event.target.closest("#panel-glyphs>h2") 
@@ -3256,6 +3264,7 @@ document.onclick = function (event) {
 			label.querySelector(".number").style.display = active ? "inline" : "none";
 			label.querySelector(".name").style.display = active ? "none" : "inline";
 		})
+		handled = true;
 	}
 
 	else if (target = event.target.closest("#controls .panel>h2")) {
@@ -3266,17 +3275,19 @@ document.onclick = function (event) {
 			panelDiv.style.display = "block";
 		else
 			panelDiv.style.display = "none";
+		handled = true;
 	}
 
 	else if (target = event.target.closest(".glyph-thumb")) {
 
 		let comps = target.id.split("-");
 		let g = comps[1];
+		event.preventDefault(); // stops the <a href...> having an effect?
 
 		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
 		setActiveGlyph(g, instance);
 		font.instances.pop();
-
+		handled = true;
 	}
 
 	else if (event.target.classList.contains("axis-nudge")) {
@@ -3296,26 +3307,29 @@ document.onclick = function (event) {
 		panelWebfont_handleChange();
 		setAxes (font, font.tupleToFvs(GLOBAL.tuple));
 		font.instances.pop();
-	
-		return false;
+		handled = true;
 	}
 
 	else if (target = event.target.closest("#panel-font-list .font-file")) {
 
 		// load font from the list
+		event.preventDefault(); // stops the <a href...> having an effect?
+
 		let vf = new SamsaFont({
 
 			fontFamily: "FontNameShouldGoHere",
 			url: `${GLOBAL.fontList.directory}/${target.innerText}`,
 			callback: vfLoaded,
 		});
+		handled = true;
+	}
 
+	if (handled) {
+		Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 		return false;
 	}
 
-
-	//return false;
-
+	// no return value if the event was not handled
 }
 
 
@@ -3401,23 +3415,6 @@ Q("#font-file").addEventListener("dragover",function(e){
 
 // method to attach multiple SVG attributes at once
 // - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
-// - TODO: this is really nasty, we should only apply it to SVG objects
-
-/*Object.prototype.attrsSVG = function (attrs) {
-	for (const prop in attrs) {
-		this.setAttributeNS(null, prop, attrs[prop]);
-	}
-}
-*/
-
-//let tempSVG = document.createElementNS('http://www.w3.org/2000/svg', "SVG");
-/*
-document.createElementNS.prototype.attrsSVG = function (attrs) {
-	for (const prop in attrs) {
-		this.setAttributeNS(null, prop, attrs[prop]);
-	}
-};
-*/
 SVGElement.prototype.attrsSVG = function (attrs) {
 	for (const prop in attrs) {
 		this.setAttributeNS(null, prop, attrs[prop]);

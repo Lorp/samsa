@@ -303,3 +303,11 @@ tt {
 #drag-drop-zone>div>p {
 	cursor: default;
 }
+
+#controls {
+	position: relative;
+}
+
+.panel>div {
+	position: relative;
+}
