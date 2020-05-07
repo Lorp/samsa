@@ -535,6 +535,19 @@ CONFIG.docs = {
 };
 
 
+// add an info (help) icon to each panel
+Qall("#controls .panel>h2").forEach(header => {
+	let info = EL("div");
+	info.innerHTML = "&#xf129;";
+	info.classList.add("icon");
+	info.classList.add("bold");
+	info.classList.add("info");
+	info.style.position = "absolute";
+	info.style.right = "0.5em";
+	info.style.top = "0.1em";
+	header.appendChild(info);
+});
+
 
 // shorthands
 function Q (selector) {
@@ -3204,6 +3217,28 @@ document.onclick = function (event) {
 		handled = true;
 	}
 
+	else if (target = event.target.closest("#controls .panel>h2 .info")) {
+
+		// load help file
+		let nameOfHelpFile = target.parentNode.parentNode.id + ".md";
+
+		fetch(`docs/${nameOfHelpFile}`)
+		.then(response => {
+				//return response.json(); // another promise, not a string!
+				return response.text(); // another promise, not a string!
+			}, 
+			error => {
+				console.log (error);
+			}
+		)
+		.then(responseMarkdown => { // then for the json() promise
+			// populate the font list panel
+			alert (responseMarkdown);
+			console.log(responseMarkdown);
+		});
+		handled = true;
+	}
+
 	else if (target = event.target.closest("#panel-glyphs>h2") 
 			&& event.target.classList.contains("icon")
 			&& !event.target.classList.contains("reveal")) { // this test must be before the other h2 test
@@ -3256,6 +3291,7 @@ document.onclick = function (event) {
 	}
 
 	else if (target = event.target.closest("#controls .panel>h2")) {
+
 		// toggle display of panel when panel header is clicked
 		let panelDiv = target.parentNode.querySelector("div");
 		panelDiv.parentNode.classList.toggle("open");
@@ -3265,6 +3301,8 @@ document.onclick = function (event) {
 			panelDiv.style.display = "none";
 		handled = true;
 	}
+
+
 
 	else if (target = event.target.closest(".glyph-thumb")) {
 
