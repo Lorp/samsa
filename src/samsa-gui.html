@@ -3233,6 +3233,8 @@ document.onclick = function (event) {
 		)
 		.then(doc => {
 
+			doc = "This help file display is EXPERIMENTAL!\n\n" + doc;
+
 			doc = doc.replace(/\n\n/g, "<br>\n");
 			doc = doc.replace(/### (.*)\n/g, "<h3>$1</h3>\n");
 			doc = doc.replace(/## (.*)\n/g, "<h2>$1</h2>\n");
