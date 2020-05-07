@@ -40,27 +40,27 @@
 
 	<div id="panel-info" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Info</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-ui" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> UI</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-webfont" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Webfont</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-axes" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Axes</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-stat" class="panel closed">
 		<h2><span class="icon bold reveal">&#xf04b;</span> STAT</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-instances" class="panel open">
@@ -70,17 +70,17 @@
 			<span class="icon" id="instances-as-list">&#xf0c9;</span>
 			-->
 		</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-tvts" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Delta sets</h2>
-		<div style="overflow-x: scroll;"></div>
+		<div class="panel-content" style="overflow-x: scroll;"></div>
 	</div>
 
 	<div id="panel-designspace" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Designspace</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-glyphs" class="panel open">
@@ -93,24 +93,24 @@
 			<span class="texticon" id="glyphs-ids" title="Glyph IDs">123</span>
 			<!-- <span class="icon bold" id="glyphs-fastforward">&#xf04e;</span> -->
 		</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	<br clear="all">
 
 	</div>
 
 	<div id="panel-font-list" class="panel open">
 		<h2><span class="icon bold reveal open">&#xf04b;</span> Fonts ready to load</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-media" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Media</h2>
-		<div></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-about" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> About</h2>
-		<div style="padding: 0.5em; font-size: 75%;">
+		<div class="panel-content" style="padding: 0.5em; font-size: 75%;">
 			Samsa is developed by Laurence Penney 2017–present. In 2019 Google Fonts funded major improvements and libre licensing.
 			<ul>
 			<li><a href="https://github.com/Lorp/samsa">GitHub repository</a></li>
@@ -3221,9 +3221,9 @@ document.onclick = function (event) {
 	else if (target = event.target.closest("#controls .panel>h2 .info")) {
 
 		// load help file
-		let nameOfHelpFile = target.parentNode.parentNode.id + ".md";
+		const helpFile = target.parentNode.parentNode.id + ".md"; // one of these for each panel, so panel-glyphs.md, panel-stat.md, etc.
 
-		fetch(`docs/${nameOfHelpFile}`)
+		fetch(`docs/${helpFile}`)
 		.then(response => {
 				return response.text();
 			}, 
@@ -3231,15 +3231,14 @@ document.onclick = function (event) {
 				console.log (error);
 			}
 		)
-		.then(responseMarkdown => {
-			let string = responseMarkdown;
+		.then(doc => {
 
-			string = string.replace(/\n\n/g, "<br>\n");
-			string = string.replace(/### (.*)\n/g, "<h3>$1</h3>\n");
-			string = string.replace(/## (.*)\n/g, "<h2>$1</h2>\n");
-			string = string.replace(/# (.*)\n/g, "<h1>$1</h1>\n");
-			string = string.replace(/\* (.*?)\n/g, "<li>$1</li>\n");
-			string = string.replace(/\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`);
+			doc = doc.replace(/\n\n/g, "<br>\n");
+			doc = doc.replace(/### (.*)\n/g, "<h3>$1</h3>\n");
+			doc = doc.replace(/## (.*)\n/g, "<h2>$1</h2>\n");
+			doc = doc.replace(/# (.*)\n/g, "<h1>$1</h1>\n");
+			doc = doc.replace(/\* (.*?)\n/g, "<li>$1</li>\n");
+			doc = doc.replace(/\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`);
 
 			const help = EL("div");
 			help.id = "help-overlay";
@@ -3251,7 +3250,7 @@ document.onclick = function (event) {
 			help.style.padding = "2vw 20vh";
 			help.style.width = "100%";
 			help.style.height = "100%";
-			help.innerHTML = string;
+			help.innerHTML = doc;
 			document.body.appendChild(help);
 
 			const closeButton = EL("button");
@@ -3325,9 +3324,10 @@ document.onclick = function (event) {
 	else if (target = event.target.closest("#controls .panel>h2")) {
 
 		// toggle display of panel when panel header is clicked
-		let panelDiv = target.parentNode.querySelector("div");
-		panelDiv.parentNode.classList.toggle("open");
-		if (panelDiv.parentNode.classList.contains("open"))
+		let panelDiv = target.parentNode.querySelector("div.panel-content");
+		console.log(panelDiv);
+		target.parentNode.classList.toggle("open");
+		if (target.parentNode.classList.contains("open"))
 			panelDiv.style.display = "block";
 		else
 			panelDiv.style.display = "none";
