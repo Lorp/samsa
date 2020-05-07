@@ -1718,6 +1718,7 @@ function vfLoaded (font) {
 
 function updateDesignSpaceMoved(e) {
 
+	const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
 	let font = GLOBAL.vf;
 	let rect = e.target.getBoundingClientRect();
 	let x = e.clientX - rect.left;
@@ -1763,6 +1764,8 @@ function updateDesignSpaceMoved(e) {
 
 	axesUpdateValues();
 	panelWebfont_handleChange();
+
+	Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 }
 
 function numberFormat(val, axis) {
@@ -1870,17 +1873,16 @@ function panelWebfont_handleChange() {
 
 function axisInput(ev) {
 
+	const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
 	let font = GLOBAL.vf;
 	let fvsFromSliders = getCurrentFvs();
 	let fvs = font.tupleToFvs(GLOBAL.tuple);
 	let tag = ev.target.data.axis.tag;
 	fvs[tag] = fvsFromSliders[tag];
 	ev.target.data.current = fvs[tag];
-	let instance = font.addInstance(fvs); // { name: "Custom", tuple: [] };
-
 
 	// create instance
-	//let instance = font.addInstance(getCurrentFvs()); // { name: "Custom", tuple: [] };
+	let instance = font.addInstance(fvs); // { name: "Custom", tuple: [] };
 
 	let glyph = font.glyphs[GLOBAL.currentGlyphId];
 	let iglyph = glyphApplyVariations(glyph, null, instance);
@@ -1890,8 +1892,9 @@ function axisInput(ev) {
 	panelSTAT_handleChange();
 	panelWebfont_handleChange();
 
-	// delete instance? definitely!
+	// delete instance
 	font.instances.pop();
+	Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 }
 
 function updateDesignspace() {
@@ -2011,7 +2014,6 @@ function panelSTAT_handleChange(fvs) {
 	Qall("#panel-stat select").forEach((select, a) => {
 		let tag;
 		if (a < STAT.designAxes.length) {
-			//let selectValue;
 			tag = select.data.designAxis.tag;
 			if (select.options.length > 1) {
 				if (fvs[tag] === undefined) // this fvs needs to specify all fvar axes
@@ -2050,7 +2052,7 @@ function panelSTAT_handleChange(fvs) {
 
 				if (!thisElidable) {
 					if (a < STAT.designAxes.length)
-						statNamesStrs.push(name); // append multiaxis names
+						statNamesStrs.push(name); // append single-axis names
 					else
 						statNamesStrs.unshift(name); // prepend multiaxis names (the OpenType spec doesn’t not say what happens for these names… perhaps they should be ignored if their axes have already been accounted for by single-axis axisValueTables)
 					elidable = false; // global elidable
@@ -3138,10 +3140,6 @@ document.onclick = function (event) {
 		handled = true;
 	}
 
-	// else if (event.target.id == "dsAxesMultiple") {
-	// 	updateDesignspace();
-	// }
-
 	else if (target = event.target.closest("#controls .panel .instantiate")) {
 
 		// create and download the instance		
@@ -3150,16 +3148,10 @@ document.onclick = function (event) {
 
 		GLOBAL.vf.makeInstance(instance); // creates instance.static
 
-		//window.open (`data:font/ttf;base64,${uint8ToBase64(instance.static)}`, "_blank"); // this method wasn’t great
-
 		let fauxLink = document.createElement("a");
 		fauxLink.download = GLOBAL.vf.filename;
 		fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
 
-		//let str = btoa(instance.static)
-		//console.log (typeof str);
-		//console.log (str);
-		//fauxLink.href = "data:font/ttf;base64," + str;
 		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
 		fauxLink.click();
 		fauxLink.remove();
@@ -3247,10 +3239,6 @@ document.onclick = function (event) {
 			font.instances.pop();
 		}
 
-		// let glyph = font.glyphs[GLOBAL.currentGlyphId];
-		// let iglyph = glyphApplyVariations(glyph, null, instance);
-		// setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-
 		handled = true;
 	}
 
@@ -3330,6 +3318,7 @@ document.onclick = function (event) {
 	}
 
 	// no return value if the event was not handled
+	return true;
 }
 
 
@@ -3476,7 +3465,7 @@ if (["http:", "https:"].includes(window.location.protocol)) {
 		panel.innerHTML = "";
 		GLOBAL.fontList = responseJSON;
 		GLOBAL.fontList.fonts.forEach(fontFilename => {
-			panel.innerHTML += `<li class="font-file"><a href="">${fontFilename}</a></li>`;
+			panel.innerHTML += `<li class="font-file">${fontFilename}</li>`;
 		});
 	});
 }
