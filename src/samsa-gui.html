@@ -233,6 +233,7 @@ CONFIG.uiModes = {
 		},
 	},
 
+
 	dark: {
 		name: "dark",
 
@@ -373,7 +374,10 @@ CONFIG.uiModes = {
 			opacity: 1,
 		},		
 
-		pointNumbers: {},
+		pointNumbers: {
+			angle: 90,
+			offset: 10,
+		},
 
 		glyphDefault: {
 			fill: "none",
@@ -862,8 +866,9 @@ function vfLoaded (font) {
 		// ui options select
 		let uiModeHTML = "";
 		uiModeHTML += `<select id="ui-mode">`;
-		Object.keys(font.config.uiModes).forEach(mode => {
-			uiModeHTML += `<option value="${mode}">${mode}</option>`;
+		Object.keys(font.config.uiModes).forEach(modeId => {
+			let mode = font.config.uiModes[modeId];
+			uiModeHTML += `<option value="${modeId}">${mode.name || modeId}</option>`;
 		});
 		uiModeHTML += `</select><br>`;
 		panel.innerHTML += uiModeHTML;
@@ -1708,9 +1713,7 @@ function vfLoaded (font) {
 
 	// ui: handle change of mode
 	Q("#ui-mode").addEventListener("change", () => {
-		console.log(Q("#ui-mode").value);
-		font.config.ui = font.config.uiModes[Q("#ui-mode").value];
-
+		font.config.ui = font.config.uiModes[Q("#ui-mode").value]; // set the config variable to the current selection in #ui-mode
 		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
 		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 		font.instances.pop();
@@ -2440,7 +2443,7 @@ function setActiveGlyph (g, instance) {
 	layerIds.push(5);
 	if (Q("#arrows-split").checked && ui.arrow.strokeWidth)
 		layerIds.push(6);
-	if (Q("#point-numbers").checked && ui.arrow.strokeWidth)
+	if (Q("#point-numbers").checked && CONFIG.ui.name != "preview")
 		layerIds.push(8);
 
 	layerIds.forEach(L => {
@@ -2955,6 +2958,7 @@ function setActiveGlyph (g, instance) {
 						transform: `translate(0,${2*point[1]}) scale(1,-1)`,
 					});
 
+					// if angle points to the left of the point, make the number’s text anchor on the right hand side
 					if (xOffset < 0)
 						svgText.attrsSVG({
 							"text-anchor": "end",
@@ -3570,9 +3574,30 @@ else {
 
 document.addEventListener("keydown", ev => {
 
-	if (ev.key == " ") {
-		// switch to preview mode if not in preview mode
+	if (ev.key == " " && GLOBAL.vf) {
+		const el = ev.target;
+		const tagName = el.tagName.toLowerCase();
+		if (el.isContentEditable || (tagName == "input" && el.type == "text") || tagName == "textarea") {
+			return true;
+		}
 
+		if (ev.repeat) {
+			ev.preventDefault(); // we don’t want anything to scroll, which is default behaviour for space
+			return true;
+		}
+
+		// switch to preview mode if not in preview mode
+		ev.preventDefault();
+		if (Q("#ui-mode").value != "preview") {
+			const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
+			GLOBAL.quickPreviewSaved = GLOBAL.vf.config.ui.name;
+			GLOBAL.vf.config.ui = GLOBAL.vf.config.uiModes["preview"];
+			let instance = GLOBAL.vf.addInstance(null, {tuple: GLOBAL.tuple});
+			setActiveGlyph (GLOBAL.currentGlyphId, instance);
+			GLOBAL.vf.instances.pop();
+			Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
+		}
+		return false;
 	}
 
 	if (ev.keyCode == 27) {
@@ -3581,6 +3606,23 @@ document.addEventListener("keydown", ev => {
 
 });
 
+
+document.addEventListener("keyup", ev => {
+
+	if (ev.key == " " && GLOBAL.vf) {
+		// switch to preview mode if not in preview mode
+		if (GLOBAL.quickPreviewSaved) {
+			ev.preventDefault();
+			GLOBAL.vf.config.ui = GLOBAL.vf.config.uiModes[GLOBAL.quickPreviewSaved];
+			GLOBAL.quickPreviewSaved = null;
+			let instance = GLOBAL.vf.addInstance(null, {tuple: GLOBAL.tuple});
+			setActiveGlyph (GLOBAL.currentGlyphId, instance);
+			GLOBAL.vf.instances.pop();
+		}
+		return false;
+	}
+
+});
 
 </script>
 
