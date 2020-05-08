@@ -3134,7 +3134,7 @@ function playGlyphs() {
 // click handlers for all clicks
 document.onclick = function (event) {
 
-	//console.log(event.target);
+	console.log(event.target);
 	// about target
 	// - via the method of assignment in the if(), target gets the desired element rather than a child (or grandchild) that in fact received the event
 	// - the closest(x) method is great: we find whether event.target happened on something within something selected by x
@@ -3227,43 +3227,57 @@ document.onclick = function (event) {
 		// load help file
 		const helpFile = target.parentNode.parentNode.id + ".md"; // one of these for each panel, so panel-glyphs.md, panel-stat.md, etc.
 
-		fetch(`docs/${helpFile}`)
+		fetch(`help/${helpFile}`)
 		.then(response => {
 				return response.text();
 			}, 
 			error => {
-				console.log (error);
+				return "## No response from server\n\nHelp files are only available when Samsa is installed on a web server.";
+				console.log ("No response from server: Samsa was probably run by double-clicking the html file, so under file:// instead of https://");
 			}
 		)
 		.then(doc => {
 
 			doc = ">>> EXPERIMENTAL HELP DISPLAY <<<\n\n" + doc;
 
-			doc = doc.replace( /\n\n/g, "<br>\n"); // linebreak
-			doc = doc.replace( /\* (.*?)\n/g, "<li>$1</li>\n"); // list item
+ 			// linebreaks
+			doc = doc.replace( /\n\n/g, "<br>\n\n");
+			doc = doc.replace( /  \n/g, "<br>\n");
+
+			// numbered lists
+			// - m is multiline, g is global
+			doc = doc.replace( /\n\n^\d+\. (.+?)$/gm, "\n\n<ol><li>$1</li>"); // first
+			doc = doc.replace( /^\d+\. (.*?)$\n\n/gm, "\n<li>$1</li></ol>\n"); // last
+			doc = doc.replace( /^\d+\. (.+?)$/gm, "\n<li>$1</li>"); // middle
+
+			// unnumbered lists
+			doc = doc.replace( /\n\n(\*|-) (.+?)$/gm, "\n\n<ul><li>$2</li>"); // first
+			doc = doc.replace( /^(\*|-) (.*?)$\n\n/gm, "\n<li>$2</li></ul>\n"); // last
+			doc = doc.replace( /^(\*|-) (.+?)$/gm, "\n<li>$2</li>"); // middle
+
 			doc = doc.replace( /(\*\*|__)([^\n]+?)(\*\*|__)/g, `<strong>$2</strong>`); // bold
 			doc = doc.replace( /(\*|_)([^\n]+?)(\*|_)/g, `<em>$2</em>`); // italic
-			doc = doc.replace( /### (.*)\n/g, "<h3>$1</h3>\n");
-			doc = doc.replace( /## (.*)\n/g, "<h2>$1</h2>\n");
-			doc = doc.replace( /# (.*)\n/g, "<h1>$1</h1>\n");
+
+			// headings
+			doc = doc.replace( /### (.*)\n/g, "<h3>$1</h3>\n"); // h3
+			doc = doc.replace( /## (.*)\n/g, "<h2>$1</h2>\n"); // h2
+			doc = doc.replace( /# (.*)\n/g, "<h1>$1</h1>\n"); // h1
+
+			// links
 			doc = doc.replace( /\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`); // links
+
+			// code
+			// - TODO code blocks
 			doc = doc.replace( /`([^ \n]*?)`/g, `<tt>$1</tt>`); // <tt>
 
+			// build ui
 			const overlay = EL("div");
 			overlay.classList.add("popup-overlay");
 			document.body.appendChild(overlay);
 
 			const help = EL("div");
 			help.id = "help-overlay";
-			//help.style.position = "absolute";
 			help.classList.add("popup-modal");
-			//help.style.top = "0";
-			//help.style.left = "0";
-			//help.style.backgroundColor = "beige";
-			//help.style.boxSizing = "border-box";
-			//help.style.padding = "2vw 20vh";
-			//help.style.width = "100%";
-			//help.style.height = "100%";
 			help.innerHTML = doc;
 			document.body.appendChild(help);
 
@@ -3274,9 +3288,9 @@ document.onclick = function (event) {
 			closeButton.innerText = "Close";
 			help.appendChild(closeButton);
 
-			closeButton.addEventListener("click", ev => removeOverlay() );
-			overlay.addEventListener("click", ev => removeOverlay() );
-			
+			closeButton.addEventListener("click", removeOverlay);
+			overlay.addEventListener("click", removeOverlay);
+						
 		});
 		handled = true;
 	}
@@ -3449,7 +3463,6 @@ function removeOverlay () {
 	Qall(".popup-overlay, .popup-modal").forEach(el => {
 		el.remove();
 	});
-
 }
 
 
