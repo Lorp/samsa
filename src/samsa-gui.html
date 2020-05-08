@@ -819,14 +819,14 @@ function vfLoaded (font) {
 		GLOBAL.tuple.push(0);
 	});
 
-
 	///////////////////////////////////////////////////////
-	// Main container grid: hide overlay and show main UI
+	// Main container grid: hide overlay and show main UI, reset cursor
 	///////////////////////////////////////////////////////
 	Q("#drag-drop-zone").style.display = "none";
 	Q("#font-file").style.display = "block";
 	Q("#drawing").style.display = "block";
 	Q("#container").style.backgroundColor = "transparent";
+	Q("body").style.cursor = "default";
 
 
 	///////////////////////////////////////////////////////
@@ -3233,40 +3233,45 @@ document.onclick = function (event) {
 		)
 		.then(doc => {
 
-			doc = "This help file display is EXPERIMENTAL!\n\n" + doc;
+			doc = ">>> EXPERIMENTAL HELP DISPLAY <<<\n\n" + doc;
 
-			doc = doc.replace(/\n\n/g, "<br>\n");
-			doc = doc.replace(/### (.*)\n/g, "<h3>$1</h3>\n");
-			doc = doc.replace(/## (.*)\n/g, "<h2>$1</h2>\n");
-			doc = doc.replace(/# (.*)\n/g, "<h1>$1</h1>\n");
-			doc = doc.replace(/\* (.*?)\n/g, "<li>$1</li>\n");
-			doc = doc.replace(/\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`);
+			doc = doc.replace( /\n\n/g, "<br>\n"); // linebreak
+			doc = doc.replace( /\* (.*?)\n/g, "<li>$1</li>\n"); // list item
+			doc = doc.replace( /(\*\*|__)([^\n]+?)(\*\*|__)/g, `<strong>$2</strong>`); // bold
+			doc = doc.replace( /(\*|_)([^\n]+?)(\*|_)/g, `<em>$2</em>`); // italic
+			doc = doc.replace( /### (.*)\n/g, "<h3>$1</h3>\n");
+			doc = doc.replace( /## (.*)\n/g, "<h2>$1</h2>\n");
+			doc = doc.replace( /# (.*)\n/g, "<h1>$1</h1>\n");
+			doc = doc.replace( /\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`); // links
+			doc = doc.replace( /`([^ \n]*?)`/g, `<tt>$1</tt>`); // <tt>
+
+			const overlay = EL("div");
+			overlay.classList.add("popup-overlay");
+			document.body.appendChild(overlay);
 
 			const help = EL("div");
 			help.id = "help-overlay";
-			help.style.position = "absolute";
-			help.style.top = "0";
-			help.style.left = "0";
-			help.style.backgroundColor = "beige";
-			help.style.boxSizing = "border-box";
-			help.style.padding = "2vw 20vh";
-			help.style.width = "100%";
-			help.style.height = "100%";
+			//help.style.position = "absolute";
+			help.classList.add("popup-modal");
+			//help.style.top = "0";
+			//help.style.left = "0";
+			//help.style.backgroundColor = "beige";
+			//help.style.boxSizing = "border-box";
+			//help.style.padding = "2vw 20vh";
+			//help.style.width = "100%";
+			//help.style.height = "100%";
 			help.innerHTML = doc;
 			document.body.appendChild(help);
 
 			const closeButton = EL("button");
 			closeButton.style.position = "absolute";
-			closeButton.style.top = "0";
-			closeButton.style.left = "0";
+			closeButton.style.top = "1em";
+			closeButton.style.right = "2em";
 			closeButton.innerText = "Close";
-			document.body.appendChild(closeButton);
+			help.appendChild(closeButton);
 
-			closeButton.addEventListener("click", event => {
-
-				Q("#help-overlay").remove();
-				event.target.remove();
-			});
+			closeButton.addEventListener("click", ev => removeOverlay() );
+			overlay.addEventListener("click", ev => removeOverlay() );
 			
 		});
 		handled = true;
@@ -3402,6 +3407,8 @@ Q("#file-upload-input").addEventListener("change", ev => {
 
 	const file = ev.target.files[0];
 
+	Q("body").style.cursor = "wait";
+
     const reader = new FileReader();
     reader.__file__ = file;
     reader.onload = function (event) {
@@ -3431,12 +3438,25 @@ Q("#file-upload-input").addEventListener("dragleave", ev => {
 	Q("#drag-drop-zone").style.borderColor = "grey";
 });
 
+
+// destroy the elements that make the overlay popup
+function removeOverlay () {
+
+	Qall(".popup-overlay, .popup-modal").forEach(el => {
+		el.remove();
+	});
+
+}
+
+
 // handle the drag-drop
 // - https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
 function dropHandler(ev) {
   
 	console.log("dropHandler");
 	ev.preventDefault(); // prevent default behavior (which is to open the file)
+
+	Q("body").style.cursor = "wait";
 
 	if (ev.dataTransfer.items) {
 		const numItems = 1; // ev.dataTransfer.items.length; // for now, only process the first file dropped
@@ -3548,10 +3568,15 @@ else {
 
 
 
-document.addEventListener("keydown", e => {
+document.addEventListener("keydown", ev => {
 
-	if (e.key == " ") {
+	if (ev.key == " ") {
+		// switch to preview mode if not in preview mode
 
+	}
+
+	if (ev.keyCode == 27) {
+		removeOverlay();
 	}
 
 });
