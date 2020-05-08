@@ -1,6 +1,6 @@
 ## Axes panel
 
-This panel displays data about the axes in variable font, which is stored in the `fvar` table. For each axis, we can see:
+This panel displays data about the axes in variable font. For each axis, we can see:
 
 * the 4-character tag name, e.g. `wght`
 * the human-reable name, e.g. “Weight”
@@ -9,13 +9,15 @@ This panel displays data about the axes in variable font, which is stored in the
 * the maximum value
 * the current value
 
+Initial data for the axes panel comes from the font’s `fvar` table.
+
 ### Number format
 This offers multiple views on the minimum, default, maximum and current values:
 
-* user: the value in decimal;
-* userhex: the value in hexadecimal, multiplied by 65536 (0x10000) in accordance with the 16.16 format — these hex values can be observed when inspecting font binaries;
-* norm: the normalized value, after the value has been transformed into a value in the range [-1,1];
-* normhex: the normalized value in hexadecimal, multiplied by 16384 in accordance with the 2.14 format.
+* **user**: the value in decimal;
+* **userhex**: the value in hexadecimal, multiplied by 65536 (0x10000) in accordance with the 16.16 format — these hex values can be observed when inspecting font binaries;
+* **norm**: the normalized value, after the value has been transformed into a value in the range [-1,1];
+* **normhex**: the normalized value in hexadecimal, multiplied by 16384 in accordance with the 2.14 format.
 
 Note that both norm and normhex views incorporate avar mapping, if the font contains an avar table.
 
