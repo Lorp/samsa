@@ -2,7 +2,7 @@
   "name": "@Lorp/samsa",
   "version": "1.0.0",
   "description": "Samsa is a web app that visualizes how variable fonts (VF) work. ",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": "Lorp/samsa",
   "main": "src/samsa-core.js"
 }
