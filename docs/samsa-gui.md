@@ -33,9 +33,9 @@ Required files and folders:
 Optional files and folders:
 
 * `fonts/<font1.ttf>` — any number of fonts to appear in the “Fonts ready to load” panel
-* `fonts/fontlist.json` — a JSON file containing an array of strings, each string being a filename of a font to appear in the “Fonts ready to load” panel
+* `samsa-fonts.json` — a JSON file containing an array of strings, each string being a filename of a font to appear in the “Fonts ready to load” panel
 
-_Note: The “Fonts ready to load” panel is populated via an XMLHttpRequest (aka AJAX) for the file `fontlist.json`. XHR requires a web server setup (e.g. Apache), meaning Samsa’s “Fonts ready to load” panel is empty when Samsa is invoked by simple double-click or File/Open._
+_Note: The “Fonts ready to load” panel is populated via a fetch() request for the file `samsa-fonts.json`. This requires a web server setup (e.g. Apache), meaning Samsa’s “Fonts ready to load” panel is empty when Samsa is invoked by simple double-click or File/Open._
 
 ## Panels
 
