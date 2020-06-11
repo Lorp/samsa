@@ -1428,7 +1428,7 @@ function vfLoaded (font) {
 	panel.innerText = "";
 	if (font.tables.STAT) {
 		const STAT = font.tables.STAT.data;
-		
+
 		// create grid layout
 		let grid = document.createElement("div");
 		grid.style.display = "grid";
@@ -1437,6 +1437,15 @@ function vfLoaded (font) {
 		grid.style.gridColumnGap = "3px";
 
 		let label, select, note;
+
+		// STAT version
+		const versionCol0 = EL("label");
+		const versionCol1 = EL("label");
+		versionCol0.innerText = "STAT version";
+		versionCol1.innerText = `${STAT.majorVersion}.${STAT.minorVersion}`;
+		grid.appendChild(versionCol0);
+		grid.appendChild(versionCol1);
+		grid.appendChild(new EL("div")); // blank
 
 		// for each STAT designAxis create a <select>; plus a <select> for multiaxis axisValueTables
 		let selects = [];
@@ -1518,7 +1527,7 @@ function vfLoaded (font) {
 						let instance = font.addInstance(fvs, {type: "custom"});
 						setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 						axesUpdateValues();
-						panelSTAT_handleChange(fvs);
+						panelSTAT_handleChange(fvs); // TODO: add another parameter NOT to update the select selection when false
 						panelWebfont_handleChange();
 						font.instances.pop();
 
@@ -1552,14 +1561,14 @@ function vfLoaded (font) {
 		grid.appendChild(label);
 		grid.appendChild(input);
 
-		panel.appendChild(grid);
-
-
 		// "Add instance" button
 		let addInstanceEl = document.createElement("button");
 		addInstanceEl.innerText = "Add instance";
 		addInstanceEl.class = "instance-add";
 		grid.appendChild(addInstanceEl);
+
+		// add grid to the panel
+		panel.appendChild(grid);
 
 		// set current STAT instance and add it to the Instances panel
 		addInstanceEl.addEventListener("click", () => {
