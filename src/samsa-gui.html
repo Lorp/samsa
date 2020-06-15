@@ -3251,23 +3251,27 @@ document.onclick = function (event) {
 
 			doc = ">>> EXPERIMENTAL HELP DISPLAY <<<\n\n" + doc;
 
- 			// linebreaks
-			doc = doc.replace( /\n\n/g, "<br>\n\n");
-			doc = doc.replace( /  \n/g, "<br>\n");
-
 			// numbered lists
 			// - m is multiline, g is global
 			doc = doc.replace( /\n\n^\d+\. (.+?)$/gm, "\n\n<ol><li>$1</li>"); // first
-			doc = doc.replace( /^\d+\. (.*?)$\n\n/gm, "\n<li>$1</li></ol>\n"); // last
-			doc = doc.replace( /^\d+\. (.+?)$/gm, "\n<li>$1</li>"); // middle
+			doc = doc.replace( /^\d+\. (.*?)$\n\n/gm, "<li>$1</li></ol>\n"); // last
+			doc = doc.replace( /^\d+\. (.+?)$/gm, "<li>$1</li>"); // middle
 
 			// unnumbered lists
 			doc = doc.replace( /\n\n(\*|-) (.+?)$/gm, "\n\n<ul><li>$2</li>"); // first
-			doc = doc.replace( /^(\*|-) (.*?)$\n\n/gm, "\n<li>$2</li></ul>\n"); // last
-			doc = doc.replace( /^(\*|-) (.+?)$/gm, "\n<li>$2</li>"); // middle
+			doc = doc.replace( /^(\*|-) (.*?)$\n\n/gm, "<li>$2</li></ul>\n\n"); // last
+			doc = doc.replace( /^(\*|-) (.+?)$/gm, "<li>$2</li>"); // middle
 
+			// bold and italic
 			doc = doc.replace( /(\*\*|__)([^\n]+?)(\*\*|__)/g, `<strong>$2</strong>`); // bold
 			doc = doc.replace( /(\*|_)([^\n]+?)(\*|_)/g, `<em>$2</em>`); // italic
+
+ 			// linebreaks
+			//doc = doc.replace( /\n\n/g, "<br>\n\n");
+			//doc = doc.replace( /  \n/g, "<br>\n");
+
+			doc = doc.replace( /\n\n/g, `</p><p>\n\n`);
+			doc = doc.replace( /  \n/g, "<br>\n");
 
 			// headings
 			doc = doc.replace( /#### (.*)\n/g, "<h4>$1</h4>\n"); // h4
@@ -3276,7 +3280,8 @@ document.onclick = function (event) {
 			doc = doc.replace( /# (.*)\n/g, "<h1>$1</h1>\n"); // h1
 
 			// images
-			doc = doc.replace( /!\[([^\]]*?)\]\(([^)]*?)\)/g, `<img src="$2" title="$1">`); // images
+			doc = doc.replace( /!\[([^\]]*?)\]\(([^)]*?)\)/g, `<figure><img src="$2" title="$1"><figcaption>$1</figcaption></figure> `); // images
+			console.log (doc);
 
 			// links
 			doc = doc.replace( /\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`); // links

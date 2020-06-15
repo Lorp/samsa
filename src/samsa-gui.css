@@ -344,3 +344,16 @@ h4 {
 	font-style: italic;
 	margin-bottom: 0.5em;
 }
+
+#help-overlay figure {
+	width: 100%;
+	margin: 1em 0 0 0;
+}
+
+#help-overlay figure img {
+	width: 100%;
+}
+
+#help-overlay figure figcaption {
+	font-size: 0.75em;
+}
