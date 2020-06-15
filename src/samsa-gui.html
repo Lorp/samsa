@@ -3275,6 +3275,9 @@ document.onclick = function (event) {
 			doc = doc.replace( /## (.*)\n/g, "<h2>$1</h2>\n"); // h2
 			doc = doc.replace( /# (.*)\n/g, "<h1>$1</h1>\n"); // h1
 
+			// images
+			doc = doc.replace( /!\[([^\]]*?)\]\(([^)]*?)\)/g, `<img src="$2" title="$1">`); // images
+
 			// links
 			doc = doc.replace( /\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`); // links
 
