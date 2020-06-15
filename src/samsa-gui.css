@@ -337,3 +337,10 @@ tt {
 	background-color: black;
 	opacity: 0.6;
 }
+
+/* used in markdown help files */
+h4 {
+	font-weight: normal;
+	font-style: italic;
+	margin-bottom: 0.5em;
+}
