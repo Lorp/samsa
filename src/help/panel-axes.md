@@ -45,7 +45,11 @@ These buttons increment and decrement the current normalized value by the smalle
 These controls are particularly useful in examining behaviour near intermediate masters. Instananeous transitions between dissimilar shapes (frequently seen in the weight axis of glyphs $, ¢, Ø) can be achieved by juxtaposing two intermediate masters with values differing by 1/16384 in normalized coordinates, as long as the dissimilar glyphs have compatible outlines. For instananeous transitions with incompatible outlines, Feature Variations are necessary.
 
 ### avar table
-The optional [`avar` table](https://docs.microsoft.com/en-us/typography/opentype/spec/avar) allows font makers to adjust how axis values are mapped to normalized values. A font that has Regular at `wght`=400 and Black at `wght`=900 may benefit its Bold at a custom value, e.g. `wght`=618, rather than 700 as defined in the [CSS](https://developer.mozilla.org/en/docs/Web/CSS/font-weight) and [OpenType OS/2 table](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#usweightclass) specifications. The font maker can use the `avar` table to specify a mapping from 618 to 700 (in normalized coordinates) to achieve this. Axis values between mapped values are mapped according to linear interpolation.
+The optional [`avar` table](https://docs.microsoft.com/en-us/typography/opentype/spec/avar) allows font makers to adjust how axis values are mapped to normalized values. Fonts that have an `avar` table display a “Show avar” checkbox in Samsa.
+
+![Samsa visualization of the avar table from Oswald Variable font](../screenshots/20200615-avar-Oswald.png)
+
+First, some background on how `avar` works. A font that has Regular at `wght`=400 and Black at `wght`=900 may benefit by having its Bold at a custom value, e.g. `wght`=618, rather than 700 as defined in the [CSS spec](https://developer.mozilla.org/en/docs/Web/CSS/font-weight) and [OpenType OS/2 table spec](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#usweightclass). In this case the font maker uses the `avar` table to specify a mapping from 618 to 700 (in normalized coordinates) to achieve this.
 
 The diagram in Samsa always shows the three mandatory mappings:
 
@@ -55,7 +59,9 @@ The diagram in Samsa always shows the three mandatory mappings:
 
 In addition to the mandatory mappings, the custom `avar` mappings are also shown. As axis settings are adjusted, the green arrow shows the current axis location with its pre-normalized value pointing to its normalized value.
 
-Note that, because of the mandatory mappings, the minimum, default and maximum values cannot be remapped.
+Note how axis values between mapped values are mapped according to linear interpolation.
+
+Note also that, because of the mandatory mappings, the minimum, default and maximum values cannot be remapped.
 
 The values involved in `avar` mapping are shown if you hover the pointer over the diagram:
 
