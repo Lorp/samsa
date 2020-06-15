@@ -3247,6 +3247,8 @@ document.onclick = function (event) {
 		)
 		.then(doc => {
 
+			// Markdown (very minimal!)
+
 			doc = ">>> EXPERIMENTAL HELP DISPLAY <<<\n\n" + doc;
 
  			// linebreaks
@@ -3268,6 +3270,7 @@ document.onclick = function (event) {
 			doc = doc.replace( /(\*|_)([^\n]+?)(\*|_)/g, `<em>$2</em>`); // italic
 
 			// headings
+			doc = doc.replace( /#### (.*)\n/g, "<h4>$1</h4>\n"); // h4
 			doc = doc.replace( /### (.*)\n/g, "<h3>$1</h3>\n"); // h3
 			doc = doc.replace( /## (.*)\n/g, "<h2>$1</h2>\n"); // h2
 			doc = doc.replace( /# (.*)\n/g, "<h1>$1</h1>\n"); // h1
