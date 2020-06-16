@@ -37,10 +37,10 @@ These normalized values are used internally in font processing, and can be seen 
 Note that both norm and normhex views incorporate `avar` mapping (see below), if the font contains an `avar` table.
 
 #### “normhex” format
-This is again the norm value in hexadecimal, multiplied by 16384 in accordance with the 2.14 format (2 bits integer, 14 bits fractional). These hex values can be observed when inspecting font binaries. They are useful when considering the precision with which axis values are processed. All axis values ultimately resolve to this resolution, meaning we can step through all possible instances by adding 1/16384 to the normalized axis values.
+This is the normalized value again, multiplied by 16384 and in hexadecimal, in accordance with the 2.14 format (2 bits integer, 14 bits fractional). These hex values can be observed when inspecting font binaries. They are useful when considering the precision with which axis values are processed. All axis values ultimately resolve to this resolution. We can step through all possible instances on one axis by starting at a normalized value of -1 then repeatedly adding 1/16384 (0x0001 in 2.14 format) until we reach +1.
 
 ### +/- buttons
-These buttons increment and decrement the current normalized value by the smallest possible amount, which is 1/16384, or (in 2.14 format) 0x0001. In “normhex” number format we can see these values incrementing and decrementing by 1.
+These buttons increment and decrement the current normalized value by the smallest possible amount, which is 1/16384 (0x0001 in 2.14 format). In “normhex” number format we can see these values incrementing and decrementing by 1.
 
 These controls are particularly useful in examining behaviour near intermediate masters. Instananeous transitions between dissimilar shapes (frequently seen in the weight axis of glyphs $, ¢, Ø) can be achieved by juxtaposing two intermediate masters with values differing by 1/16384 in normalized coordinates, as long as the dissimilar glyphs have compatible outlines. For instananeous transitions with incompatible outlines, Feature Variations are necessary.
 
@@ -59,7 +59,7 @@ The diagram in Samsa always shows the three mandatory mappings:
 
 In addition to the mandatory mappings, the custom `avar` mappings are also shown. As axis settings are adjusted, the green arrow shows the current axis location with its pre-normalized value pointing to its normalized value.
 
-Note how axis values between mapped values are mapped according to linear interpolation.
+Notice how axis values between mapped values are mapped according to linear interpolation.
 
 Note also that, because of the mandatory mappings, the minimum, default and maximum values cannot be remapped.
 
