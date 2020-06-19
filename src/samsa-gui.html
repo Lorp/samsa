@@ -845,7 +845,7 @@ function vfLoaded (font) {
 	GLOBAL.vf = font;
 	let panel;
 
-	CONFIG.ui.tvtToggles = [];
+	GLOBAL.tvtToggles = [];
 
 	// set up initial global tuple, the default designspace location
 	GLOBAL.tuple = [];
@@ -2512,8 +2512,8 @@ function updateTvts (glyph, iglyph) {
 
 			let thisRow = ev.target.parentNode;
 			const pointsEl = thisRow.parentNode.querySelectorAll(".tvt-points")[t];
-			CONFIG.ui.tvtToggles[t] = (!CONFIG.ui.tvtToggles[t] || CONFIG.ui.tvtToggles[t] == "none") ? "grid" : "none";
-			pointsEl.style.display = CONFIG.ui.tvtToggles[t];
+			GLOBAL.tvtToggles[t] = (!GLOBAL.tvtToggles[t] || GLOBAL.tvtToggles[t] == "none") ? "grid" : "none";
+			pointsEl.style.display = GLOBAL.tvtToggles[t];
 		} );
 
 		//
@@ -2533,7 +2533,7 @@ function updateTvts (glyph, iglyph) {
 		let ol = EL("ol");
 		ol.classList.add("tvt-points");
 		ol.setAttribute("start", 0);
-		ol.style.display = CONFIG.ui.tvtToggles[t] == "grid" ? "grid" : "none";
+		ol.style.display = GLOBAL.tvtToggles[t] == "grid" ? "grid" : "none";
 
 		tvt.deltas.forEach((delta, p) => {
 
