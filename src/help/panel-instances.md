@@ -1,17 +1,39 @@
 ## Instances panel
 
-[to finish]
+The Instances panel lists all the instances in the font. Initially this is the Default instance, followed by all the Named Instances.
 
-Shows all instances in the font. This includes the Default instance, all Named Instances, and any custom instances that have been made by the user in this session.
+### Adding instances
+You can add instances to this panel by clicking “Add instance” in the Axes panel or the STAT panel. The current axis locations are always used when clicking “Add instance”.
 
-Clicking an instance makes it active (green), sets the axes, and repopulates the Glyphs panel with new set for this instance.
-\
-The Default instance is identified with a home icon.
+### Instance records
+Each instance record displays:
 
-Named Instances come from the `fvar` table in the font. They are identified with a bookmark icon.
+* **type** of instance (the *Default instance* has a home icon, *Named Instances* have a bookmark icon, *Custom Instances* have a sliders icon);
+* **preview** of the capital A glyph of this instance;
+* **name** of this instance (it’s editable in case you want to keep track of created instances or save the instance as a TTF);
+* **visibility** toggle (eye icon, not currently functional);
+* **download** icon to instantiate and download a static font (see below);
+* **location** on each axis.
 
-Instances added with the “Add instance” buttons are also shown. They use a sliders icon.
+Click on an instance to:
 
-### Export static TTF
-Click the down arrow on any instance to export an instantiation of the variable font at the current designspace location. This goes to the Downloads folder.
+* Update all parts of the UI which display the current axis locations to the axis locations of the new instance. That includes the main Glyph display, the Axes panel, the Delta sets panel and the Webfont panel.
+* Update the Glyphs panel to show all the glyphs from the new instance.
 
+The green background colour indicates the most recent active instance.
+
+### Instantiate (download) static TTF
+Click the down arrow on any instance to export an instantiation of the variable font at the current designspace location. It is saved to the Downloads folder.
+
+#### Technical details
+When instantiating TTFs, Samsa first processes each glyph according to its location on all the axes, similarly to how Samsa instantiates glyphs for display in the Glyphs panel, using identical functions in `samsa-core.js` to generate a new set of outline points for each glyph.
+
+Then, rather than a function to convert these outlines to SVG, another function converts the outlines to the TrueType binary format, as defined in the OpenType `glyf` table. These new binary objects are compiled, along with much of the metadata from the original font, into a JavaScript ArrayBuffer object — an entire TrueType font stored in the browser’s memory.
+
+Next, the ArrayBuffer is converted into a [data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs), with the binary TrueType data encoded as a [Base 64](https://en.wikipedia.org/wiki/Base64) string, which is then set as the `href` attribute of a new `<a>` element. Finally Samsa triggers a click to download the binary data as a file in the Downloads folder.
+
+### How Named Instances in the font
+A font maker typically sets up Named Instances in font editors or in a [.designspace](https://github.com/fonttools/fonttools/tree/master/Doc/source/designspaceLib#document-xml-structure) document. In an Opentype variable font, Named Instances are stored in the `fvar` table.
+
+### References
+* [OpenType specification: fvar](https://docs.microsoft.com/en-us/typography/opentype/spec/fvar)
