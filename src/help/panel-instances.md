@@ -32,8 +32,8 @@ Then, rather than a function to convert these outlines to SVG, another function 
 
 Next, the ArrayBuffer is converted into a [data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs), with the binary TrueType data encoded as a [Base 64](https://en.wikipedia.org/wiki/Base64) string, which is then set as the `href` attribute of a new `<a>` element. Finally Samsa triggers a click to download the binary data as a file in the Downloads folder.
 
-### How Named Instances in the font
-A font maker typically sets up Named Instances in font editors or in a [.designspace](https://github.com/fonttools/fonttools/tree/master/Doc/source/designspaceLib#document-xml-structure) document. In an Opentype variable font, Named Instances are stored in the `fvar` table.
+### Adding Named Instances to fonts
+A font maker typically sets up the Named Instances of a VF using a font editor, or within a [.designspace](https://github.com/fonttools/fonttools/tree/master/Doc/source/designspaceLib#document-xml-structure) document. Named Instances are stored in the `fvar` table of an Opentype variable font, each occupying only a few bytes.
 
 ### References
 * [OpenType specification: fvar](https://docs.microsoft.com/en-us/typography/opentype/spec/fvar)
