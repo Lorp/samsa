@@ -25,10 +25,20 @@ The green background colour indicates the most recent active instance.
 ### Instantiate (download) static TTF
 Click the down arrow on any instance to export an instantiation of the variable font at the current designspace location. It is saved to the Downloads folder.
 
+#### Limitations
+
+The downloaded TTF files may be useful for testing, but they are not ready for production. Samsa does not (yet) process:
+
+* OpenType table checksums
+* `GPOS` (so kerning remains default)
+* `GSUB` (so `rvrn` Feature Variations are not respected)
+* `MVAR` (variation of `OS/2` table and other metrics)
+* `cvar` (so the `cvt ` table remains default)
+
 #### Technical details
 When instantiating TTFs, Samsa first processes each glyph according to its location on all the axes, similarly to how Samsa instantiates glyphs for display in the Glyphs panel, using identical functions in `samsa-core.js` to generate a new set of outline points for each glyph.
 
-Then, rather than a function to convert these outlines to SVG, another function converts the outlines to the TrueType binary format, as defined in the OpenType `glyf` table. These new binary objects are compiled, along with much of the metadata from the original font, into a JavaScript ArrayBuffer object — an entire TrueType font stored in the browser’s memory.
+Then, instead of the function to convert these outlines into SVG for immediate display, another function converts the outlines to the TrueType binary format (as defined in [OpenType spec: `glyf` table](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf)). These new binary objects are compiled, along with much of the metadata from the original font, into a JavaScript ArrayBuffer object, this being an entire TrueType font stored in the browser’s memory.
 
 Next, the ArrayBuffer is converted into a [data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs), with the binary TrueType data encoded as a [Base 64](https://en.wikipedia.org/wiki/Base64) string, which is then set as the `href` attribute of a new `<a>` element. Finally Samsa triggers a click to download the binary data as a file in the Downloads folder.
 
