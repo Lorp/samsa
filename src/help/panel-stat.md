@@ -1,11 +1,20 @@
 ## STAT panel
 
-This panel shows data from the [`STAT` table](https://docs.microsoft.com/en-us/typography/opentype/spec/stat) in an OpenType font, including the table version number. Note that version 1.0 is deprecated.
+This panel shows data from the [`STAT` table](https://docs.microsoft.com/en-us/typography/opentype/spec/stat) in an OpenType font, including the table version number. (Note that version 1.0 is deprecated.)
 
 ### Comparison of STAT records and Named Instances
 The STAT table builds on the idea of _Named Instances_, which are long established in Variable Fonts and which are closely related to the instances specified by typeface designers in font editors and .designspace documents. Like those records, STAT records assign names to locations in designspace.
 
 However, a record in the STAT table typically _does not fully specify_ a designspace location; rather, it _partially specifies_ it, by assigning a name to a location on a particular axis, or to locations on a group of axes.
+
+### Using the STAT panel
+The axes controlled by STAT are presented in dropdown lists, one list per axis. Selecting a name from the list (e.g. selecting “ExtraBold” from the Weight axis names) adjusts that axis to the new value, and updates the Samsa UI including the main glyph window with the new axis location.
+
+Selecting an item from the list for one axis does not affect location on any other axis.
+
+If axis settings are moved, using other controls, to  a location where a value in unnamed on that axis, “[no match]” is displayed in the list for that axis.
+
+Value ranges, linked values and multi-axis names are also indicated. See below for details.
 
 ### Name composition
 STAT table records allow style names for instances to be automatically composed by applications and font tools.
@@ -48,18 +57,24 @@ While initially counter-intuitive, this possibility makes sense when we consider
 Specifying location on axes not in the font applies well to static, non-variable fonts. Thus, a static Black Condensed font that is intended to be part of a variable font family, specifies its location on the Weight and Width axes using a STAT table of two value records: wght=900 (“Black”) and wdth=75 (“Condensed”).
 
 ### Range specification
-A range can be specified in a STAT record, as well as a value. Samsa represents ranges thus: _nominalValue [rangeMin, rangeMax]_.
+A range can be specified in a STAT record, as well as a value. Samsa represents ranges thus:
+
+_nominalValue [rangeMin, rangeMax]_.
 
 STAT ranges may help apps provide meaningful names even when a designspace location does not exactly match a STAT name’s value, and also allow static fonts to assert their intended range of operation. Although the feature was intended to allow selection of particular optical size masters for ranges of sizes in the real world (e.g. use _Caption_ up to 8pt, use _Text_ from 8pt to 14pt, use _Display_ from 14pt and above), the Adobe Source variable fonts also use ranges for the Weight axis, thus its Regular STAT record has a nominal value of 400, with a range from 350 to 450. It is unclear whether such usage is recommended [June 2020].
 
 Ranges are limited to single-axis STAT records.
 
 ### Linked value specification
-A linked value can be specified in a STAT record. Typical usage is to link the “Regular” weight to the Bold (so the wght=400 record links to 700) or to link “Roman” on the Italic axis to “Italic” (so the ital=0 record links to 1). An app might use this information to build a UI toggle, enabling users to switch easily between Regular and Bold, and Roman and Italic. Note that the linked location, especially regarding the Italic axis, may be in a separate variable font file in the same family.
+A linked value can be specified in a STAT record. Typical usage is to link the “Regular” weight to the Bold (so the wght=400 record links to 700) or to link “Roman” on the Italic axis to “Italic” (so the ital=0 record links to 1). Samsa represents ranges thus:
+
+_nominalValue → linkedvalue_.
+
+An app might use this information to build a UI toggle, enabling users to switch easily between Regular and Bold, and Roman and Italic. Note that the linked location, especially regarding the Italic axis, may be in a separate variable font file in the same family.
 
 Linked values are limited to single-axis names. Linked values cannot be combined with a STAT range in the same record. The Adobe Source fonts utilize a Range record and a Linked value record to represent dual functionality, but it is unclear whether such usage is recommended or widely supported [June 2020].
 
-### Multi-axis value records (“format 4”)
+### Multi-axis names (“format 4”)
 The STAT table, from version 1.2 onwards, allows more than 1 axis to be specified in a single name record. It is not recommended to use registered axes in this way, since they are designed to be adjusted individually.
 
 Decorative fonts may wish to name settings on combinations of axes. For example a record for “Pointed” might specify locations on 2 custom axes, while in the same font other (registered) axes use simple 1-axis STAT names and values.
