@@ -599,6 +599,10 @@ function SVG (tag) {
     return document.createElementNS("http://www.w3.org/2000/svg", tag);
 }
 
+function htmlEntities(str) {
+	// https://css-tricks.com/snippets/javascript/htmlentities-for-javascript/
+	return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 // TODO: specify that this gets the current fvs from sliders
 function getCurrentFvs() {
@@ -1177,7 +1181,7 @@ function vfLoaded (font) {
 		li.style.gridTemplateColumns = liH.style.gridTemplateColumns;
 		li.style.listStyleType = "none";
 
-		li.innerHTML = `<label class="tag"><tt>${axis.tag}</tt></label>`;
+		li.innerHTML = `<label class="tag"><code>${axis.tag}</code></label>`;
 
 		let docStr = "", docUrl = font.config.docs.axes[axis.tag.toLowerCase()];
 		if (docUrl) {
@@ -2581,7 +2585,7 @@ function setActiveGlyph (g, instance) {
 
 	const axesHeader = EL("div");
 	for (const axis of font.axes)
-		axesHeader.innerHTML += `<div style="display:inline-block;width:50px;"><tt>${axis.tag}</tt></div>`;
+		axesHeader.innerHTML += `<div style="display:inline-block;width:50px;"><code>${axis.tag}</code></div>`;
 
 	lh.appendChild(axesHeader);
 
@@ -3349,7 +3353,11 @@ document.onclick = function (event) {
 
 			// Markdown (very minimal!)
 
-			//doc = ">>> EXPERIMENTAL HELP DISPLAY <<<\n\n" + doc;
+			// code blocks
+			function replacerForCode(match, arg1) {
+				return "\n<pre><code>" + htmlEntities(arg1) + "</code></pre>\n";
+			}
+			doc = doc.replace( /\n```\n([^`]+?)\n```/g, replacerForCode);
 
 			// numbered lists
 			// - m is multiline, g is global
@@ -3366,10 +3374,7 @@ document.onclick = function (event) {
 			doc = doc.replace( /(\*\*|__)([^\n]+?)(\*\*|__)/g, `<strong>$2</strong>`); // bold
 			doc = doc.replace( /(\*|_)([^\n]+?)(\*|_)/g, `<em>$2</em>`); // italic
 
- 			// linebreaks
-			//doc = doc.replace( /\n\n/g, "<br>\n\n");
-			//doc = doc.replace( /  \n/g, "<br>\n");
-
+			// linebreaks
 			doc = doc.replace( /\n\n/g, `</p><p>\n\n`);
 			doc = doc.replace( /  \n/g, "<br>\n");
 
@@ -3381,14 +3386,12 @@ document.onclick = function (event) {
 
 			// images
 			doc = doc.replace( /!\[([^\]]*?)\]\(([^)]*?)\)/g, `<figure><img src="$2" title="$1"><figcaption>$1</figcaption></figure> `); // images
-			console.log (doc);
 
 			// links
 			doc = doc.replace( /\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`); // links
 
-			// code
-			// - TODO code blocks
-			doc = doc.replace( /`([^ \n]*?)`/g, `<tt>$1</tt>`); // <tt>
+			// code snippets
+			doc = doc.replace( /`([^ \n]*?)`/g, `<code>$1</code>`); // <code>
 
 			// build ui
 			const overlay = EL("div");

@@ -1,18 +1,18 @@
 ## STAT panel
 
-This panel shows data from the [`STAT` table](https://docs.microsoft.com/en-us/typography/opentype/spec/stat) in an OpenType font, including the table version number. (Note that version 1.0 is deprecated.)
+This panel shows data from the [`STAT` table](https://docs.microsoft.com/en-us/typography/opentype/spec/stat) in an OpenType font, including the table version number. Each STAT record, rather like a Named Instance, assigns a name to a location in designspace.
 
 ### Comparison of STAT records and Named Instances
-The STAT table builds on the idea of _Named Instances_, which are long established in Variable Fonts and which are closely related to the instances specified by typeface designers in font editors and .designspace documents. Like those records, STAT records assign names to locations in designspace.
+The STAT table builds on the idea of _Named Instances_, which are long established in Variable Fonts, and which are closely related to the instances specified by typeface designers in font editors and .designspace documents.
 
-However, a record in the STAT table typically _does not fully specify_ a designspace location; rather, it _partially specifies_ it, by assigning a name to a location on a particular axis, or to locations on a group of axes.
+Unlike a Named Instance, a STAT record typically _does not fully specify_ a designspace location. Rather, it _partially specifies_ it, by assigning a name to a location on _one_ axis, or to locations on a _subset_ of axes.
 
 ### Using the STAT panel
-The axes controlled by STAT are presented in dropdown lists, one list per axis. Selecting a name from the list (e.g. selecting “ExtraBold” from the Weight axis names) adjusts that axis to the new value, and updates the Samsa UI including the main glyph window with the new axis location.
+The axes controlled by STAT are presented in dropdown lists, one list per axis. Selecting a name from a list (e.g. selecting “ExtraBold” from the Weight list) adjusts that axis to the new value, and updates the Samsa UI including the main glyph window with the new axis location.
 
 Selecting an item from the list for one axis does not affect location on any other axis.
 
-If axis settings are moved, using other controls, to  a location where a value in unnamed on that axis, “[no match]” is displayed in the list for that axis.
+If axis settings are moved (using other controls) to  a location where a value in unnamed on that axis, then “[no match]” is displayed in the list for that axis.
 
 Value ranges, linked values and multi-axis names are also indicated. See below for details.
 
@@ -90,7 +90,10 @@ Example 2: A 4-axis VF with 6 named locations on each axis requires 1296 (6<sup>
 
 No apps currently exist with a STAT-based style selection UI [June 2020], though the UI in Samsa itself may be used as a template for user experience.
 
-### Reference
+### Notes
+Version 1.0 of the STAT table is deprecated.
+
+### References
 
 * [OpenType spec: STAT](https://docs.microsoft.com/en-us/typography/opentype/spec/stat)
 * [OpenType spec: OS/2, usWeightClass](https://docs.microsoft.com/en-us/typography/opentype/spec/os2#uswidthclass)

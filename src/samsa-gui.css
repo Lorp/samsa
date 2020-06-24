@@ -1,3 +1,4 @@
+/* Main UI font: IBM Plex Sans Variable */
 @font-face {
 	font-family: IBMPlexVariable;
 	src: url(fonts/ui/IBMPlexSansVar-Roman.woff2) format("woff2");
@@ -13,6 +14,33 @@
 	font-stretch: 85 100;
 }
 
+/* Code UI font: IBM Plex Mono in various weights */
+@font-face {
+	font-family: IBMPlexMono;
+	src: url(fonts/ui/IBMPlexMono-Regular.woff2) format("woff2");
+	font-weight: 400;
+}
+
+@font-face {
+	font-family: IBMPlexMono;
+	src: url(fonts/ui/IBMPlexMono-Italic.woff2) format("woff2");
+	font-weight: 400;
+	font-style: italic;
+}
+
+@font-face {
+	font-family: IBMPlexMono;
+	src: url(fonts/ui/IBMPlexMono-Medium.woff2) format("woff2");
+	font-weight: 500;
+}
+
+@font-face {
+	font-family: IBMPlexMono;
+	src: url(fonts/ui/IBMPlexMono-MediumItalic.woff2) format("woff2");
+	font-weight: 500;
+	font-style: italic;
+}
+
 @font-face {
 	font-family: IBMPlexMono;
 	src: url(fonts/ui/IBMPlexMono-Bold.woff2) format("woff2");
@@ -26,6 +54,7 @@
 	font-style: italic;
 }
 
+/* Symbols UI font: FontAwesome: https://fontawesome.com/ */
 @font-face {
 	font-family: FontAwesome;
 	src: url(fonts/ui/fa-regular-400.woff2) format("woff2");
@@ -202,11 +231,17 @@ h1 {
 	background-color: #d0f473;
 }
 
-tt {
+code {
 	font-family: IBMPlexMono;
-	font-weight: bold;
-	_background-color: black;
-	_color: white;
+	font-weight: 500;
+}
+
+pre {
+	background-color: #eeeeee;
+	color: #404040;
+	font-size: 75%;
+	font-weight: normal;
+	padding: 0.5em;
 }
 
 .icon {
