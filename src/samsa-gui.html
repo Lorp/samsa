@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -171,6 +170,8 @@ CONFIG.uiModes = {
 	light: {
 		name: "light",
 
+		layers: ["layer-grid","layer-default","layer-instance","layer-points","layer-instance-points","layer-points","layer-arrows-total","layer-arrows-split","layer-pointnumbers"],
+
 		cartesianAxes: {
 			stroke: "#31b8e7",
 			strokeWidth: 1,
@@ -261,9 +262,10 @@ CONFIG.uiModes = {
 		},
 	},
 
-
 	dark: {
 		name: "dark",
+
+		layers: ["layer-grid","layer-default","layer-instance","layer-points","layer-instance-points","layer-points","layer-arrows-total","layer-arrows-split","layer-pointnumbers"],
 
 		cartesianAxes: {
 			stroke: "lightblue",
@@ -280,7 +282,6 @@ CONFIG.uiModes = {
 			strokeWidth: 3,
 			tipLength: 20,
 			tipWidth: 15,
-			//color: "#0044ee",
 			color: "orange",
 		},
 
@@ -356,6 +357,8 @@ CONFIG.uiModes = {
 
 	loci: {
 		name: "loci",
+
+		layers: ["layer-grid","layer-loci","layer-default","layer-instance","layer-points","layer-instance-points","layer-arrows-total","layer-arrows-split","layer-pointnumbers"],
 
 		cartesianAxes: {
 			stroke: "#31b8e7",
@@ -453,6 +456,8 @@ CONFIG.uiModes = {
 
 	preview: {
 		name: "preview",
+
+		layers: ["layer-instance"],
 
 		cartesianAxes: {
 			stroke: "none",
@@ -2627,38 +2632,17 @@ function updateGlyphSVG (g, instance) {
 	drawing.innerHTML = "";
 
 
-	let layers = []; // layers are drawn from low values (bottom) to high values (top)
-
 	let scale = 0.5 / uiScale;
 	let opacity = 0.5;
 	let svg = SVG("svg");
 	let svgg = SVG("g"); // this transforms everything inside it
 	svgg.id = "svg-transform-group";
-	//let svgDefs = SVG("defs")
-	//let svgMarker = SVG("marker")
-	//let svgMarkerPath = SVG("path")
 	svg.attrsSVG( {
 		width: 1000,
 		height: 1000,
 		style: `background-color: ${ui.glyphDefault.backgroundColor};`,
 	});
 	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
-
-	/*
-	// define marker
-	svgMarker.id = "arrow";
-	svgMarker.attrsSVG({
-		markerWidth: 20,
-		markerHeight: 20,
-		fill: ui.arrow.color,
-		orient: "auto",
-		refX: 10,
-		refY: 5,
-	});
-	svgMarkerPath.setAttributeNS(null, "d", "M 10 5 L 3 2 L 3 8 z");
-	svgMarker.appendChild(svgMarkerPath);
-	svgDefs.appendChild(svgMarker);
-	*/
 
 	/*
 	// filters to use... not yet :)
@@ -2670,33 +2654,13 @@ function updateGlyphSVG (g, instance) {
 	svgFilter.appendChild(svgFilterBlur);
 	svgDefs.appendChild(svgFilter);
 	*/
-
 	//svg.appendChild(svgDefs);
 
 
-	// TODO: we're not yet using the layer idea, but I think it will be useful to allow us to make minimal updates
-	let layerIds = [];
-	layerIds.push(0);
-	layerIds.push(1);
-	layerIds.push(2);
-	if (ui.loci && ui.loci.strokeWidth)
-		layerIds.push(7);
-	layerIds.push(3);
-	if (Q("#arrows-total").checked && ui.arrow.strokeWidth)
-		layerIds.push(4);
-	layerIds.push(5);
-	if (Q("#arrows-split").checked && ui.arrow.strokeWidth)
-		layerIds.push(6);
-	if (Q("#point-numbers").checked && CONFIG.ui.name != "preview")
-		layerIds.push(8);
-
-	layerIds.forEach(L => {
+	// draw each layer in the order it was specified in font.config.ui.layers
+	ui.layers.forEach(layer => {
 
 		let svgPath, svgg2, svgg3, paths;
-		let layer = layers[L] = {
-			on: true,
-			svg: null,
-		};
 		let style = {
 			size: 0,
 			fill: "none",
@@ -2704,16 +2668,14 @@ function updateGlyphSVG (g, instance) {
 			strokeWidth: 0,
 		};
 
-		switch (L) {
+		switch (layer) {
 
-			// cartesian axes, the grid (and metrics!)
-			case 0:
+			case "layer-grid":
 
 				// draw cartesian axes
 				if (ui.cartesianAxes.strokeWidth > 0 || ui.cartesianAxes.stroke != "none") {
-					layer.id = "layer-grid";
 					svgPath = SVG("path");
-					svgPath.id = layer.id;
+					svgPath.id = layer;
 					svgPath.attrsSVG({
 						d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
 						stroke: ui.cartesianAxes.stroke,
@@ -2746,10 +2708,7 @@ function updateGlyphSVG (g, instance) {
 				break;
 
 
-			// default
-			case 1:
-				layer.id = "layer-default";
-				//svgPath = SVG("path");
+			case "layer-default":
 
 				// draw glyph
 
@@ -2775,16 +2734,15 @@ function updateGlyphSVG (g, instance) {
 						fill: ui.glyphDefault.fill,
 					});
 					if (svgg3) {
-						//svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
 						// glyph.points[0] is the xy offset of the first component,
 						// glyph.points[1] is the xy offset of the second component, etc.
 						svgg3.setAttributeNS(null, "transform", `translate(${glyph.points[p][0]} ${glyph.points[p][1]})`);
 						svgg3.appendChild(svgPath);
 						svgg.appendChild(svgg3);
-						svgg3.id = layer.id;
+						svgg3.id = layer;
 					}
 					else {
-						svgPath.id = layer.id;
+						svgPath.id = layer;
 						svgg.appendChild(svgPath);
 					}
 				});
@@ -2792,9 +2750,7 @@ function updateGlyphSVG (g, instance) {
 				break;
 
 
-			// instance
-			case 2:
-				layer.id = "layer-instance";
+			case "layer-instance":
 
 				// draw glyph with variations taken from the current axis settings
 				// - should we render all active instances in this "layer"?
@@ -2831,55 +2787,72 @@ function updateGlyphSVG (g, instance) {
 						svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
 						svgg3.appendChild(svgPath);
 						svgg.appendChild(svgg3);
-						svgg3.id = layer.id;
+						svgg3.id = layer;
 					}
 					else {
-						//svgg3.id = `g${iglyph.id}`; // "g27" means glyph 27
 						svgg.appendChild(svgPath);
-						svgPath.id = layer.id;
+						svgPath.id = layer;
 					}
 				});
 
 				break;
 
-/*
 
-			case 3:
-				// TODO: decide how to show "points" for composites… origin, so we see translations?
-				layer.id = "layer-instance-points";
-				svgg2 = SVG("g");
-				svgg2.id = layer.id;
+			case "layer-instance-points":
+			case "layer-points":
 
-				iglyph.points.forEach(function (pt, p) {
-					let size = ui.point.size;
-					let svgP;
-					if (pt[2]) {
-						svgP = SVG("rect"); // on-curve
-						svgP.classList.add("ctrl-pt");
-						svgP.attrsSVG({
-							x: pt[0]-size, y: pt[1]-size,
-							width: 2*size, height: 2*size,
-						});
-					}
-					else {
-						svgP = SVG("circle"); // off-curve
-						svgP.classList.add("ctrl-pt");
-						svgP.attrsSVG({ cx: pt[0], cy: pt[1], r: 4 });
-					}
-					svgP.data = { point: pt };
-					svgg2.appendChild(svgP);
+				// draw control points, grouped in their own <g>
+
+				// set style, with overrides
+				Object.keys(ui.point).forEach(k => {
+					style[k] = ui.point[k];
 				});
+				if (layer=="layer-instance-points" && ui.glyphCurrent.point)
+					Object.keys(ui.glyphCurrent.point).forEach(k => {
+						style[k] = ui.glyphCurrent.point[k];
+					});
+				else if (layer=="layer-points" && ui.glyphDefault.point)
+					Object.keys(ui.glyphDefault.point).forEach(k => {
+						style[k] = ui.glyphDefault.point[k];
+					});
 
-				svgg.appendChild(svgg2);
+				// only draw if they’re wanted
+				if (style.size > 0) {				
+					
+					// create group element
+					svgg2 = SVG("g");
+					svgg2.id = layer;
+
+					// set attrs
+					svgg2.attrsSVG({
+						fill: style.fill,
+						"stroke-width": style.strokeWidth * uiScale,
+						stroke: style.stroke,
+						opacity: style.opacity,
+					});
+
+					// draw the points
+					(layer=="layer-instance-points" ? iglyph : glyph).points.forEach(function (pt, p) {
+						let svgEl = getSVGForShape (
+							pt,
+							pt[2] ? style.shape : style.shapeOffCurve,
+							style.size * uiScale);
+						svgg2.appendChild(svgEl);
+					});
+
+					svgg.appendChild(svgg2);
+				}
 				break;
-*/
 
-			// arrows: total
-			case 4:
-				layer.id = "layer-arrows-total";
+
+			case "layer-arrows-total":
+
+				// require checkbox checked and this ui mode to have arrow strokeWidth
+				if (!(Q("#arrows-total").checked && ui.arrow.strokeWidth))
+					break;
 
 				svgg2 = SVG("g");
-				svgg2.id = layer.id;
+				svgg2.id = layer;
 				svgg2.attrsSVG({
 					"stroke": ui.arrow.color,
 					"stroke-width": ui.arrow.strokeWidth * uiScale,
@@ -2894,7 +2867,6 @@ function updateGlyphSVG (g, instance) {
 					}
 					else {
 						// get the arrow parameters so we can draw a truncated line (maybe dotted) plus arrow head
-						//let arrow = getArrowParams (x1, y1, x2, y2);
 						let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000});
 						let svgLine = SVG("line");
 						let svgArrowHead = SVG("path");
@@ -2919,65 +2891,14 @@ function updateGlyphSVG (g, instance) {
 				break;
 
 
-			// control points
-			case 3:
-			case 5:
-				// draw control points, grouped in their own <g>
-				if (L==3)
-					layer.id = "layer-instance-points";
-				else if (L==5)
-					layer.id = "layer-points";
-				else
-					layer.id = "layer-invalid";
+			case "layer-arrows-split":
 
-				// set style, with overrides
-				Object.keys(ui.point).forEach(k => {
-					style[k] = ui.point[k];
-				});
-				if (L==3 && ui.glyphCurrent.point)
-					Object.keys(ui.glyphCurrent.point).forEach(k => {
-						style[k] = ui.glyphCurrent.point[k];
-					});
-				else if (L==5 && ui.glyphDefault.point)
-					Object.keys(ui.glyphDefault.point).forEach(k => {
-						style[k] = ui.glyphDefault.point[k];
-					});
+				// require checkbox checked and this ui mode to have arrow strokeWidth
+				if (!(Q("#arrows-split").checked && ui.arrow.strokeWidth))
+					break;
 
-				// only draw if they’re wanted
-				if (style.size > 0) {				
-					
-					// create group element
-					svgg2 = SVG("g");
-					svgg2.id = layer.id;
-
-					// set attrs
-					svgg2.attrsSVG({
-						fill: style.fill,
-						"stroke-width": style.strokeWidth * uiScale,
-						stroke: style.stroke,
-						opacity: style.opacity,
-					});
-
-					// draw the points
-					(L==3 ? iglyph : glyph).points.forEach(function (pt, p) {
-						let svgEl = getSVGForShape (
-							pt,
-							pt[2] ? style.shape : style.shapeOffCurve,
-							style.size * uiScale);
-						svgg2.appendChild(svgEl);
-					});
-
-					svgg.appendChild(svgg2);
-				}
-				break;
-
-
-			// arrows: split
-			case 6:
-
-				layer.id = "layer-arrows-split";
 				svgg2 = SVG("g");
-				svgg2.id = layer.id;
+				svgg2.id = layer;
 				svgg2.attrsSVG({
 					"fill": "none",
 					"stroke-width": 3,
@@ -3013,7 +2934,6 @@ function updateGlyphSVG (g, instance) {
 							// It might be more efficient to draw each tuple’s lines as one path
 							// - but the resulting SVG would be ugly to edit
 							// - and we’d also have to make separate paths for IUP and non-IUP arrows
-							//let arrow = getArrowParams (x1, y1, x2, y2);
 							let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000});
 
 							// make the line
@@ -3066,14 +2986,13 @@ function updateGlyphSVG (g, instance) {
 				break;
 
 
-			// loci
-			case 7: 
-				layer.id = "layer-loci";
+			case "layer-loci":
+
 				const steps = ui.loci.steps; // we will make steps+1 instances
 				let lociX = [], lociY = []; // one for each point
 
 				svgg2 = SVG("g");
-				svgg2.id = layer.id + "-X";
+				svgg2.id = layer + "-X";
 				svgg2.attrsSVG({
 					"fill": "none",
 				});
@@ -3170,13 +3089,14 @@ function updateGlyphSVG (g, instance) {
 				svgg.appendChild(svgg2);
 				break;
 
-			// point numbers
-			case 8: 
 
-				layer.id = "layer-pointnumbers";
+			case "layer-pointnumbers":
+
+				if (!Q("#point-numbers").checked)
+					break;
 
 				svgg2 = SVG("g");
-				svgg2.id = layer.id;
+				svgg2.id = layer;
 				svgg2.attrsSVG({
 					"fill": ui.pointNumbers.color || "black",
 					"stroke": "none",
@@ -3215,22 +3135,11 @@ function updateGlyphSVG (g, instance) {
 				break;
 		}
 
-
-		// add layer to the view
-		layer.svg = svg;
-
 	});
 
 
 	svg.appendChild(svgg);
 	drawing.appendChild(svg);
-
-	// drawing layers
-	// - coordinate grid
-	// - default glyph (options: control points)
-	// - transformed glyph (options: control points, arrows, per-tuple arrows)
-	// - point loci
-	// each layer can be on/off
 
 }
 
@@ -3354,10 +3263,8 @@ document.onclick = function (event) {
 			// Markdown (very minimal!)
 
 			// code blocks
-			function replacerForCode(match, arg1) {
-				return "\n<pre><code>" + htmlEntities(arg1) + "</code></pre>\n";
-			}
-			doc = doc.replace( /\n```\n([^`]+?)\n```/g, replacerForCode);
+			doc = htmlEntities(doc).replace( /\n```\n([\s\S]*?)\n```/gm, "\n<pre><code>$1</code></pre>\n");
+			// \s\S matches all whitespace and non-whitespace characters (note that the "."" does not match newlines, except with the s modifier, which does not work in Firefox)
 
 			// numbered lists
 			// - m is multiline, g is global
