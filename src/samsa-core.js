@@ -1418,29 +1418,22 @@ function SamsaFont (init, config) {
 					// OPTIMIZE: write to a large buffer, handle overflows: the large write data size should be faster
 
 					let glyfBufferOffset = 0;
-					p = 0;
-					if (node) {
 
-						var flushGlyfBuffer = function () {
+					function flushGlyfBuffer(glyfBuffer) {
 
-							if (p > 0) {
-								write (fdw, glyfBuffer, 0, p, position + glyfBufferOffset); // flush the old buffer to disk
-								glyfBufferOffset += p;
-							}
-
-							glyfBuffer = Buffer.alloc(font.config.glyf.bufferSize); // create a new buffer
-							// if (!glyfBuffer) // this condition doesn’t seem to speed things up
-							// 	glyfBuffer = Buffer.alloc(font.config.glyf.bufferSize); // create a new buffer
-							p = 0; // reset the pointer to the start of the glyfBuffer
-
+						if (p > 0) {
+							write (fdw, glyfBuffer, 0, p, position + glyfBufferOffset); // flush the old buffer to disk
+							glyfBufferOffset += p;
 						}
 
-						flushGlyfBuffer();
-					}
-					else {
-						glyfBuffer = new DataView(fontBuffer.buffer, position);
+						if (!glyfBuffer)
+							glyfBuffer = Buffer.alloc(font.config.glyf.bufferSize); // create a new buffer
+						p = 0; // reset the pointer to the start of the glyfBuffer
+						return glyfBuffer;
 					}
 
+					p = 0;
+					glyfBuffer = node ? flushGlyfBuffer(glyfBuffer) : new DataView(fontBuffer.buffer, position);
 
 					for (let g=0; g<font.numGlyphs; g++) {
 
@@ -1465,7 +1458,7 @@ function SamsaFont (init, config) {
 
 							// flush buffer if we need to
 							if (node && (p + maxNewGlyphSize) > font.config.glyf.bufferSize) {
-								flushGlyfBuffer(); // assigns new glyfBuffer and p
+								glyfBuffer = flushGlyfBuffer(glyfBuffer); // assigns new glyfBuffer and p
 							}
 
 							let xMin,xMax,yMin,yMax;
@@ -1584,7 +1577,7 @@ function SamsaFont (init, config) {
 
 							// flush buffer if we need to
 							if (node && (p + maxNewGlyphSize) > font.config.glyf.bufferSize) {
-								flushGlyfBuffer(); // assigns new glyfBuffer and p
+								glyfBuffer = flushGlyfBuffer(glyfBuffer); // assigns new glyfBuffer and p
 							}
 
 							// glyph header
@@ -1653,9 +1646,9 @@ function SamsaFont (init, config) {
 					}
 
 					// final flush
-					// - this is the only write to disk for glyf tables with length < font.config.glyf.bufferSize
+					// - this is the only disk write for glyf tables with length < font.config.glyf.bufferSize
 					if (node)
-						flushGlyfBuffer();
+						glyfBuffer = flushGlyfBuffer(glyfBuffer);
 
 					// update table.length
 					table.length = newLocas[font.numGlyphs];
