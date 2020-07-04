@@ -47,6 +47,7 @@ let CONFIG = {
 	glyf: {
 		overlapSimple: true,
 		bufferSize: 500000, // for writing to files (ignored for in-memory instantiation)
+		compression: false, // toggles glyf table compression, should normally be on (true), but if turned off (false) we can produce instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from each)
 	},
 
 	name: {
@@ -1500,56 +1501,87 @@ function SamsaFont (init, config) {
 							glyfBuffer.setUint16(p, instructionLength), p+=2;
 							p += instructionLength;
 
-							// compress points
-							let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
-							for (pt=0; pt<iglyph.numPoints; pt++) {
-								X = dx[pt] = Math.round(points[pt][0]) - cx;
-								Y = dy[pt] = Math.round(points[pt][1]) - cy;
-								f = points[pt][2]; // on-curve = 1, off-curve = 0
-								if (X==0)
-									f |= 0x10;
-								else if (X >= -255 && X <= 255)
-									f |= (X > 0 ? 0x12 : 0x02);
+							// write glyph points
+							if (CONFIG.glyf.compression) {
 
-								if (Y==0)
-									f |= 0x20;
-								else if (Y >= -255 && Y <= 255)
-									f |= (Y > 0 ? 0x24 : 0x04);
+								// write compressed glyph points (slower)
+								let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
+								for (pt=0; pt<iglyph.numPoints; pt++) {
+									X = dx[pt] = Math.round(points[pt][0]) - cx;
+									Y = dy[pt] = Math.round(points[pt][1]) - cy;
+									f = points[pt][2]; // on-curve = 1, off-curve = 0
+									if (X==0)
+										f |= 0x10;
+									else if (X >= -255 && X <= 255)
+										f |= (X > 0 ? 0x12 : 0x02);
 
-								flags[pt] = f;
-								cx = points[pt][0];
-								cy = points[pt][1];
+									if (Y==0)
+										f |= 0x20;
+									else if (Y >= -255 && Y <= 255)
+										f |= (Y > 0 ? 0x24 : 0x04);
 
-								// OPTIMIZE: bring the 3 loops below into this loop to avoid multiple loops and duplicated tests
-								// - either don’t compress points at all, so we can write flag, x and y easily in one loop
-								// - or we write x and y into buffers and copy later
-								// - config option to select compression or speed
+									flags[pt] = f;
+									cx = points[pt][0];
+									cy = points[pt][1];
+								}
+
+								// overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
+								if (font.config.glyf.overlapSimple)
+									flags[0] |= 0x40;
+
+								// write flags
+								for (pt=0; pt<iglyph.numPoints; pt++)
+									glyfBuffer.setUint8(p, flags[pt]), p++; // compress this a bit more later if optimizing for space
+
+								// write point coordinates
+								// TODO: slightly better to work in terms of flags with a switch on 3 values
+								for (pt=0; pt<iglyph.numPoints; pt++) {
+									if (dx[pt] == 0)
+										continue;
+									if (dx[pt] >= -255 && dx[pt] <= 255)
+										glyfBuffer.setUint8(p, (dx[pt]>0) ? dx[pt] : -dx[pt]), p++;
+									else
+										glyfBuffer.setInt16(p, dx[pt]), p+=2;
+								}
+								for (pt=0; pt<iglyph.numPoints; pt++) {
+									if (dy[pt] == 0)
+										continue;
+									if (dy[pt] >= -255 && dy[pt] <= 255)
+										glyfBuffer.setUint8(p, (dy[pt]>0) ? dy[pt] : -dy[pt]), p++;
+									else
+										glyfBuffer.setInt16(p, dy[pt]), p+=2;
+								}
 							}
-							if (font.config.glyf.overlapSimple)
-								flags[0] |= 0x40; // overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
 
-							// write flags
-							for (pt=0; pt<iglyph.numPoints; pt++)
-								glyfBuffer.setUint8(p, flags[pt]), p++; // compress this a bit more later if optimizing for space
+							else { // CONFIG.glyf.compression != true
 
-							// write point coordinates
-							// TODO: slightly better to work in terms of flags with a switch on 3 values
-							for (pt=0; pt<iglyph.numPoints; pt++) {
-								if (dx[pt] == 0)
-									continue;
-								if (dx[pt] >= -255 && dx[pt] <= 255)
-									glyfBuffer.setUint8(p, (dx[pt]>0) ? dx[pt] : -dx[pt]), p++;
-								else
-									glyfBuffer.setInt16(p, dx[pt]), p+=2;
+								// write uncompressed glyph points (faster in memory and for SSD disks)
+								let xOffset = p + iglyph.numPoints;
+								let yOffset = xOffset + 2 * iglyph.numPoints;
+
+								// write everything in one loop
+								for (pt = cx = cy = 0; pt<iglyph.numPoints; pt++) {
+
+									let x = points[pt][0], y = points[pt][1], dx = x - cx, dy = y - cy;
+
+									// write flag, x and y
+									glyfBuffer.setUint8(p+pt, points[pt][2]);
+									glyfBuffer.setInt16(xOffset + 2*pt, dx);
+									glyfBuffer.setInt16(yOffset + 2*pt, dy);
+
+									cx = x;
+									cy = y;
+								}
+
+								// set the first flag to handle Apple overlaps if required
+								if (font.config.glyf.overlapSimple)
+									glyfBuffer.setUint8(p, points[0][2] | 0x40); // overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
+
+								// update the pointer
+								p = yOffset + 2 * iglyph.numPoints;
+
 							}
-							for (pt=0; pt<iglyph.numPoints; pt++) {
-								if (dy[pt] == 0)
-									continue;
-								if (dy[pt] >= -255 && dy[pt] <= 255)
-									glyfBuffer.setUint8(p, (dy[pt]>0) ? dy[pt] : -dy[pt]), p++;
-								else
-									glyfBuffer.setInt16(p, dy[pt]), p+=2;
-							}
+
 
 							// padding
 							if ((glyfBufferOffset+p)%2)
