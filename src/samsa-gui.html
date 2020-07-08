@@ -669,7 +669,7 @@ function appendInstanceEl(instance, select) {
 	let svg = SVG("svg");
 
 	let glyph = font.glyphs[getDefaultGlyphId(font)];
-	let iglyph = glyphApplyVariations(glyph, instance.tuple); // TODO: make composite-ready
+	let iglyph = glyph.numContours < 0 ? glyph.decompose(instance.tuple) : glyph.instantiate(null, instance);
 
 	if (iglyph && iglyph.numContours > 0) {
 
@@ -681,25 +681,10 @@ function appendInstanceEl(instance, select) {
 		svg.setAttributeNS(null, "height","30");
 		svgg.setAttributeNS(null, "transform", `translate(4,20) scale(${scale},-${scale})`);
 		
-		//svgMarker.attr({markerWidth:20,markerHeight:20);
-
- 		svgPath.setAttributeNS(null, "d", getGlyphSVGpath(iglyph));
-
-		svg.appendChild(svgg);
-
-		// glyph
+ 		svgPath.setAttributeNS(null, "d", iglyph.svgPath());
 		svgg.appendChild(svgPath);
-
-		// x and y axes
-
-		//glyphThumb.appendChild(svg);
-
+		svg.appendChild(svgg);
 	}
-	else if (glyph && glyph.numContours < 0) {
-
-
-	}
-
 
 	cell1.appendChild(svg);
 
@@ -917,12 +902,6 @@ function vfLoaded (font) {
 		panel.innerHTML += "&nbsp;";
 		panel.innerHTML += `<input id="point-numbers" class="ui-arrows" type="checkbox"><label for="point-numbers">Point numbers</label>`;
 
-		/*
-		panel.innerHTML += "<label>Delta colours</label>&nbsp;";
-		panel.innerHTML += `<input id="arrows-colours" name="arrows-colours" class="ui-arrows-colours" type="radio" checked><label for="arrows-split">by tuple</label>&nbsp;`;
-		panel.innerHTML += `<input id="arrows-colours" name="arrows-colours" class="ui-arrows-colours" type="radio"><label for="arrows-total">by order</label><br>`;
-		*/
-
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
 		Q("#ui-mode").value = font.config.ui.name;
 
@@ -931,7 +910,8 @@ function vfLoaded (font) {
 			el.addEventListener("change", e => {
 				let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
 				let glyph = font.glyphs[GLOBAL.currentGlyphId];
-				let iglyph = glyphApplyVariations(glyph, null, instance);
+				//let iglyph = glyphApplyVariations(glyph, null, instance);
+				iglyph = glyph.instantiate(instance.tuple);
 				setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 				font.instances.pop();
 			});
@@ -1042,8 +1022,9 @@ function vfLoaded (font) {
 					}
 					
 					animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
-					iglyph = glyphApplyVariations(glyph, null, animInstance); // make instance glyph
-					keyPaths.push(getGlyphSVGpath(iglyph)); // get SVG path of this instance
+					iglyph = glyph.instantiate(animInstance.tuple);
+					keyPaths.push(iglyph.decompose(frameTuple).svgPath());
+
 					font.instances.pop(); // pop instance
 				});
 
@@ -1104,6 +1085,7 @@ function vfLoaded (font) {
 						
 						animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
 						iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
+
 						setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
 						exportImage ("png", `samsa-frame${frameNumberStr}`, {frameNumbers: false}); // place SVG on canvas, export canvas as PNG
 						font.instances.pop(); // pop instance
@@ -1126,7 +1108,7 @@ function vfLoaded (font) {
 
 				for (let s=0; s<steps; s++) {
 
-					let animInstance, iglyph;
+					let animInstance, glyph, iglyph;
 					let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
 					let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
 					let T = Tmin + s/(steps-1) * (Tmax-Tmin);
@@ -1140,7 +1122,8 @@ function vfLoaded (font) {
 					}
 					
 					animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
-					iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
+					glyph = font.glyphs[GLOBAL.currentGlyphId];
+					iglyph = glyph.numContours < 0 ? glyph.decompose(animInstance.tuple) : glyph.instantiate(null, animInstance);
 					setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
 					exportImage ("png", `samsa-frame${frameNumberStr}`, {frameNumbers: false}); // place SVG on canvas, export canvas as PNG
 					font.instances.pop(); // pop instance
@@ -1823,7 +1806,6 @@ function updateDesignSpaceMoved(e) {
 	// - should we do this simply by setting the axes in the Axes panel
 	let instance = font.addInstance(null, {tuple: tuple});
 	let glyph = font.glyphs[GLOBAL.currentGlyphId];
-	let iglyph = glyphApplyVariations(glyph, null, instance);
 	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 	font.instances.pop();
 
@@ -1950,7 +1932,6 @@ function axisInput(ev) {
 	let instance = font.addInstance(fvs); // { name: "Custom", tuple: [] };
 
 	let glyph = font.glyphs[GLOBAL.currentGlyphId];
-	let iglyph = glyphApplyVariations(glyph, null, instance);
 	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 	
 	axesUpdateValues();
@@ -1983,7 +1964,6 @@ function updateDesignspace() {
 
 	svgXYAxes = SVG("path");
 	svgXYAxes.attrsSVG({
-		//d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
 		d: "M-1 0 L1 0 M0 -1 L0 1",
 		stroke: `lightblue`,
 		"stroke-width": `${1/scale}px`,
@@ -2161,11 +2141,11 @@ function updateGlyphsPanel(instance) {
 	const panel = Q("#panel-glyphs>div");
 	panel.innerText = "";
 	const scale = 0.05 * 1000 / font.unitsPerEm;
-	let showGlyphIds = Q("#panel-glyphs>h2 #glyphs-ids").classList.contains("active");
-	
+	const showGlyphIds = Q("#panel-glyphs>h2 #glyphs-ids").classList.contains("active");
+
 	for (let g=0; g < font.numGlyphs; g++) {
 
-		let glyph = instance ? instance.glyphs[g] : font.glyphs[g];
+		let glyph = font.glyphs[g];
 		let glyphThumb = document.createElement("div");
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
@@ -2174,51 +2154,25 @@ function updateGlyphsPanel(instance) {
 
 			// simple glyph
 			let svg = SVG("svg");
-			let svgg = SVG("g");
-
 			svg.setAttributeNS(null, "width","90");
 			svg.setAttributeNS(null, "height","90");
+
+			let svgg = SVG("g");
+			svgg.id = `g${glyph.id}`;
 			svgg.setAttributeNS(null, "transform", `translate(20,60) scale(${scale},-${scale})`);
 			
-			let paths = getGlyphSVGpath(glyph);
-			if (!Array.isArray(paths)) { // composite
-				paths = [paths];
-			}
-
-			paths.forEach((path, p) => {
-
-				if (Array.isArray(path)) {
-					console.log("Warning: glyph <" + glyph.name + "> has nested components >1 level deep");
-				}
-
-				let svgPath;
-				let svgg3 = glyph.numContours == -1 ? SVG("g") : null; // wrap component paths in a g so they can be transformed
-				svgPath = SVG("path"); // give this an id so we can detect clicks
-				svgPath.attrsSVG({
-					d: path,
-					stroke: GLOBAL.vf.config.ui.glyphThumb.stroke,
-					"stroke-width": `${GLOBAL.vf.config.ui.glyphThumb.strokeWidth}px`,
-					fill: GLOBAL.vf.config.ui.glyphThumb.fill,
-				});
-				if (svgg3) {
-					svgg3.attrsSVG({
-						transform: `translate(${glyph.points[p][0]},${glyph.points[p][1]})`,
-					});
-					svgg3.appendChild(svgPath);
-					svgg.appendChild(svgg3);
-				}
-				else {
-					svgg.id = `g${glyph.id}`;
-					svgg.appendChild(svgPath);
-				}
+			// decompose/instantiate this glyph
+			let iglyph = glyph.numContours < 0 ? glyph.decompose(instance.tuple) : glyph.instantiate(null, instance);
+			let svgPath = SVG("path");
+			svgPath.attrsSVG({
+				d: iglyph.svgPath(),
+				stroke: GLOBAL.vf.config.ui.glyphThumb.stroke,
+				"stroke-width": `${GLOBAL.vf.config.ui.glyphThumb.strokeWidth}px`,
+				fill: GLOBAL.vf.config.ui.glyphThumb.fill,
 			});
-
+			svgg.appendChild(svgPath);
 			svg.appendChild(svgg);
 			glyphThumb.appendChild(svg);
-
-		}
-		else if (glyph && glyph.numContours < 0) {
-
 
 		}
 
@@ -2241,7 +2195,6 @@ function updateGlyphsPanel(instance) {
 		panel.appendChild(glyphThumb);
 	}
 
-	//console.log("Updating glyphs panel: END");
 	setActiveGlyph(GLOBAL.currentGlyphId, instance);
 }
 
@@ -2384,7 +2337,7 @@ function getSVGForShape (point, shape, size) {
 			break;
 	}
 
-	return svgEl;
+	return svgEl; // undefined if no shape was set
 }
 
 
@@ -2468,7 +2421,6 @@ function updateTvts (glyph, iglyph) {
 
 			// draw graph paper
 			let pathG = SVG("path");
-			//let pathD = pathD = `M ${Sx*-1},0 L ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy} L ${Sx*tvt.end[a]},0`;
 			pathG.setAttributeNS(null, "fill", "none");
 			pathG.setAttributeNS(null, "stroke", "darkgrey");
 			pathG.setAttributeNS(null, "stroke-width", "0.5");
@@ -2506,9 +2458,6 @@ function updateTvts (glyph, iglyph) {
 
 			axisGraphs.push(tvtGraphEl);
 		}
-		
-		//panel.appendChild(li);
-
 
 		// add main row: <li>
 		li = EL("li");
@@ -2525,9 +2474,7 @@ function updateTvts (glyph, iglyph) {
 			pointsEl.style.display = GLOBAL.tvtToggles[t];
 		} );
 
-		//
-		li.querySelector(".scalar").setAttribute("style", `width: ${sValue * 100}%; height: 20px; background-color: #d0f473;};`); //${ui.tupleScalar.fill
-		//tvtS.setAttribute("style", `width: ${vizWidth}px; height: 20px; background-color: ${ui.tupleScalar.fill};`);
+		li.querySelector(".scalar").setAttribute("style", `width: ${sValue * 100}%; height: 20px; background-color: #d0f473;};`);
 
 		if (sValue > 0)
 			li.style.backgroundColor = "white";
@@ -2613,15 +2560,16 @@ function updateGlyphSVG (g, instance) {
 
 	GLOBAL.currentGlyphId = g; // hmm, should be part of the font, not GLOBAL … TODO: check g < numGlyphs
 	let glyph = font.glyphs[g];
-	let iglyph = glyphApplyVariations(glyph, null, instance);
 
 	if (instance) {
 		GLOBAL.tuple = [];
 		instance.tuple.forEach((v,i) => {
 			GLOBAL.tuple[i] = v; // deep copy
 		})
-		//GLOBAL.tuple = instance.tuple; // hmm, shallow copy should be ok, because if won’t be garbage collected
+		//GLOBAL.tuple = instance.tuple; // hmm, shallow copy should be ok, because it won’t be garbage collected
 	}
+
+	let iglyph = glyph.instantiate(GLOBAL.tuple);
 
 
 	updateTvts (glyph, iglyph);
@@ -2660,7 +2608,7 @@ function updateGlyphSVG (g, instance) {
 	// draw each layer in the order it was specified in font.config.ui.layers
 	ui.layers.forEach(layer => {
 
-		let svgPath, svgg2, svgg3, paths;
+		let svgPath, svgg2, svgg3, paths, path;
 		let style = {
 			size: 0,
 			fill: "none",
@@ -2720,32 +2668,15 @@ function updateGlyphSVG (g, instance) {
 				// - fonts using transforms are quite rare; Wingdings uses rotation and reflection in some ornaments
 				// - https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/transform
 
-				paths = getGlyphSVGpath(glyph);
-				if (!Array.isArray(paths)) { // composite
-					paths = [paths];
-				}
-				paths.forEach((path, p) => {
-					svgg3 = glyph.numContours == -1 ? SVG("g") : null; // wrap component paths in a g
-					svgPath = SVG("path"); // give this an id so we can detect clicks
-					svgPath.attrsSVG({
-						d: path,
-						stroke: ui.glyphDefault.stroke,
-						"stroke-width": ui.glyphDefault.strokeWidth * uiScale,
-						fill: ui.glyphDefault.fill,
-					});
-					if (svgg3) {
-						// glyph.points[0] is the xy offset of the first component,
-						// glyph.points[1] is the xy offset of the second component, etc.
-						svgg3.setAttributeNS(null, "transform", `translate(${glyph.points[p][0]} ${glyph.points[p][1]})`);
-						svgg3.appendChild(svgPath);
-						svgg.appendChild(svgg3);
-						svgg3.id = layer;
-					}
-					else {
-						svgPath.id = layer;
-						svgg.appendChild(svgPath);
-					}
+				svgPath = SVG("path");
+				svgPath.id = layer;
+				svgPath.attrsSVG({
+					d: glyph.decompose().svgPath(),
+					stroke: ui.glyphDefault.stroke,
+					"stroke-width": ui.glyphDefault.strokeWidth * uiScale,
+					fill: ui.glyphDefault.fill,
 				});
+				svgg.appendChild(svgPath);
 
 				break;
 
@@ -2754,46 +2685,28 @@ function updateGlyphSVG (g, instance) {
 
 				// draw glyph with variations taken from the current axis settings
 				// - should we render all active instances in this "layer"?
-				/*
-				svgPath = SVG("path");
+
+				let uiStyle = ui.glyphCurrent;
+
+				svgPath = SVG("path"); // give this an id so we can detect clicks
+				svgPath.id = layer;
 				svgPath.attrsSVG({
-					"style": `opacity:${opacity}`,
-					"d": getGlyphSVGpath(iglyph),
-					"stroke": `black`, // make this take a value from the ui confi
-					"stroke-width": `${GLOBAL.vf.config.ui.glyph.strokeWidth}px`,
-					"fill": `#00f`,
+					d: iglyph.decompose(GLOBAL.tuple).svgPath(),
+					style: `opacity: ${uiStyle.opacity}`,
+					stroke: uiStyle.stroke,
+					"stroke-width": uiStyle.strokeWidth * uiScale,
+					fill: `${uiStyle.fill}`,
 					// "filter": "url(#blur)", not yet :)					
 				});
-				*/
-
-				paths = getGlyphSVGpath(iglyph);
-				if (!Array.isArray(paths)) { // composite
-					paths = [paths];
+				if (uiStyle.strokeDash) {
+					let dashes = "";
+					for (dash of uiStyle.strokeDash) {
+						dashes += `${dash * uiScale} `;
+					}
+					svgPath.attrsSVG({ "stroke-dasharray": dashes.trim() }); // IUP implicit movement
 				}
-				let uiStyle = ui.glyphCurrent;
-				paths.forEach((path, p) => {
-					svgg3 = iglyph.numContours == -1 ? SVG("g") : null; // wrap component paths in a g
-					svgPath = SVG("path"); // give this an id so we can detect clicks
-					svgPath.attrsSVG({
-						d: path,
-						style: `opacity: ${uiStyle.opacity}`,
-						stroke: uiStyle.stroke,
-						"stroke-width": uiStyle.strokeWidth * uiScale,
-						fill: `${uiStyle.fill}`,
-						// "filter": "url(#blur)", not yet :)					
-					});
-					if (svgg3) {
-						//svgPath.id = `g${iglyph.id}-c${p}`; // "g27-c2" means component #2 of glyph #27
-						svgg3.setAttributeNS(null, "transform", `translate(${iglyph.points[p][0]} ${iglyph.points[p][1]})`);
-						svgg3.appendChild(svgPath);
-						svgg.appendChild(svgg3);
-						svgg3.id = layer;
-					}
-					else {
-						svgg.appendChild(svgPath);
-						svgPath.id = layer;
-					}
-				});
+
+				svgg.appendChild(svgPath);
 
 				break;
 
@@ -2837,7 +2750,8 @@ function updateGlyphSVG (g, instance) {
 							pt,
 							pt[2] ? style.shape : style.shapeOffCurve,
 							style.size * uiScale);
-						svgg2.appendChild(svgEl);
+						if (svgEl)
+							svgg2.appendChild(svgEl);
 					});
 
 					svgg.appendChild(svgg2);
@@ -3022,8 +2936,12 @@ function updateGlyphSVG (g, instance) {
 					// make instance
 					lociInstanceX = font.addInstance(null, {tuple: tupleX});
 					lociInstanceY = font.addInstance(null, {tuple: tupleY});
-					iglyphX = glyphApplyVariations(glyph, null, lociInstanceX, {roundDeltas: false});
-					iglyphY = glyphApplyVariations(glyph, null, lociInstanceY, {roundDeltas: false});
+
+					//iglyphX = glyphApplyVariations(glyph, null, lociInstanceX, {roundDeltas: false});
+					//iglyphY = glyphApplyVariations(glyph, null, lociInstanceY, {roundDeltas: false});
+					iglyphX = glyph.numContours < 0 ? glyph.decompose(lociInstanceX.tuple) : glyph.instantiate(null, lociInstanceX, {roundDeltas: false});
+					iglyphY = glyph.numContours < 0 ? glyph.decompose(lociInstanceY.tuple) : glyph.instantiate(null, lociInstanceY, {roundDeltas: false});
+					
 
 					// build the SVG polylines in parallel
 					for (let p=0; p<glyph.points.length; p++) {
@@ -3156,7 +3074,6 @@ function playGlyphs() {
 // click handlers for all clicks
 document.onclick = function (event) {
 
-	console.log(event.target);
 	// about target
 	// - via the method of assignment in the if(), target gets the desired element rather than a child (or grandchild) that in fact received the event
 	// - the closest(x) method is great: we find whether event.target happened on something within something selected by x
@@ -3165,6 +3082,7 @@ document.onclick = function (event) {
 	let font = GLOBAL.vf;
 	const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
 	let handled = false;
+	//console.log(event.target);
 
 	// load default font
 	if (event.target == Q("#font-file")) {
@@ -3264,7 +3182,7 @@ document.onclick = function (event) {
 
 			// code blocks
 			doc = htmlEntities(doc).replace( /\n```\n([\s\S]*?)\n```/gm, "\n<pre><code>$1</code></pre>\n");
-			// \s\S matches all whitespace and non-whitespace characters (note that the "."" does not match newlines, except with the s modifier, which does not work in Firefox)
+			// \s\S matches all whitespace and non-whitespace characters (note that "." does not match newlines, except with the s modifier, which does not work in Firefox)
 
 			// numbered lists
 			// - m is multiline, g is global
@@ -3548,40 +3466,6 @@ SVGElement.prototype.attrsSVG = function (attrs) {
 		this.setAttributeNS(null, prop, attrs[prop]);
 	}
 };
-
-
-
-function getArrowPathForLine(x1, y1, x2, y2, width, arrowLength, arrowWidth) {
-	// returns a string suitable for use as the SVG path "d" attribute
-	// it solves two problem of SVG lines when used with a pointed arrow:
-	// 1. the line is printed on top of the arrow-head, making the tip blunt
-	// 2. markers have colour in themselves, which is not useful when each line needs a custom colour
-
-	// for a line pointing due east, we start at the bottom left corner and go anticlockwise
-	// - Hmmm, this won’t work with dash-array for dotted lines
-
-/*
-	if (x1==x2 && y1==y2)
-		return "M0 0Z";
-
-	let path = `M${x1} ${y1}`;
-	let angle = Math.atan2(y2-y1, x2-x1);
-	let len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
-	let anglePerp = angle - Math.PI;
-	let xn = (x2-x1)/len;
-	let yn = (y2-y1)/len;
-	let c = y2-y1, x2-x1
-	path += `l${yn*width/2} ${xn*width/2}`;
-	path += `l${x2-x1-arrowLength*xn} ${y2-y1-arrowLength*yn}`;
-	path += `l${yn*(arrowWidth-width)/2} ${xn*(arrowWidth-width)/2}`;
-	path += `L${x1} ${y2}`; // now we are at the tip
-	//path += `l${yn*(arrowWidth-width)/2} ${xn*(arrowWidth-width)/2}`;`;
-	//path += `l`;
-	//path += `l`;
-	path += "z";
-*/
-	return path;
-}
 
 
 
