@@ -1,29 +1,12 @@
 # Samsa-Core (samsa-core.js)
 
-Samsa-Core is the JavaScript library at the heart of Samsa. It provides numerous functions for parsing variable fonts (VFs), creating VF instances, presenting VFs as SVG, and exporting static TTFs.
+Samsa-Core is the JavaScript library at the heart of Samsa. There are two fundamental classes: `SamsaFont` and `SamsaGlyph`, with properties and methods described below for parsing variable fonts (VFs), creating VF instances, converting glyph outlines to SVG, and exporting static TTFs.
 
 These functions are used in the graphical tool [Samsa-GUI](samsa-gui.md), the command-line utility [Samsa-CLI](samsa-cli.md) and the polyfill demo [Samsa-Polyfill](samsa-polyfill.md).
 
-## SamsaVF object
+## SamsaFont object
 `SamsaFont` is the main font object. Some methods:
 
-```
-getNamedInstances()
-addInstance()
-makeInstance()
-fvsToTuple()
-tupleToFvs()
-axisIndices()
-axisNormalize()
-axisDenormalize()
-```
-
-## Notable functions
-```
-glyphApplyVariations()
-getGlyphSVGpath()
-SamsaVF_compileBinaryForInstance()
-```
 
 ## Code Examples
 
@@ -36,6 +19,7 @@ var vf = new SamsaFont({
 	url: "fonts/Sans_Variable.ttf",
 	callback: function(font) {}
 });
+
 //from a font file upload
 let vf = new SamsaFont({
 	arrayBuffer: this.result,
@@ -69,6 +53,8 @@ let vf = new SamsaFont({
     ```
 
 2. `config` :  `Object` - (optional)
+
+Any properties defined in the `config` parameter override properties defined in the global `CONFIG` object.
 
     ```jsx
     defaultConfig = {
@@ -139,7 +125,7 @@ Type: `Number`
 
 Type: `Array` of `Object`
 
-Array of variable fonts’ instances. 
+Array of instances in this `SamsaFont` object. Initially, these instances are the Default followed by all the Named Instances defined in the `fvar` table of the input VF, but instances can be added, modified and deleted so the `instances` array may no longer correspond with the input VF.
 
 - Example:
 
@@ -167,7 +153,7 @@ Array of variable fonts’ instances.
 
 Type: `Array` of `Object`
 
-Array of variable fonts’ axes.  
+Array of the VF’s axes.  
 
 - Example:
 
@@ -186,7 +172,7 @@ Array of variable fonts’ axes.
 
 ### `.axisCount`
 
-Total number of axes
+Total number of axes.
 
 Type: `Number`
 
@@ -208,11 +194,11 @@ Type: `Object`
 
 ### `.errors`
 
-Type: `Array`
+Type: `Array` of `String`
 
 ### `.glyphs`
 
-Type: `Array` of `null`
+Type: `Array` of `SamsaGlyph` objects. The array indices correspond exactly with glyph ids in the original font file.
 
 ### `.widths`
 
@@ -315,7 +301,7 @@ Type: `Number`
 
 ### `.flavor`
 
-Font file size. Example value: `truetype`
+Font file flavor. Example value: `truetype`
 
 Type: `String`
 
@@ -329,7 +315,7 @@ Type: `Number`
 
 Type: `Array` of `Object`
 
-Array of font data tables
+Array of font data tables.
 
 - Example:
 
@@ -378,7 +364,7 @@ Font data tables as object
 
 Type: `Array`
 
-Font information, designer names, etc.
+Font information: designer names, axis names, instance names, version, legal information, etc.
 
 ### `.config`
 
@@ -390,7 +376,7 @@ See constructor parameter `[config](https://www.notion.so/paperjs/SamsaFont-6eed
 
 ### `.getNamedInstances ()`
 
-Return all named instances from `font.instances`, return an array of instances
+Return all named instances from `font.instances` as an array of instances.
 
 **Returns:** 
 
@@ -425,7 +411,7 @@ Add an new instance to `font.instances`, then return the added instance.
 
 ### `.fvsToTuple ( fvs )`
 
-Convert `fvs` to `tuple`
+Convert `fvs` to `tuple`.
 
 **Returns:** 
 
@@ -437,7 +423,7 @@ Convert `fvs` to `tuple`
 
 ### `.tupleToFvs ( tuple )`
 
-Convert `tuple` to `fvs`
+Convert `tuple` to `fvs`.
 
 **Returns:** 
 
@@ -449,7 +435,7 @@ Convert `tuple` to `fvs`
 
 ### `.axisIndices ( tag )`
 
-Returns an array containing the axis indicies for this axis tag
+Returns an array containing the axis indices for this axis tag.
 
 **Parameters:**
 
@@ -470,6 +456,12 @@ Returns an array containing the axis indicies for this axis tag
 [samsa/src/samsa-core.js:2548](https://github.com/Lorp/samsa/blob/master/src/samsa-core.js#L2548)
 
 ### `.exportInstance ( instance )`
+
+Creates a new static font file, based on the axis settings of `instance`. The font file is created either on disk (`this.config.isNode == true`) or in memory (`this.config.isNode == false`).
+
+**Returns:** 
+
+If `this.config.isNode == false`, returns a `Uint8Array`, being the font binary in memory.
 
 **Source:** 
 
