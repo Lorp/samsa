@@ -25,10 +25,6 @@ getGlyphSVGpath()
 SamsaVF_compileBinaryForInstance()
 ```
 
-## SamsaFont
-
-> Class representing a varible font.
-
 ## Code Examples
 
 A SamsaFont can be initialised in any of the following ways:
