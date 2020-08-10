@@ -7,24 +7,3 @@ These functions are used in the graphical tool [Samsa-GUI](samsa-gui.md), the co
 ## References
 * [**SamsaFont Reference**](SamsaFont-reference.md)
 * [**SamsaGlyph Reference**](SamsaGlyph-reference.md)
-
-## SamsaVF object
-`SamsaFont` is the main font object. Some methods:
-
-```
-getNamedInstances()
-addInstance()
-makeInstance()
-fvsToTuple()
-tupleToFvs()
-axisIndices()
-axisNormalize()
-axisDenormalize()
-```
-
-## Notable functions
-```
-glyphApplyVariations()
-getGlyphSVGpath()
-SamsaVF_compileBinaryForInstance()
-```
