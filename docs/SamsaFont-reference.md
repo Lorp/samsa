@@ -26,7 +26,7 @@ Class representing a variable font.
 
 2. `config` : `Object` - (optional) 
 
-Any properties defined in the `config` parameter override properties defined in the global `CONFIG` object.
+    Any properties defined in the `config` parameter override properties defined in the global `CONFIG` object.
 
     ```
     defaultConfig = {
