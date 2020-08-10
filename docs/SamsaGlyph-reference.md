@@ -1,6 +1,6 @@
 # SamsaGlyph
 
-Class representing a glyph in the variable font object SamsaFont.
+Class representing a glyph in the variable font object SamsaFont. They are usually stored in arrays as the `glyphs` property of either a `SamsaFont` object or an instance object.
 
 ## Constructor
 
@@ -78,7 +78,7 @@ Type: `String`
 
 ### `.numContours`
 
-Total number of Contours
+Total number of Contours for simple glyphs. It is `-1` for composite glyphs.
 
 Type: `Number`
 
@@ -86,7 +86,7 @@ Type: `Number`
 
 ### `.numPoints`
 
-Total number of Points
+Total number of Points, not including phantom points. For simple glyphs, `.numPoints` is 4 less than `.points.length`. Composite glyphs do not use `.numPoints`.
 
 Type: `Number`
 
@@ -94,7 +94,7 @@ Type: `Number`
 
 ### `.points`
 
-Array of Points.  
+Array of Points, including phantom points. For simple glyphs, `.points.length` is 4 more than `.numPoints`. For composite glyphs, the points represent the offsets of each of the components, therefore `.points.length` = <number of components> + 4.
 
 Type: `Array` of `Array`
 
@@ -134,6 +134,10 @@ Type: `Number`
 ---
 
 ### `.tvts`
+
+Array of tuple variable table (`tvt`) data structures. Each `tvt` defines:
+* a table of delta x,y movements that affect a subset of points (or components) in this glyph
+* coordinates in designspace for each axis (start, peak and end values)
 
 Type: `Array` of `Object`
 
