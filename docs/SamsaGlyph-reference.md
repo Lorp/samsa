@@ -100,12 +100,20 @@ Type: `Array` of `Array`
 
 - Example:
 
-    ```jsx
-    [
-        [125, 408, 1],
-        [116, 468, 0]
-    ]
-    ```
+In this example, points 0 to 3 define a rectangle, and points 4 to 7 are the phantom points which Samsa has automatically added. The advance width is always the first element in the point 3rd from last, in this case 500. Note that `.numPoints` in this example is 4.
+
+```jsx
+	[
+		[50, 0, 1],
+		[450, 0, 1],
+		[450, 700, 1],
+		[50, 700, 1],
+		[0, 0],
+		[500, 0],
+		[0, 0],
+		[0, 0]
+	]
+```
 
 ---
 
