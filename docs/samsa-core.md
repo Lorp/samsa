@@ -7,3 +7,24 @@ These functions are used in the graphical tool [Samsa-GUI](samsa-gui.md), the co
 ## References
 * [**SamsaFont Reference**](SamsaFont-reference.md)
 * [**SamsaGlyph Reference**](SamsaGlyph-reference.md)
+
+## Code Examples
+A SamsaFont can be initialised in any of the following ways:
+
+```jsx
+//from a URL
+let vf = new SamsaFont({
+  fontFamily: "FontNameShouldGoHere",
+  url: "fonts/Sans_Variable.ttf",
+  callback: function (font) {}
+});
+
+//from a font file upload
+let vf = new SamsaFont({
+  arrayBuffer: e.target.result,
+  inFile: file.name,
+  filesize: file.size, //Optional
+  date: file.lastModified, //Optional
+  callback: function (font) {}
+});
+```
