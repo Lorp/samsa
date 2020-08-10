@@ -10,7 +10,7 @@ Class representing a variable font.
 
 1. `init` : `Object`
 
-    ```
+    ```jsx
     init: {
       url: String,
       fontFamily: String,
@@ -28,7 +28,7 @@ Class representing a variable font.
 
     Any properties defined in the `config` parameter override properties defined in the global `CONFIG` object.
 
-    ```
+    ```jsx
     defaultConfig = {
       isNode: false,
       outFileDefault: "samsa-out.ttf",
@@ -63,7 +63,7 @@ Class representing a variable font.
 
 **Example:**
 
-```
+```jsx
 let vf = new SamsaFont({
   fontFamily: "FontNameShouldGoHere",
   url: "fonts/Sans_Variable.ttf",
@@ -120,7 +120,7 @@ Type: `Array` of `Object`
 
 Example:
 
-```
+```jsx
 [{
   id: 0,
   glyphs: [],
@@ -150,7 +150,7 @@ Type: `Array` of `Object`
 
 Example:
 
-```
+```jsx
 [{
   id: 0,
   tag: 'fmsk',
@@ -181,7 +181,7 @@ Type: `Object`
 
 Example:
 
-```
+```jsx
 axisTagToId: {
   wght: 0,
   wdth: 1,
@@ -213,7 +213,7 @@ Type: `Array` of `Number`
 
 Example:
 
-```
+```jsx
 [
   800,
   600,
@@ -236,7 +236,7 @@ Type: `Array` of `String`
 
 Example:
 
-```
+```jsx
 [
   ".notdef",
   "NULL",
@@ -352,7 +352,7 @@ Type: `Array` of `Object`
 
 Example:
 
-```
+```jsx
 [{
   id: 0,
   tag: 'HVAR',
@@ -372,7 +372,7 @@ Type: `Object`
 
 Example:
 
-```
+```jsx
 {
   ...
   fvar: {
