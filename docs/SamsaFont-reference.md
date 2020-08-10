@@ -26,6 +26,8 @@ Class representing a variable font.
 
 2. `config` : `Object` - (optional) 
 
+Any properties defined in the `config` parameter override properties defined in the global `CONFIG` object.
+
     ```
     defaultConfig = {
       isNode: false,
@@ -112,7 +114,7 @@ Type: `Number`
 
 ### `.instances`
 
-Array of variable fonts’ instances. 
+Array of instances in this `SamsaFont` object. Initially, these instances are the Default followed by all the Named Instances defined in the `fvar` table of the input VF, but instances can be added, modified and deleted so the `instances` array may no longer correspond with the input VF.
 
 Type: `Array` of `Object`
 
@@ -142,7 +144,7 @@ Example:
 
 ### `.axes`
 
-Array of variable fonts’ axes.  
+Array of the VF’s axes.  
 
 Type: `Array` of `Object`
 
@@ -165,7 +167,7 @@ Example:
 
 ### `.axisCount`
 
-Total number of axes
+Total number of axes.
 
 Type: `Number`
 
@@ -193,17 +195,17 @@ axisTagToId: {
 
 Description
 
-Type: `Array`
+Type: `Array` of `String`
 
 ---
 
 ### `.glyphs`
 
-Return all of this font’ glyphs as Array of SamsaGlyph objects
+Return all of this font’ glyphs as Array of SamsaGlyph objects The array indices correspond exactly with glyph ids in the original font file.
 
 Description
 
-Type: `Array` of `Object (SamsaGlyph)`
+Type: `Array` of `SamsaGlyph` objects. 
 
 ---
 
@@ -334,7 +336,7 @@ Type: `Number`
 
 ### `.flavor`
 
-Font file size. Example value: `truetype`
+Font file flavor. Example value: `truetype`
 
 Type: `String`
 
@@ -350,7 +352,7 @@ Type: `Number`
 
 ### `.tableDirectory`
 
-Array of font data tables
+Array of font data tables.
 
 Type: `Array` of `Object`
 
@@ -403,7 +405,7 @@ Example:
 
 ### `.names`
 
-Font information, designer names, etc.
+Font information: designer names, axis names, instance names, version, legal information, etc.
 
 Type: `Array`
 
@@ -419,7 +421,7 @@ Type: `Object`
 
 ### `.getNamedInstances ()`
 
-Return all named instances from `font.instances`, return an array of instances
+Return all named instances from `font.instances` as an array of instances.
 
 **Returns:** 
 
@@ -460,7 +462,7 @@ Add an new instance to `font.instances`, then return the added instance.
 
 ### `.fvsToTuple ( fvs )`
 
-Convert `fvs` to `tuple`
+Convert `fvs` to `tuple`.
 
 **Returns:** 
 
@@ -474,7 +476,7 @@ Convert `fvs` to `tuple`
 
 ### `.tupleToFvs ( tuple )`
 
-Convert `tuple` to `fvs`
+Convert `tuple` to `fvs`.
 
 **Returns:** 
 
@@ -488,7 +490,7 @@ Convert `tuple` to `fvs`
 
 ### `.axisIndices ( tag )`
 
-Returns an array containing the axis indicies for this axis tag
+Returns an array containing the axis indices for this axis tag
 
 **Parameters:**
 
@@ -513,6 +515,12 @@ Returns an array containing the axis indicies for this axis tag
 ---
 
 ### `.exportInstance ( instance )`
+
+Creates a new static font file, based on the axis settings of `instance`. The font file is created either on disk (`this.config.isNode == true`) or in memory (`this.config.isNode == false`).
+
+**Returns:** 
+
+If `this.config.isNode == false`, returns a `Uint8Array`, being the font binary in memory.
 
 **Source:** 
 
