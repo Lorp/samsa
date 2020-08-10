@@ -1,6 +1,6 @@
 # Samsa-Core (samsa-core.js)
 
-Samsa-Core is the JavaScript library at the heart of Samsa. It provides numerous functions for parsing variable fonts (VFs), creating VF instances, presenting VFs as SVG, and exporting static TTFs.
+Samsa-Core is the JavaScript library at the heart of Samsa. There are two fundamental classes: `SamsaFont` and `SamsaGlyph`, with properties and methods described below for parsing variable fonts (VFs), creating VF instances, converting glyph outlines to SVG, and exporting static TTFs.
 
 These functions are used in the graphical tool [Samsa-GUI](samsa-gui.md), the command-line utility [Samsa-CLI](samsa-cli.md) and the polyfill demo [Samsa-Polyfill](samsa-polyfill.md).
 
