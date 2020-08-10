@@ -193,8 +193,6 @@ axisTagToId: {
 
 ### `.errors`
 
-Description
-
 Type: `Array` of `String`
 
 ---
@@ -202,8 +200,6 @@ Type: `Array` of `String`
 ### `.glyphs`
 
 Return all of this font’ glyphs as Array of SamsaGlyph objects The array indices correspond exactly with glyph ids in the original font file.
-
-Description
 
 Type: `Array` of `SamsaGlyph` objects. 
 
@@ -311,8 +307,6 @@ Example:
 ---
 
 ### `.arrayBuffer`
-
-Description
 
 Type: `ArrayBuffer`
 
