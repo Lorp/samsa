@@ -103,16 +103,16 @@ Type: `Array` of `Array`
 In this example, points 0 to 3 define a rectangle, and points 4 to 7 are the phantom points which Samsa has automatically added. The advance width is always the first element in the point 3rd from last, in this case 500. Note that `.numPoints` in this example is 4.
 
 ```jsx
-	[
-		[50, 0, 1],
-		[450, 0, 1],
-		[450, 700, 1],
-		[50, 700, 1],
-		[0, 0],
-		[500, 0],
-		[0, 0],
-		[0, 0]
-	]
+[
+	[50, 0, 1],
+	[450, 0, 1],
+	[450, 700, 1],
+	[50, 700, 1],
+	[0, 0],
+	[500, 0],
+	[0, 0],
+	[0, 0]
+]
 ```
 
 ---
@@ -144,8 +144,8 @@ Type: `Number`
 ### `.tvts`
 
 Array of tuple variable table (`tvt`) data structures. Each `tvt` defines:
-* a table of delta x,y movements that affect a subset of points (or components) in this glyph
-* coordinates in designspace for each axis (start, peak and end values)
+* a table of delta x,y movements for a subset of points (or components) in this glyph
+* the region of application in designspace using start, peak and end locations for each axis
 
 Type: `Array` of `Object`
 
@@ -198,7 +198,25 @@ glyph.instantiate(null, instance)
 
 ### `.svgPath ()`
 
-Convert glyph’s points to be used an SVG <path> "d" attribute
+Convert glyph’s points to a string that can be used as an SVG <path> "d" attribute.
+	
+Coordinates are identical to those used in the font, so the SVG typically needs scaling and flipping vertically. The transformation is typically perfomed in an enclosing `<g>` tag to transform multiple SVG elements together.
+
+**Example:**
+
+```jsx
+glyph.svgPath();
+```
+
+Result: `"M50 0L450 0L450 700L50 700Z"`
+
+```svg
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="1000" height="1000">
+	<g transform="translate(0,500) scale(0.5,-0.5)">
+		<path d="M50 0L450 0L450 700L50 700Z"></path>
+	</g>
+</svg>
+```
 
 **Returns:** 
 
