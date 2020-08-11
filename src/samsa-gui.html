@@ -2937,11 +2937,9 @@ function updateGlyphSVG (g, instance) {
 					lociInstanceX = font.addInstance(null, {tuple: tupleX});
 					lociInstanceY = font.addInstance(null, {tuple: tupleY});
 
-					//iglyphX = glyphApplyVariations(glyph, null, lociInstanceX, {roundDeltas: false});
-					//iglyphY = glyphApplyVariations(glyph, null, lociInstanceY, {roundDeltas: false});
+					// TODO: fix composites or decide not to handle them (currently they are still rounded, and the loci only work on the first component)
 					iglyphX = glyph.numContours < 0 ? glyph.decompose(lociInstanceX.tuple) : glyph.instantiate(null, lociInstanceX, {roundDeltas: false});
 					iglyphY = glyph.numContours < 0 ? glyph.decompose(lociInstanceY.tuple) : glyph.instantiate(null, lociInstanceY, {roundDeltas: false});
-					
 
 					// build the SVG polylines in parallel
 					for (let p=0; p<glyph.points.length; p++) {
@@ -3082,23 +3080,9 @@ document.onclick = function (event) {
 	let font = GLOBAL.vf;
 	const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
 	let handled = false;
-	//console.log(event.target);
 
-	// load default font
-	if (event.target == Q("#font-file")) {
-		
-		Q("body").style.cursor = "wait";
 
-		let vf = new SamsaFont({
-			fontFamily: "DefaultFont",
-			url: `${GLOBAL.fontList.directory}/${GLOBAL.fontList.default}`, // "fonts/MutatorSans.ttf"
-			callback: vfLoaded,
-		});
-
-		handled = true;
-	}
-
-	else if (target = event.target.closest("#controls .panel .instantiate")) {
+	if (target = event.target.closest("#controls .panel .instantiate")) {
 
 		// create and download the instance		
 		let instanceEl = target.closest(".instance");
@@ -3343,15 +3327,28 @@ document.onclick = function (event) {
 
 	else if (target = event.target.closest("#panel-font-list .font-file")) {
 
-		// load font from the list
 		event.preventDefault(); // stops the <a href...> having an effect?
+		const isDataUrl = target.data.url.indexOf("data:") === 0;
 
-		let vf = new SamsaFont({
+		// if the app is running in file: protocol, skip any fonts that are not data: protocol
+		if (location.protocol == "file:" && !isDataUrl) {
+			
+			alert ("Cannot load font files from disk if application is on file: protocol. You must embed the fonts as base64 in samsa-config.js or install Samsa on localhost.");
+		
+		}
+		else {
 
-			fontFamily: "FontNameShouldGoHere",
-			url: `${GLOBAL.fontList.directory}/${target.innerText}`,
-			callback: vfLoaded,
-		});
+			// load the font
+			let vf = new SamsaFont({
+
+				fontFamily: "FontNameShouldGoHere",
+				filename: target.data.filename,
+				url: target.data.url,
+				callback: vfLoaded,
+
+			});
+		}
+
 		handled = true;
 	}
 
@@ -3457,8 +3454,6 @@ Q("#font-file").addEventListener("dragover",function(e){
 
 
 
-
-
 // method to attach multiple SVG attributes at once
 // - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
 SVGElement.prototype.attrsSVG = function (attrs) {
@@ -3466,37 +3461,6 @@ SVGElement.prototype.attrsSVG = function (attrs) {
 		this.setAttributeNS(null, prop, attrs[prop]);
 	}
 };
-
-
-
-// load the list of fonts from samsa-fonts.json into the font-list panel
-// - this is the list of fonts available for 1-click loading
-// - only for normal web server ("http:" or "https:", not "file:")
-if (["http:", "https:"].includes(window.location.protocol)) {
-
-	fetch("samsa-fonts.json")
-	.then(response => {
-			return response.json(); // another promise, not a string!
-		}, 
-		error => {
-			console.log (error);
-		}
-	)
-	.then(responseJSON => { // then for the json() promise
-		// populate the font list panel
-		let panel = Q("#panel-font-list>div");
-		panel.innerHTML = "";
-		GLOBAL.fontList = responseJSON;
-		GLOBAL.fontList.fonts.forEach(fontFilename => {
-			panel.innerHTML += `<li class="font-file">${fontFilename}</li>`;
-		});
-	});
-}
-else {
-	let panel = Q("#panel-font-list>div");
-	panel.innerHTML = `<div>Remote file loading is not available for protocol “${window.location.protocol}”</div>`;
-}
-
 
 
 document.addEventListener("keydown", ev => {
@@ -3551,8 +3515,48 @@ document.addEventListener("keyup", ev => {
 
 });
 
+
+window.onload = () => {
+
+	// populate the font list
+	const panel = Q("#panel-font-list>div");
+	let preloaded = false;
+	panel.innerHTML = "";
+
+	for (let font of GLOBAL.fontList) {
+
+		// work out a filename if it doesn’t have one
+		const isDataUrl = font.url.indexOf("data:") === 0;
+		const filename = font.filename ? font.filename
+		                             : isDataUrl ? `${font.name}.ttf` 
+		                                         : font.url.substr(font.url.lastIndexOf("/")+1);
+
+		// add the font to the list
+		let li = EL("li");
+		li.classList.add("font-file");
+		li.innerHTML = `<div class="icon" style="display: inline-block; width: 1.5em; text-align: center;"><strong>` + ( isDataUrl ? `&#xF0E7;` : `&#xF381;` ) + `</strong></div> ` + filename;
+		li.data = { filename: filename, url: font.url }; // this is used when we click on it
+		panel.appendChild(li);
+
+		// preload the font?
+		if (font.preload && !preloaded) {
+
+			let vf = new SamsaFont({
+
+				fontFamily: font.name,
+				url: font.url,
+				filename: filename,
+				callback: vfLoaded,
+			});
+
+			preloaded = true; // we preload max one font
+		}
+	}
+}
+
 </script>
 
+<script src="samsa-config.js"></script>
 
 </body>
 </html>
