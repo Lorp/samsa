@@ -651,10 +651,11 @@ function SamsaFont (init, config) {
 	}
 
 	this.path = init.inFile || this.url;
-	this.filename = this.path.substr(this.path.lastIndexOf("/")+1); // works nicely even when there are no slashes in the name because of the -1 return :)
+	this.filename = init.filename || this.path.substr(this.path.lastIndexOf("/")+1); // works nicely even when there are no slashes in the name because of the -1 return :)
 	this.filesize = init.filesize;
 
-	// methods
+
+	// SamsaFont methods
 
 	//////////////////////////////////
 	//  load()
@@ -679,18 +680,23 @@ function SamsaFont (init, config) {
 		}
 
 		else if (this.url) {
-			let oReq = new XMLHttpRequest();
-			oReq.open("GET", this.url, true);
-			oReq.responseType = "arraybuffer";
-			oReq.font = this;
-			oReq.onload = function(oEvent) {
 
-				oReq.font.data = new DataView(this.response);
-				oReq.font.filesize = oReq.font.data.byteLength;
-				oReq.font.parse();
+			// fetch font binary from a url
+			// - works for http: and https: urls (including relative from the current file)
+			// - works for data: urls
+			// - note that in a browser frontend application, the font url normally needs to be on the same server as the application for same origin policy
+			
+			fetch(this.url)
+			.then(response => {
+				return response.arrayBuffer();
+			})
+			.then(arrayBuffer => {
+			
+				this.filesize = arrayBuffer.byteLength;
+				this.data = new DataView(arrayBuffer);
+				this.parse();
 
-			};
-			oReq.send();
+			});
 		}
 	}
 
