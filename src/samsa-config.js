@@ -54,6 +54,9 @@ GLOBAL.fontList = [
 		url: "fonts/MutatorSans.ttf",
 	},
 	{
+		url: "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf",
+	},
+	{
 		url: "fonts/SourceSansVariable-Roman.ttf",
 	},
 	{
