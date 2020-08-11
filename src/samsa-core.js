@@ -193,423 +193,426 @@ function SamsaGlyph (init) {
 	this.tvts = [];
 	this.curveOrder = init.curveOrder || 2;
 
+}
 
-	// SamsaGlyph methods
+// SamsaGlyph methods are methods of SamsaGlyph.prototype, so that we don’t create a copy when we make each SamsaGlyph
 
-	// decompose()
-	// - decompose a composite glyph into a new simple glyph
-	this.decompose = (tuple, params) => {
+// decompose()
+// - decompose a composite glyph into a new simple glyph
+SamsaGlyph.prototype.decompose = function (tuple, params) {
 
-		let simpleGlyph = new SamsaGlyph( {
-			id: this.id,
-			name: this.name,
-			font: this.font,
-			decompositionForGlyph: this,
-		} );
+	let simpleGlyph = new SamsaGlyph( {
+		id: this.id,
+		name: this.name,
+		font: this.font,
+		decompositionForGlyph: this,
+	} );
 
-		let iglyph = (tuple) ? this.instantiate(tuple) : this;
+	let iglyph = (tuple) ? this.instantiate(tuple) : this;
 
-		let offset, transform, flags;
-		if (params) {
-			offset = params.offset;
-			transform = params.transform;
-			flags = params.flags;
+	let offset, transform, flags;
+	if (params) {
+		offset = params.offset;
+		transform = params.transform;
+		flags = params.flags;
+	}
+
+	// simple case
+	if (this.numContours >= 0) {
+
+		if (!params && !tuple) // optimization for case when there’s no offset and no transform (we can make this return "this" itself: the decomposition of a simple glyph is itself)
+			return this;
+
+		// add the points
+		for (let pt=0; pt<iglyph.numPoints; pt++) {
+
+			// spec: https://docs.microsoft.com/en-us/typography/opentype/spec/glyf
+
+			let point = [ iglyph.points[pt][0], iglyph.points[pt][1], iglyph.points[pt][2] ];
+
+			// offset before transform
+			if (offset && (flags & 0x0800)) { // SCALED_COMPONENT_OFFSET
+				point[0] += offset[0];
+				point[1] += offset[1];
+			}
+
+			// transform matrix?
+			if (transform) {
+				let x = point[0], y = point[1];
+				point[0] = x * transform[0] + y * transform[1];
+				point[1] = x * transform[2] + y * transform[3];
+			}
+
+			// offset after transform
+			if (offset && !(flags & 0x0800)) { // SCALED_COMPONENT_OFFSET
+				point[0] += offset[0];
+				point[1] += offset[1];
+			}
+
+			simpleGlyph.points.push(point);
 		}
 
-		// simple case
-		if (this.numContours >= 0) {
+		// fix up simpleGlyph
+		// TODO: can these point to the original objects?
+		for (endPt of this.endPts) {
+			simpleGlyph.endPts.push(endPt + simpleGlyph.numPoints);
+		}
+		simpleGlyph.numPoints += iglyph.numPoints;
+		simpleGlyph.numContours += iglyph.numContours;
+	}
 
-			if (!params && !tuple) // optimization for case when there’s no offset and no transform (we can make this return "this" itself: the decomposition of a simple glyph is itself)
-				return this;
+	else {
+		// step thru components, adding points to simpleGlyph
+		iglyph.components.forEach((component, c) => {
 
-			// add the points
-			for (let pt=0; pt<iglyph.numPoints; pt++) {
+			let gc = this.font.glyphs[component.glyphId];
+			let gci = gc.instantiate(tuple);
 
-				// spec: https://docs.microsoft.com/en-us/typography/opentype/spec/glyf
+			let newTransform = component.transform;
+			let newOffset = [ iglyph.points[c][0], iglyph.points[c][1] ];
+			if (offset) {
+				newOffset[0] += offset[0];
+				newOffset[1] += offset[1];
+			}
 
-				let point = [ iglyph.points[pt][0], iglyph.points[pt][1], iglyph.points[pt][2] ];
+			// decompse!
+			// - this is the recursive step
+			let decomp = gc.decompose(tuple, {
+				offset: newOffset,
+				transform: newTransform,
+				flags: component.flags,
+			});
 
-				// offset before transform
-				if (offset && (flags & 0x0800)) { // SCALED_COMPONENT_OFFSET
-					point[0] += offset[0];
-					point[1] += offset[1];
-				}
-
-				// transform matrix?
-				if (transform) {
-					let x = point[0], y = point[1];
-					point[0] = x * transform[0] + y * transform[1];
-					point[1] = x * transform[2] + y * transform[3];
-				}
-
-				// offset after transform
-				if (offset && !(flags & 0x0800)) { // SCALED_COMPONENT_OFFSET
-					point[0] += offset[0];
-					point[1] += offset[1];
-				}
-	
-				simpleGlyph.points.push(point);
+			// we now have the simple glyph "decomp": no offset or transform is needed
+			for (let p=0; p<decomp.numPoints; p++) {
+				simpleGlyph.points.push( [ decomp.points[p][0], decomp.points[p][1], decomp.points[p][2] ] );
 			}
 
 			// fix up simpleGlyph
-			// TODO: can these point to the original objects?
-			for (endPt of this.endPts) {
+			for (endPt of decomp.endPts) {
 				simpleGlyph.endPts.push(endPt + simpleGlyph.numPoints);
 			}
-			simpleGlyph.numPoints += iglyph.numPoints;
-			simpleGlyph.numContours += iglyph.numContours;
-		}
-
-		else {
-			// step thru components, adding points to simpleGlyph
-			iglyph.components.forEach((component, c) => {
-
-				let gc = this.font.glyphs[component.glyphId];
-				let gci = gc.instantiate(tuple);
-
-				let newTransform = component.transform;
-				let newOffset = [ iglyph.points[c][0], iglyph.points[c][1] ];
-				if (offset) {
-					newOffset[0] += offset[0];
-					newOffset[1] += offset[1];
-				}
-
-				// decompse!
-				// - this is the recursive step
-				let decomp = gc.decompose(tuple, {
-					offset: newOffset,
-					transform: newTransform,
-					flags: component.flags,
-				});
-
-				// we now have the simple glyph "decomp": no offset or transform is needed
-				for (let p=0; p<decomp.numPoints; p++) {
-					simpleGlyph.points.push( [ decomp.points[p][0], decomp.points[p][1], decomp.points[p][2] ] );
-				}
-
-				// fix up simpleGlyph
-				for (endPt of decomp.endPts) {
-					simpleGlyph.endPts.push(endPt + simpleGlyph.numPoints);
-				}
-				simpleGlyph.numPoints += decomp.numPoints;
-				simpleGlyph.numContours += decomp.numContours;
-			});
-		}
-
-
-		// add the 4 phantom points
-		simpleGlyph.points.push([0,0,0], [iglyph.points[iglyph.points.length-3][0],0,0], [0,0,0], [0,0,0]);
-
-		//return the simple glyph
-		return simpleGlyph;
-
-	}
-
-
-	// instantiate()
-	// - take a default glyph and return the instantiation produced using the userTuple or instance settings
-	this.instantiate = (userTuple, instance, extra) => {
-
-		// create newGlyph, a new glyph object which is the supplied glyph with the variations applied, as specified in instance (or if blank, userTuple)
-		// - TODO: can we move away from using userTuple and always require an instance?
-
-		// generate the glyph (e.g. if it’s needed by a composite)
-		if (this === undefined) {
-			console.log ("Samsaglyph.instantiate(): glyph is undefined");
-		}
-
-		//console.log("Instantiating using this.instantiate()");
-		const config = this.font.config;
-		const font = this.font;
-		let newGlyph = new SamsaGlyph({id:this.id, name:this.name, font:this.font});
-
-		newGlyph.default = this;
-
-		newGlyph.instance = instance; // this is still safe for tests that check for (!glyph.instance)
-		newGlyph.type = "instance";
-		newGlyph.points = [];
-		newGlyph.touched = [];
-		newGlyph.numContours = this.numContours;
-		newGlyph.components = this.components;
-		newGlyph.endPts = this.endPts;
-		newGlyph.numPoints = this.numPoints;
-		newGlyph.xMin = undefined;
-		newGlyph.yMin = undefined;
-		newGlyph.xMax = undefined;
-		newGlyph.yMax = undefined;
-		newGlyph.flags = this.flags; // do we need this?
-
-
-		let round = CONFIG.deltas.round;
-		if (extra && extra.roundDeltas === false)
-			round = false;
-
-		if (config.visualization)
-			newGlyph.tvtsVisualization = [];
-
-		// get a good userTuple (TODO: more validations than the array check)
-		// - it is recommended to use the ‘instance’ parameter, since then we preserve a connection between newGlyph and its instance
-		if (userTuple === null && instance)
-			userTuple = instance.tuple;
-		if (!Array.isArray(userTuple)) {
-			userTuple = font.fvsToTuple(userTuple); // userTuple was an fvs type object, but we transform it into a tuple array
-		}
-
-		// newGlyph starts off as a duplicate of the default glyph (at least, all of its points)
-		this.points.forEach((point, p) => {
-			newGlyph.points[p] = [point[0], point[1], point[2]];
+			simpleGlyph.numPoints += decomp.numPoints;
+			simpleGlyph.numContours += decomp.numContours;
 		});
-
-		// go through each tuple variation table for this glyph
-		newGlyph.sValues = [];
-		this.tvts.forEach((tvt, t) => {
-
-			let scaledDeltas = [];
-			let touched = [];
-			let S = 1;
-
-			this.points.forEach((point, p) => {
-				scaledDeltas[p] = [0,0];
-			});
-
-			// go thru each axis, multiply a scalar S from individual scalars AS
-			// based on pseudocode from https://www.microsoft.com/typography/otspec/otvaroverview.htm
-			font.axes.forEach((axis, a) => {
-				const ua = userTuple[a], peak = tvt.peak[a], start = tvt.start[a], end = tvt.end[a];
-				let AS;
-
-		        if (start > peak || peak > end)
-		            AS = 1;
-		        else if (start < 0 && end > 0 && peak != 0)
-		            AS = 1;
-		        else if (peak == 0)
-		            AS = 1;
-		        else if (ua < start || ua > end)
-		            AS = 0;
-		        else {
-		            if (ua == peak)
-		                AS = 1;
-		            else if (ua < peak)
-		                AS = (ua - start) / (peak - start);
-		            else
-		                AS = (end - ua) / (end - peak);
-		        }
-		        S *= AS;
-
-		        // TODO: optimize so that we quit the loop if AS == 0
-		        // TODO: get rid of AS and use "S *= " in each of the branches (altho not ideal if we want to record each AS for visualization)
-			});
-
-			// now we can move the points by S * delta
-			if (S != 0) {
-
-				tvt.deltas.forEach((delta, pt) => {
-					if (delta !== null) {
-						newGlyph.touched[pt] = touched[pt] = true; // touched[] is just for this tvt; newGlyph.touched[] is for all tvts (in case we want to show in UI) 
-						// btw, we don’t need to store touched array for composite or non-printing glyphs - probably a negligible optimization
-						scaledDeltas[pt] = [S * delta[0], S * delta[1]];
-					}
-				});
-
-				// IUP
-				// - TODO: ignore this step for composites (even though it is safe because endPts==[])
-				if (touched.length > 0 && !config.instantiation.ignoreIUP) { // it would be nice to check "touched.length < glyph.points.length" but that won’t work with sparse arrays, and must also think about phantom points
-
-					// for each contour
-					for (let c=0, startPt=0; c<this.endPts.length; c++) { // TODO: can we just use glyph.numContours?
-					
-						// TODO: check here that the contour is actually touched
-						const numPointsInContour = this.endPts[c]-startPt+1;
-						let firstPrecPt = -1; // null value
-						let precPt, follPt;
-						for (let p=startPt; p!=firstPrecPt; ) {
-							let pNext = (p-startPt+1)%numPointsInContour+startPt;
-							if (touched[p] && !touched[pNext]) { // found a precPt
-								precPt = p;
-								follPt = pNext;
-								if (firstPrecPt == -1)
-									firstPrecPt = precPt;
-								do {
-									follPt = (follPt-startPt+1)%numPointsInContour+startPt;
-									} while (!touched[follPt]) // found the follPt
-
-								// now we have a good precPt and follPt
-								// perform IUP for x(0), then for y(1)
-								[0,1].forEach(xy => {
-									// IUP spec: https://www.microsoft.com/typography/otspec/gvar.htm#IDUP
-									const pA = this.points[precPt][xy];
-									const pB = this.points[follPt][xy];
-									const dA = scaledDeltas[precPt][xy];
-									const dB = scaledDeltas[follPt][xy];
-
-									for (let q=pNext, D, T, Q; q!=follPt; q=(q-startPt+1)%numPointsInContour+startPt) {
-										Q = this.points[q][xy];
-										if (pA == pB)
-											D = dA == dB ? dA : 0;
-										else {
-											if (Q <= pA && Q <= pB)
-												D = pA < pB ? dA : dB;
-											else if (Q >= pA && Q >= pB)
-												D = pA > pB ? dA : dB;
-											else {
-												T = (Q - pA) / (pB - pA); // safe for divide-by-zero
-												D = (1-T) * dA + T * dB;
-											}
-										}
-										scaledDeltas[q][xy] += D;
-									}
-								});
-								p = follPt;
-							}
-							else if (pNext == startPt && firstPrecPt == -1) // failed to find a precPt, so abandon this contour
-								break;
-							else
-								p = pNext;
-						}
-						startPt = this.endPts[c]+1;
-					}
-				} // if IUP
-
-				// add the net deltas to the glyph
-				// TODO: Try to avoid this step for points that were not moved
-				// TODO: Verify that we are rounding correctly. The spec implies we should maybe NOT round here
-				// - https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
-				newGlyph.points.forEach((point, p) => {
-					if (round) {
-						point[0] += Math.round(scaledDeltas[p][0]);
-						point[1] += Math.round(scaledDeltas[p][1]);
-					}
-					else {
-						point[0] += scaledDeltas[p][0];
-						point[1] += scaledDeltas[p][1];
-					}
-				});
-			} // if (S != 0)
-
-			
-			// store S and scaledDeltas so we can use them in visualization
-			// - maybe we should recalculate multiple AS values and 1 S value in the GUI so we don’t add load to samsa-core
-			if (config.visualization) {
-				newGlyph.tvtsVisualization.push({
-					S: S,
-					scaledDeltas: scaledDeltas,
-				});
-			}
-
-		}); // end of processing the tvts
-
-		// new bbox extremes
-		// - TODO: fix for composites and non-printing glyphs (even though the latter don’t record a bbox)
-		if (this.tvts.length) {
-			newGlyph.xMin = newGlyph.yMin = 32767;
-			newGlyph.xMax = newGlyph.yMax = -32768;
-			for (let pt=0; pt<newGlyph.numPoints; pt++) { // exclude the phantom points
-				let point = newGlyph.points[pt];
-				if (newGlyph.xMin > point[0])
-					newGlyph.xMin = point[0];
-				else if (newGlyph.xMax < point[0])
-					newGlyph.xMax = point[0];
-				if (newGlyph.yMin > point[1])
-					newGlyph.yMin = point[1];
-				else if (newGlyph.yMax < point[1])
-					newGlyph.yMax = point[1];
-			}
-		}
-		
-		return newGlyph;
 	}
 
 
-	// svgPath()
-	// - convert glyph’s points to an array of points to be used an SVG <path> "d" attribute
-	this.svgPath = () => {
+	// add the 4 phantom points
+	simpleGlyph.points.push([0,0,0], [iglyph.points[iglyph.points.length-3][0],0,0], [0,0,0], [0,0,0]);
 
-		let contours = [];
-		let contour, pt, pt_, c, p;
-
-		// convert the glyph contours into an SVG-compatible contours array
-		let startPt = 0;
-		for (endPt of this.endPts) {
-			const numPoints = endPt-startPt+1; // number of points in this contour
-			contour = [];
-
-			// insert on-curve points between any two consecutive off-curve points
-			for (p=startPt; p<=endPt; p++) {
-				pt = this.points[p];
-				pt_ = this.points[(p-startPt+1)%numPoints+startPt];
-				contour.push (pt);
-				if (pt[2] == 0 && pt_[2] == 0) // if we have 2 consecutive off-curve points...
-					contour.push ( [ (pt[0]+pt_[0])/2, (pt[1]+pt_[1])/2, 1 ] ); // ...we insert the implied on-curve point
-			}
-
-			// ensure SVG contour starts with an on-curve point
-			if (contour[0][2] == 0) // is first point off-curve?
-				contour.unshift(contour.pop());
-
-			// append this contour
-			contours.push(contour);
-
-			startPt = endPt+1;
-		}
-
-		// convert contours array to an actual SVG path
-		// - we’ve already fixed things so there are never consecutive off-curve points
-		let path = "";
-		for (contour of contours) {
-			for (p=0; p<contour.length; p++) {
-				pt = contour[p];
-				if (p==0)
-					path += `M${pt[0]} ${pt[1]}`;
-				else {
-					if (pt[2] == 0) { // off-curve point (consumes 2 points)
-						pt_ = contour[(++p) % contour.length]; // increments loop variable p
-						path += `Q${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]}`;
-					}
-					else // on-curve point
-						path += `L${pt[0]} ${pt[1]}`;
-					if (p == contour.length-1)
-						path += "Z";
-				}
-			}
-		}
-
-		return path;
-	};
-
-
-	this.toTTX = function () {
-
-		// return the glyf table and/or gvar table, depending on options
-		let ttx = {};
-
-		ttx.glyf = "...";
-		ttx.gvar = "...";
-
-		return ttx;
-	};
-
-	this.toGLIF = function () {
-		// UFO GLIF
-		// if you want GLIF data for non-default masters, then make an instance and use the glyph from that
-
-	};
-
-	this.toJSON = function () {
-		// remove circular object references
-
-	};
-
-	this.toCubic = function () {
-
-		this.curveOrder = 3;
-	};
-
-	// might be nice to get binary and hex versions of TTF data, per glyph, although we are normally writing to a stream
-	this.toBinaryTTF = function () {
-
-	};
+	//return the simple glyph
+	return simpleGlyph;
 
 }
+
+
+// instantiate()
+// - take a default glyph and return the instantiation produced using the userTuple or instance settings
+SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
+
+	// create newGlyph, a new glyph object which is the supplied glyph with the variations applied, as specified in instance (or if blank, userTuple)
+	// - TODO: can we move away from using userTuple and always require an instance?
+
+	// generate the glyph (e.g. if it’s needed by a composite)
+	if (this === undefined) {
+		console.log ("Samsaglyph.instantiate(): glyph is undefined");
+	}
+
+	//console.log("Instantiating using this.instantiate()");
+	const config = this.font.config;
+	const font = this.font;
+	let newGlyph = new SamsaGlyph({id:this.id, name:this.name, font:this.font});
+
+	newGlyph.default = this;
+
+	newGlyph.instance = instance; // this is still safe for tests that check for (!glyph.instance)
+	newGlyph.type = "instance";
+	newGlyph.points = [];
+	newGlyph.touched = [];
+	newGlyph.numContours = this.numContours;
+	newGlyph.components = this.components;
+	newGlyph.endPts = this.endPts;
+	newGlyph.numPoints = this.numPoints;
+	newGlyph.xMin = undefined;
+	newGlyph.yMin = undefined;
+	newGlyph.xMax = undefined;
+	newGlyph.yMax = undefined;
+	newGlyph.flags = this.flags; // do we need this?
+
+
+	let round = CONFIG.deltas.round;
+	if (extra && extra.roundDeltas === false)
+		round = false;
+
+	if (config.visualization)
+		newGlyph.tvtsVisualization = [];
+
+	// get a good userTuple (TODO: more validations than the array check)
+	// - it is recommended to use the ‘instance’ parameter, since then we preserve a connection between newGlyph and its instance
+	if (userTuple === null && instance)
+		userTuple = instance.tuple;
+	if (!Array.isArray(userTuple)) {
+		userTuple = font.fvsToTuple(userTuple); // userTuple was an fvs type object, but we transform it into a tuple array
+	}
+
+	// newGlyph starts off as a duplicate of the default glyph (at least, all of its points)
+	this.points.forEach((point, p) => {
+		newGlyph.points[p] = [point[0], point[1], point[2]];
+	});
+
+	// go through each tuple variation table for this glyph
+	newGlyph.sValues = [];
+	this.tvts.forEach((tvt, t) => {
+
+		let scaledDeltas = [];
+		let touched = [];
+		let S = 1;
+
+		this.points.forEach((point, p) => {
+			scaledDeltas[p] = [0,0];
+		});
+
+		// go thru each axis, multiply a scalar S from individual scalars AS
+		// based on pseudocode from https://www.microsoft.com/typography/otspec/otvaroverview.htm
+		font.axes.forEach((axis, a) => {
+			const ua = userTuple[a], peak = tvt.peak[a], start = tvt.start[a], end = tvt.end[a];
+			let AS;
+
+	        if (start > peak || peak > end)
+	            AS = 1;
+	        else if (start < 0 && end > 0 && peak != 0)
+	            AS = 1;
+	        else if (peak == 0)
+	            AS = 1;
+	        else if (ua < start || ua > end)
+	            AS = 0;
+	        else {
+	            if (ua == peak)
+	                AS = 1;
+	            else if (ua < peak)
+	                AS = (ua - start) / (peak - start);
+	            else
+	                AS = (end - ua) / (end - peak);
+	        }
+	        S *= AS;
+
+	        // TODO: optimize so that we quit the loop if AS == 0
+	        // TODO: get rid of AS and use "S *= " in each of the branches (altho not ideal if we want to record each AS for visualization)
+		});
+
+		// now we can move the points by S * delta
+		if (S != 0) {
+
+			tvt.deltas.forEach((delta, pt) => {
+				if (delta !== null) {
+					newGlyph.touched[pt] = touched[pt] = true; // touched[] is just for this tvt; newGlyph.touched[] is for all tvts (in case we want to show in UI) 
+					// btw, we don’t need to store touched array for composite or non-printing glyphs - probably a negligible optimization
+					scaledDeltas[pt] = [S * delta[0], S * delta[1]];
+				}
+			});
+
+			// IUP
+			// - TODO: ignore this step for composites (even though it is safe because endPts==[])
+			if (touched.length > 0 && !config.instantiation.ignoreIUP) { // it would be nice to check "touched.length < glyph.points.length" but that won’t work with sparse arrays, and must also think about phantom points
+
+				// for each contour
+				for (let c=0, startPt=0; c<this.endPts.length; c++) { // TODO: can we just use glyph.numContours?
+				
+					// TODO: check here that the contour is actually touched
+					const numPointsInContour = this.endPts[c]-startPt+1;
+					let firstPrecPt = -1; // null value
+					let precPt, follPt;
+					for (let p=startPt; p!=firstPrecPt; ) {
+						let pNext = (p-startPt+1)%numPointsInContour+startPt;
+						if (touched[p] && !touched[pNext]) { // found a precPt
+							precPt = p;
+							follPt = pNext;
+							if (firstPrecPt == -1)
+								firstPrecPt = precPt;
+							do {
+								follPt = (follPt-startPt+1)%numPointsInContour+startPt;
+								} while (!touched[follPt]) // found the follPt
+
+							// now we have a good precPt and follPt
+							// perform IUP for x(0), then for y(1)
+							[0,1].forEach(xy => {
+								// IUP spec: https://www.microsoft.com/typography/otspec/gvar.htm#IDUP
+								const pA = this.points[precPt][xy];
+								const pB = this.points[follPt][xy];
+								const dA = scaledDeltas[precPt][xy];
+								const dB = scaledDeltas[follPt][xy];
+
+								for (let q=pNext, D, T, Q; q!=follPt; q=(q-startPt+1)%numPointsInContour+startPt) {
+									Q = this.points[q][xy];
+									if (pA == pB)
+										D = dA == dB ? dA : 0;
+									else {
+										if (Q <= pA && Q <= pB)
+											D = pA < pB ? dA : dB;
+										else if (Q >= pA && Q >= pB)
+											D = pA > pB ? dA : dB;
+										else {
+											T = (Q - pA) / (pB - pA); // safe for divide-by-zero
+											D = (1-T) * dA + T * dB;
+										}
+									}
+									scaledDeltas[q][xy] += D;
+								}
+							});
+							p = follPt;
+						}
+						else if (pNext == startPt && firstPrecPt == -1) // failed to find a precPt, so abandon this contour
+							break;
+						else
+							p = pNext;
+					}
+					startPt = this.endPts[c]+1;
+				}
+			} // if IUP
+
+			// add the net deltas to the glyph
+			// TODO: Try to avoid this step for points that were not moved
+			// TODO: Verify that we are rounding correctly. The spec implies we should maybe NOT round here, only at the end
+			// - https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
+			let p;
+			const len = newGlyph.points.length; // includes phantoms
+			if (round) {
+				for (p=0; p<len; p++) {
+					newGlyph.points[p][0] += Math.round(scaledDeltas[p][0]);
+					newGlyph.points[p][1] += Math.round(scaledDeltas[p][1]);
+				}
+			}
+			else {
+				for (p=0; p<len; p++) {
+					newGlyph.points[p][0] += scaledDeltas[p][0];
+					newGlyph.points[p][1] += scaledDeltas[p][1];
+				}
+			}
+		} // if (S != 0)
+
+		
+		// store S and scaledDeltas so we can use them in visualization
+		// - maybe we should recalculate multiple AS values and 1 S value in the GUI so we don’t add load to samsa-core
+		if (config.visualization) {
+			newGlyph.tvtsVisualization.push({
+				S: S,
+				scaledDeltas: scaledDeltas,
+			});
+		}
+
+	}); // end of processing the tvts
+
+	// new bbox extremes
+	// - TODO: fix for composites and non-printing glyphs (even though the latter don’t record a bbox)
+	if (this.tvts.length) {
+		newGlyph.xMin = newGlyph.yMin = 32767;
+		newGlyph.xMax = newGlyph.yMax = -32768;
+		for (let pt=0; pt<newGlyph.numPoints; pt++) { // exclude the phantom points
+			let point = newGlyph.points[pt];
+			if (newGlyph.xMin > point[0])
+				newGlyph.xMin = point[0];
+			else if (newGlyph.xMax < point[0])
+				newGlyph.xMax = point[0];
+			if (newGlyph.yMin > point[1])
+				newGlyph.yMin = point[1];
+			else if (newGlyph.yMax < point[1])
+				newGlyph.yMax = point[1];
+		}
+	}
+	
+	return newGlyph;
+}
+
+
+// svgPath()
+// - convert glyph’s points to an array of points to be used an SVG <path> "d" attribute
+SamsaGlyph.prototype.svgPath = function () {
+
+	let contours = [];
+	let contour, pt, pt_, c, p;
+
+	// convert the glyph contours into an SVG-compatible contours array
+	let startPt = 0;
+	for (endPt of this.endPts) {
+		const numPoints = endPt-startPt+1; // number of points in this contour
+		contour = [];
+
+		// insert on-curve points between any two consecutive off-curve points
+		for (p=startPt; p<=endPt; p++) {
+			pt = this.points[p];
+			pt_ = this.points[(p-startPt+1)%numPoints+startPt];
+			contour.push (pt);
+			if (pt[2] == 0 && pt_[2] == 0) // if we have 2 consecutive off-curve points...
+				contour.push ( [ (pt[0]+pt_[0])/2, (pt[1]+pt_[1])/2, 1 ] ); // ...we insert the implied on-curve point
+		}
+
+		// ensure SVG contour starts with an on-curve point
+		if (contour[0][2] == 0) // is first point off-curve?
+			contour.unshift(contour.pop());
+
+		// append this contour
+		contours.push(contour);
+
+		startPt = endPt+1;
+	}
+
+	// convert contours array to an actual SVG path
+	// - we’ve already fixed things so there are never consecutive off-curve points
+	let path = "";
+	for (contour of contours) {
+		for (p=0; p<contour.length; p++) {
+			pt = contour[p];
+			if (p==0)
+				path += `M${pt[0]} ${pt[1]}`;
+			else {
+				if (pt[2] == 0) { // off-curve point (consumes 2 points)
+					pt_ = contour[(++p) % contour.length]; // increments loop variable p
+					path += `Q${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]}`;
+				}
+				else // on-curve point
+					path += `L${pt[0]} ${pt[1]}`;
+				if (p == contour.length-1)
+					path += "Z";
+			}
+		}
+	}
+
+	return path;
+};
+
+
+SamsaGlyph.prototype.toTTX = function () {
+
+	// return the glyf table and/or gvar table, depending on options
+	let ttx = {};
+
+	ttx.glyf = "...";
+	ttx.gvar = "...";
+
+	return ttx;
+};
+
+SamsaGlyph.prototype.toGLIF = function () {
+	// UFO GLIF
+	// if you want GLIF data for non-default masters, then make an instance and use the glyph from that
+
+};
+
+SamsaGlyph.prototype.toJSON = function () {
+	// remove circular object references
+
+};
+
+SamsaGlyph.prototype.toCubic = function () {
+
+	this.curveOrder = 3;
+};
+
+	// might be nice to get binary and hex versions of TTF data, per glyph, although we are normally writing to a stream
+SamsaGlyph.prototype.toBinaryTTF = function () {
+
+};
 
 
 function SamsaFont (init, config) {
