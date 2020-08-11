@@ -3523,6 +3523,10 @@ window.onload = () => {
 	let preloaded = false;
 	panel.innerHTML = "";
 
+	const ul = EL("ul");
+	ul.style.listStyle = "none";
+	ul.style.padding = 0;
+	ul.style.margin = 0;
 	for (let font of GLOBAL.fontList) {
 
 		// work out a filename if it doesn’t have one
@@ -3536,7 +3540,7 @@ window.onload = () => {
 		li.classList.add("font-file");
 		li.innerHTML = `<div class="icon" style="display: inline-block; width: 1.5em; text-align: center;"><strong>` + ( isDataUrl ? `&#xF0E7;` : `&#xF381;` ) + `</strong></div> ` + filename;
 		li.data = { filename: filename, url: font.url }; // this is used when we click on it
-		panel.appendChild(li);
+		ul.appendChild(li);
 
 		// preload the font?
 		if (font.preload && !preloaded) {
@@ -3552,6 +3556,8 @@ window.onload = () => {
 			preloaded = true; // we preload max one font
 		}
 	}
+	panel.appendChild(ul);
+
 }
 
 </script>
