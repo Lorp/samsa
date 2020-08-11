@@ -24,81 +24,35 @@
 	ABCDEabcde Variable font
 </p>
 
+<p class="samsa" data-variation-settings="'wght' 411.5, 'wdth' 49.1">
+	ABCDEabcde Polyfill font
+</p>
+
 <p style="font-family: Gingham; font-variation-settings:'wght' 678, 'wdth' 88.2;">
 	ABCDEabcde Variable font
 </p>
 
-<!-- <p class="samsa" data-variation-settings="'TEST' 0.0">
-	A
-</p>
-
-<p class="samsa" data-variation-settings="'TEST' 0.4">
-	A
-</p>
-
-<p class="samsa" data-variation-settings="'TEST' 0.944444">
-	A
-</p>
-
-<p class="samsa" data-variation-settings="'TEST' 1.0">
-	A
-</p>
- -->
-<p class="samsa" data-variation-settings="'wght' 411.5, 'wdth' 49.1">
-	ABCDEabcde Polyfill font [411.5, 49.1]
-</p>
-
 <p class="samsa" data-variation-settings="'wght' 678, 'wdth' 88.2">
-	ABCDEabcde Polyfill font [678, 88.2]
+	ABCDEabcde Polyfill font
+</p>
+
+<p style="font-family: Gingham; font-variation-settings:'wght' 700, 'wdth' 1;">
+	ABCDEabcde Variable font
 </p>
 
 <p class="samsa" data-variation-settings="'wght' 700, 'wdth' 1">
-	ABCDEabcde Polyfill font [700, 1]
+	ABCDEabcde Polyfill font
+</p>
+
+<p style="font-family: Gingham; font-variation-settings:'wght' 585, 'wdth' 17;">
+	ABCDEabcde Variable font
 </p>
 
 <p class="samsa" data-variation-settings="'wght' 585, 'wdth' 17">
-	ABCDEabcde Polyfill font [585, 17]
-</p>
-
-<p class="samsa" data-variation-settings="'wght' 10000, 'wdth' 10000">
-	ABCDEabcde Polyfill font [10000, 10000]
-</p>
-
-<p class="samsa" data-variation-settings="'wght' -10000, 'wdth' -10000">
-	ABCDEabcde Polyfill font [-10000, -10000]
+	ABCDEabcde Polyfill font
 </p>
 
 <script>
-
-
-	/*
-
-	* load VF into memory
-	* offer UI of axes?
-	* instantiate static TTF at default positions
-	* attach TTF as webfont
-	* display some text using this font
-	* when axes move
-		- update CSS font-variation-settings
-		- inspect CSS font-variation-settings
-		- instantiate static TTF
-		- attach TTF as webfont
-		- record instantiation time
-	*/
-
-
-/*
-
-TODO:
-
-Regard this as a simple polyfill page.
-
-Make another page samsa-benchmark.html for benchmarking:
-* test how many times a TTF can be generated per second
-* test how many times a TTF can be generated and attached as a webfont per second (tests animation smoothness)
-* default to Gingham
-
-*/
 
 
 // simple conversion functions
@@ -147,7 +101,6 @@ function instanceAxisString (instance, format="familyName") {
 
 		case "familyName":
 			instance.font.axes.forEach(function (axis) {
-				console.log(axis);
 				axisStrings.push (`${axis.tag}_${instance.fvs[axis.tag]}`.replace(".", "_"));
 			});
 			return axisStrings.join("_");
@@ -196,51 +149,15 @@ function vfLoaded () {
 	// POLYFILL FOR ALL ELEMENTS WITH CLASS ".samsa"
 	applyInstancesAll(vf, ".samsa");
 
-
-	// CREATE AN INSTANCE AND MAKE IT AVAILABLE FOR DOWNLOAD
-	// define the instance
-	let boldInstance = vf.addInstance ({wght: 700, wdth: 125}, "MyBold");
-	console.log ("boldInstance", boldInstance);
-
-	// make the instance
-	vf.makeInstance(boldInstance); // places the instantiated binary data into boldInstance.static
-
-	// do something with the binary data
-	if (boldInstance.static) {
-		
-		let downloadLink = document.createElement("a");
-		downloadLink.innerText = "Download instance";
-		downloadLink.setAttribute("download", "Download.ttf");
-		downloadLink.setAttribute("href", "data:font/ttf;base64," + uint8ToBase64(boldInstance.static));
-		document.body.appendChild(downloadLink);
-
-		boldInstance.static;
-	}
 }
 
 
-let vf = new SamsaVF({
-	//fontFamily: "LibreFranklin",
-	//url: "http://localhost/samsa/fonts/LibreFranklinGX-Roman.ttf",
-	
-	//fontFamily: "Gingham",
-	//url: "http://localhost/samsa/fonts/Gingham.ttf",
+let vf = new SamsaFont({
 
-	//fontFamily: "Bahnschrift",
-	//url: "http://localhost/samsa/fonts/bahnschrift.ttf",
-
-	//fontFamily: "IBMPlex",
-	//url: "http://localhost/samsa/fonts/ui/IBMPlexSansVar-Roman.ttf",
-
-	fontFamily: "Dunbar",
-	url: "http://localhost/samsa/fonts/MutatorSans.ttf",
-
-	//fontFamily: "GVARIUPTEST",
-	//url: "fonts/TestGVARNine-revised.ttf",
+	fontFamily: "Gingham",
+	url: "fonts/Gingham.ttf",
 	callback: vfLoaded,
-},
-{
-	testConfigItem: 34567,
+	
 });
 
 
