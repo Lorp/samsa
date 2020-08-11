@@ -3333,7 +3333,7 @@ document.onclick = function (event) {
 		// if the app is running in file: protocol, skip any fonts that are not data: protocol
 		if (location.protocol == "file:" && !isDataUrl) {
 			
-			alert ("Cannot load font files from disk if application is on file: protocol. You must embed the fonts as base64 in samsa-config.js or install Samsa on localhost.");
+			alert ("Cannot load font files from disk if application is on file: protocol. You must embed the fonts as base64 in samsa-config.js or install Samsa on a web server such as localhost.");
 		
 		}
 		else {
@@ -3527,6 +3527,7 @@ window.onload = () => {
 	ul.style.listStyle = "none";
 	ul.style.padding = 0;
 	ul.style.margin = 0;
+	ul.style.whiteSpace = "nowrap";
 	for (let font of GLOBAL.fontList) {
 
 		// work out a filename if it doesn’t have one
@@ -3538,8 +3539,10 @@ window.onload = () => {
 		// add the font to the list
 		let li = EL("li");
 		li.classList.add("font-file");
-		li.innerHTML = `<div class="icon" style="display: inline-block; width: 1.5em; text-align: center;"><strong>` + ( isDataUrl ? `&#xF0E7;` : `&#xF381;` ) + `</strong></div> ` + filename;
+		li.innerHTML = `<div class="icon" style="display: inline-block; width: 1.5em; text-align: center;"><strong>${ isDataUrl ? "&#xF0E7;" : "&#xF381" }</strong></div> ` + filename;
 		li.data = { filename: filename, url: font.url }; // this is used when we click on it
+		if (location.protocol == "file:" && !isDataUrl)
+			li.style.color = "grey"; // signal that these won’t load
 		ul.appendChild(li);
 
 		// preload the font?
