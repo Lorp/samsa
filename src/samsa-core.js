@@ -28,9 +28,6 @@ let CONFIG = {
 	outFileDefault: "samsa-out.ttf",
 
 	instantiation: {
-		method: "default", // sets apple overlap bit
-		// method: "dummy-fvar", // does not set apple overlap bit
-		// method: "no-overlap-bit", // does not set apple overlap bit
 		skipTables: ["gvar","fvar","cvar","avar","STAT","MVAR","HVAR","VVAR","DSIG"],
 		ignoreIUP: false,
 	},
@@ -97,15 +94,6 @@ if (CONFIG.isNode) {
 	}
 }
 
-
-let fonts = [];
-let glyph = {
-	font: undefined,
-	endPts: [],
-	points: [],
-	deltas: []
-};
-let newGlyph;
 
 function getStringFromData (data, p0, length)
 {
@@ -413,13 +401,13 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 			});
 
 			// IUP
-			// - TODO: ignore this step for composites (even though it is safe because endPts==[])
+			// - TODO: ignore this step for composites (even though it is safe because numContours<0)
 			if (touched.length > 0 && !config.instantiation.ignoreIUP) { // it would be nice to check "touched.length < glyph.points.length" but that won’t work with sparse arrays, and must also think about phantom points
 
 				// for each contour
-				for (let c=0, startPt=0; c<this.endPts.length; c++) { // TODO: can we just use glyph.numContours?
+				for (let c=0, startPt=0; c<this.numContours; c++) {
 				
-					// TODO: check here that the contour is actually touched
+					// OPTIMIZE: check here that the contour is actually touched
 					const numPointsInContour = this.endPts[c]-startPt+1;
 					let firstPrecPt = -1; // null value
 					let precPt, follPt;
@@ -1897,10 +1885,10 @@ function SamsaFont (init, config) {
 							p += instructionLength;
 
 							// write glyph points
+							let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
 							if (CONFIG.glyf.compression) {
 
 								// write compressed glyph points (slower)
-								let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
 								for (pt=0; pt<iglyph.numPoints; pt++) {
 									X = dx[pt] = Math.round(points[pt][0]) - cx;
 									Y = dy[pt] = Math.round(points[pt][1]) - cy;
@@ -1953,17 +1941,16 @@ function SamsaFont (init, config) {
 								// write uncompressed glyph points (faster in memory and for SSD disks)
 								let xOffset = p + iglyph.numPoints;
 								let yOffset = xOffset + 2 * iglyph.numPoints;
+								let cx=0, cy=0;
 
 								// write everything in one loop
-								for (pt = cx = cy = 0; pt<iglyph.numPoints; pt++) {
-
-									let x = points[pt][0], y = points[pt][1], dx = x - cx, dy = y - cy;
+								for (pt=0; pt<iglyph.numPoints; pt++) {
 
 									// write flag, x and y
-									glyfBuffer.setUint8(p+pt, points[pt][2]);
-									glyfBuffer.setInt16(xOffset + 2*pt, dx);
-									glyfBuffer.setInt16(yOffset + 2*pt, dy);
-
+									const x = points[pt][0], y = points[pt][1];
+									glyfBuffer.setUint8(p+pt, points[pt][2]); // 1 byte for flag
+									glyfBuffer.setInt16(xOffset + 2*pt, x - cx); // 2 bytes for dx
+									glyfBuffer.setInt16(yOffset + 2*pt, y - cy); // 2 bytes for dy
 									cx = x;
 									cy = y;
 								}
