@@ -551,7 +551,7 @@ SamsaGlyph.prototype.recalculateBounds = function () {
 
 
 // svgPath()
-// - convert glyph’s points to an array of points to be used an SVG <path> "d" attribute
+// - export glyph as a string to be used in a SVG <path> "d" attribute
 SamsaGlyph.prototype.svgPath = function () {
 
 	let contours = [];
@@ -607,36 +607,81 @@ SamsaGlyph.prototype.svgPath = function () {
 };
 
 
-SamsaGlyph.prototype.toTTX = function () {
+// svg()
+// - export glyph as a string, suitable for saving as a complete SVG file
+SamsaGlyph.prototype.svg = function () {
+	let svg = 
+`<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" style="background-color: transparent;">
+	<g transform="translate(130,500) scale(0.5,-0.5)">
+		<path d="$_PATH_$" stroke="none" stroke-width="0" fill="#555"></path>
+	</g>
+</svg>`;
+	svg = svg.replace("$_PATH_$", this.svgPath());
+	return svg;
+}
 
-	// return the glyf table and/or gvar table, depending on options
-	let ttx = {};
 
-	ttx.glyf = "...";
-	ttx.gvar = "...";
+// ttx()
+// - export glyph as a string to be used as a complete XML <TTGlyph> within a TTX file
+SamsaGlyph.prototype.ttx = function () {
 
+	let ttx = `<TTGlyph name="${this.name}" xMin="${this.xMin}" yMin="${this.yMin}" xMax="${this.xMax}" yMax="${this.yMax}">\n`;
+	let startPt = 0;
+	
+	for (let endPt of this.endPts) {
+		ttx += `    <contour>\n`;
+		for (let pt=startPt; pt <= endPt; pt++) {
+			let point = this.points[pt];
+			ttx += `        <pt x="${point[0]}" y="${point[1]}" on="${point[2]}"/>\n`;
+		}
+		ttx += `    </contour>\n`;
+		startPt = endPt + 1;
+	}
+
+	ttx += `</TTGlyph>\n`;
 	return ttx;
 };
 
-SamsaGlyph.prototype.toGLIF = function () {
-	// UFO GLIF
-	// if you want GLIF data for non-default masters, then make an instance and use the glyph from that
 
+// json()
+// - export glyph as a JSON string but without the circular references of the internal object
+SamsaGlyph.prototype.json = function () {
+
+	const replacer = ["id", "name", "curveOrder", "endPts", "numContours", "numPoints", "points"];
+	return JSON.stringify(this, replacer, 4);
 };
 
-SamsaGlyph.prototype.toJSON = function () {
-	// remove circular object references
 
-};
-
-SamsaGlyph.prototype.toCubic = function () {
-
-	this.curveOrder = 3;
-};
-
-	// might be nice to get binary and hex versions of TTF data, per glyph, although we are normally writing to a stream
-SamsaGlyph.prototype.toBinaryTTF = function () {
-
+// ufo()
+// - export glyph as a string to be used as a complete XML <glyph> structure as a standalone .glif file
+SamsaGlyph.prototype.ufo = function () {
+	// - working for quadratic
+	// - assumes that UFO is cool with any number of off-curve points between on-curves, which is not clear from the spec
+	// - https://unifiedfontobject.org/versions/ufo3/glyphs/glif/
+	// - TODO: composites???
+	let glif = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+	glif += `<glyph name="${this.name}" format="2">\n`;
+	glif += `  <advance width="${this.points[this.numPoints+1][0]}"/>\n`;
+	glif += `  <outline>\n`;
+	startPt = 0;
+	for (let endPt of this.endPts) {
+		glif += `    <contour>\n`;
+		for (let pt=startPt; pt <= endPt; pt++) {
+			let point = this.points[pt];
+			let prevPoint = this.points[(pt-1+this.numPoints)%this.numPoints];
+			let typeString = "";
+			if (point[2] == 1) { // if point is on-curve
+				typeString = prevPoint[2] == 1 ? "line" : "qcurve"; // decide if the current point is line or qcurve
+			}
+			if (typeString)
+				typeString = ` type="${typeString}"`; // format it for insertion
+			glif += `      <point x="${point[0]}" y="${point[1]}"${typeString}/>\n`;
+		}
+		glif += `    </contour>\n`;
+	}
+	glif += `  </outline>\n`;
+	glif += `</glyph>\n`;
+	return glif;
 };
 
 
