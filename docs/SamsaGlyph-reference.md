@@ -143,11 +143,18 @@ Type: `Number`
 
 ### `.tvts`
 
-Array of tuple variable table (`tvt`) data structures. Each `tvt` defines:
+Array of tuple variable table (TVT) data structures. Each `tvt` defines:
 * a table of delta x,y movements for a subset of points (or components) in this glyph
 * the region of application in designspace using start, peak and end locations for each axis
 
-Type: `Array` of `Object`
+Because TVT data is not always required, is not parsed as part of creating new glyphs using `font.parseGlyph(<glyphId>)`. If it is required, TVT data is typically parsed immediately after parsing glyph data:
+
+```jsx
+    let myGlyph;
+    let g = 22;
+    myGlyph = font.parseGlyph(g);
+    myGlyph.tvts = font.parseTvts(g);.
+```
 
 ## Methods
 
@@ -202,13 +209,19 @@ Convert glyph’s points to a string that can be used as an SVG <path> "d" attri
 	
 Coordinates are identical to those used in the font, so the SVG typically needs scaling and flipping vertically. The transformation is typically perfomed in an enclosing `<g>` tag to transform multiple SVG elements together.
 
+**Returns:** 
+
+`String`
+
 **Example:**
 
 ```jsx
 glyph.svgPath();
 ```
 
-Result: `"M50 0L450 0L450 700L50 700Z"`
+**Result:**
+
+`"M50 0L450 0L450 700L50 700Z"`
 
 ```svg
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="1000" height="1000">
@@ -218,13 +231,36 @@ Result: `"M50 0L450 0L450 700L50 700Z"`
 </svg>
 ```
 
-**Returns:** 
-
-`String`
-
 **Source:** 
 
 [samsa/src/samsa-core.js:525](https://github.com/Lorp/samsa/blob/master/src/samsa-core.js#L525)
+
+
+---
+
+### `.svg ()`
+
+Export glyph as a string, suitable for saving as a complete SVG file.
+
+---
+
+### `.ttx ()`
+
+Export glyph as a string to be used as a complete XML `<TTGlyph>` structure within a TTX file.
+
+---
+
+### `.ufo ()`
+
+Export glyph as a string to be used as a complete XML <glyph> structure as a standalone `.glif` file.
+
+---
+
+### `.json ()`
+
+Export glyph as a JSON representation of Samsa’s own data structure, but without the circular references of the internal object.
+
+---
 
 ## Source
 
