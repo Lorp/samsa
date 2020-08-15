@@ -322,10 +322,10 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 	newGlyph.components = this.components;
 	newGlyph.endPts = this.endPts;
 	newGlyph.numPoints = this.numPoints;
-	newGlyph.xMin = undefined;
-	newGlyph.yMin = undefined;
-	newGlyph.xMax = undefined;
-	newGlyph.yMax = undefined;
+	newGlyph.xMin = this.xMin;
+	newGlyph.yMin = this.yMin;
+	newGlyph.xMax = this.xMax;
+	newGlyph.yMax = this.yMax;
 	newGlyph.flags = this.flags; // do we need this?
 
 
@@ -493,6 +493,7 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 
 	// new bbox extremes
 	// - TODO: fix for composites and non-printing glyphs (even though the latter don’t record a bbox)
+	/*
 	if (this.tvts.length) {
 		newGlyph.xMin = newGlyph.yMin = 32767;
 		newGlyph.xMax = newGlyph.yMax = -32768;
@@ -507,9 +508,45 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 			else if (newGlyph.yMax < point[1])
 				newGlyph.yMax = point[1];
 		}
-	}
+	}*/
+	newGlyph.recalculateBounds();
 	
 	return newGlyph;
+}
+
+
+// recalculateBounds()
+// - recalculate the bounding box for this simple glyph
+SamsaGlyph.prototype.recalculateBounds = function () {
+
+	if (this.numContours < 0) {
+		return false;
+	}
+	else if (this.numContours == 0) {
+		this.xMin = 0;
+		this.yMin = 0;
+		this.xMax = 0;
+		this.yMax = 0;
+	}
+	else {
+		let xMin = 32767, yMin = 32767, xMax = -32768, yMax = -32768;
+		for (let pt=0; pt<this.numPoints; pt++) { // exclude the phantom points
+			let point = this.points[pt];
+			if (xMin > point[0])
+				xMin = point[0];
+			else if (xMax < point[0])
+				xMax = point[0];
+			if (yMin > point[1])
+				yMin = point[1];
+			else if (yMax < point[1])
+				yMax = point[1];
+		}
+		this.xMin = xMin;
+		this.yMin = yMin;
+		this.xMax = xMax;
+		this.yMax = yMax;
+	}
+	return this.numPoints;
 }
 
 
@@ -1451,7 +1488,7 @@ function SamsaFont (init, config) {
 		// - works on composites
 		// - works on zero-contour glyphs
 		// TODO: get height from vmtx table (if it exists)
-		glyph.points.push([0,0], [font.widths[g], 0], [0,0], [0,0]);
+		glyph.points.push([0,0,0], [font.widths[g], 0, 0], [0,0,0], [0,0,0]);
 
 		return glyph;
 
@@ -1534,7 +1571,7 @@ function SamsaFont (init, config) {
 								break;
 							let pointData;
 							if (pointsAreWords)
-								pointData = data.getUint16(ps), ps+=2; // TODO: THIS IS GOING WRONG!!!!!!
+								pointData = data.getUint16(ps), ps+=2;
 							else
 								pointData = data.getUint8(ps), ps++;
 							pointNum += pointData;
@@ -1939,8 +1976,8 @@ function SamsaFont (init, config) {
 							else { // CONFIG.glyf.compression != true
 
 								// write uncompressed glyph points (faster in memory and for SSD disks)
-								let xOffset = p + iglyph.numPoints;
-								let yOffset = xOffset + 2 * iglyph.numPoints;
+								const xOffset = p + iglyph.numPoints;
+								const yOffset = xOffset + 2 * iglyph.numPoints;
 								let cx=0, cy=0;
 
 								// write everything in one loop
