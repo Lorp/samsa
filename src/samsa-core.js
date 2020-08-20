@@ -673,10 +673,8 @@ SamsaGlyph.prototype.ufo = function () {
 			let prevPoint = this.points[startPt + (ptInContour-1+numContourPoints) % numContourPoints];
 			let typeString = "";
 			if (point[2] == 1) { // if point is on-curve
-				typeString = prevPoint[2] == 1 ? "line" : "qcurve"; // decide if the current point is line or qcurve
+				typeString = ` type="${ prevPoint[2] == 1 ? "line" : "qcurve" }"`; // decide if the current point is line or qcurve
 			}
-			if (typeString)
-				typeString = ` type="${typeString}"`; // format it for insertion
 			glif += `      <point x="${point[0]}" y="${point[1]}"${typeString}/>\n`;
 		}
 		glif += `    </contour>\n`;
