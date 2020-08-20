@@ -38,12 +38,12 @@ let CONFIG = {
 
 	sfnt: {
 		maxNumTables: 100,
-		maxSize: 10000000,
+		maxSize: 10000000, // does not apply in node mode (i.e. we can create fonts of unlimited size on the command line)
 	},
 
 	glyf: {
 		overlapSimple: true,
-		bufferSize: 500000, // for writing to files (ignored for in-memory instantiation)
+		bufferSize: 500000, // max data to accumulate before a write (ignored for in-memory instantiation)
 		compression: true, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
 	},
 
@@ -289,7 +289,7 @@ SamsaGlyph.prototype.decompose = function (tuple, params) {
 	// add the 4 phantom points
 	simpleGlyph.points.push([0,0,0], [iglyph.points[iglyph.points.length-3][0],0,0], [0,0,0], [0,0,0]);
 
-	//return the simple glyph
+	// return the simple glyph
 	return simpleGlyph;
 
 }
@@ -663,12 +663,14 @@ SamsaGlyph.prototype.ufo = function () {
 	glif += `<glyph name="${this.name}" format="2">\n`;
 	glif += `  <advance width="${this.points[this.numPoints+1][0]}"/>\n`;
 	glif += `  <outline>\n`;
-	startPt = 0;
+	let startPt = 0;
 	for (let endPt of this.endPts) {
 		glif += `    <contour>\n`;
 		for (let pt=startPt; pt <= endPt; pt++) {
 			let point = this.points[pt];
-			let prevPoint = this.points[(pt-1+this.numPoints)%this.numPoints];
+			let numContourPoints = endPt - startPt + 1;
+			let ptInContour = pt - startPt;
+			let prevPoint = this.points[startPt + (ptInContour-1+numContourPoints) % numContourPoints];
 			let typeString = "";
 			if (point[2] == 1) { // if point is on-curve
 				typeString = prevPoint[2] == 1 ? "line" : "qcurve"; // decide if the current point is line or qcurve
@@ -678,6 +680,7 @@ SamsaGlyph.prototype.ufo = function () {
 			glif += `      <point x="${point[0]}" y="${point[1]}"${typeString}/>\n`;
 		}
 		glif += `    </contour>\n`;
+		startPt = endPt + 1;
 	}
 	glif += `  </outline>\n`;
 	glif += `</glyph>\n`;
