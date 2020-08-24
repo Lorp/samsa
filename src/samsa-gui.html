@@ -1805,8 +1805,11 @@ function updateDesignSpaceMoved(e) {
 	// now update the glyph in the drawing
 	// - should we do this simply by setting the axes in the Axes panel
 	let instance = font.addInstance(null, {tuple: tuple});
+
+
 	let glyph = font.glyphs[GLOBAL.currentGlyphId];
-	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
+	setActiveGlyph (glyph.id, instance); // update the SVG
+
 	font.instances.pop();
 
 	axesUpdateValues();
@@ -2561,6 +2564,8 @@ function updateGlyphSVG (g, instance) {
 	GLOBAL.currentGlyphId = g; // hmm, should be part of the font, not GLOBAL … TODO: check g < numGlyphs
 	let glyph = font.glyphs[g];
 
+
+
 	if (instance) {
 		GLOBAL.tuple = [];
 		instance.tuple.forEach((v,i) => {
@@ -2568,6 +2573,17 @@ function updateGlyphSVG (g, instance) {
 		})
 		//GLOBAL.tuple = instance.tuple; // hmm, shallow copy should be ok, because it won’t be garbage collected
 	}
+
+	// FeatureVariations?
+	// - if so, reassign glyph to the substitute glyph
+	// - GLOBAL.currentGlyphId does not change
+	if (font.featureVariations) {
+		let substituteGlyphId = glyph.featureVariationsGlyphId(GLOBAL.tuple);
+		if (substituteGlyphId !== undefined)
+			glyph = font.glyphs[substituteGlyphId];		
+	}
+
+
 
 	let iglyph = glyph.instantiate(GLOBAL.tuple);
 

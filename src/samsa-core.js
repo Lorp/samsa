@@ -549,6 +549,69 @@ SamsaGlyph.prototype.recalculateBounds = function () {
 	return this.numPoints;
 }
 
+// featureVariationsGlyphId(tuple)
+// - return a new glyphId for this glyph at the designspace location <tuple> according to FeatureVariations data
+// - return undefined if FeatureVariations has no effect at designspace location <tuple>
+// - return undefined if there is no FeatureVariations data
+// - TODO: make it work only on integers, as we might not want to load an initial glyph
+SamsaGlyph.prototype.featureVariationsGlyphId = function (tuple) {
+
+	const font = this.font;
+	let newGlyphId;
+
+	// are there FeatureVariations in the font
+	if (!font.featureVariations)
+		return newGlyphId;
+
+	// - spec:
+	// - https://docs.microsoft.com/en-us/typography/opentype/spec/gsub (GSUB — Glyph Substitution Table)
+	// - https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2 (OpenType Layout Common Table Formats)
+
+	// does the tuple satisfy all location conditions?
+	for (let featureVariation of font.featureVariations) {
+		const conds = featureVariation.conditions;
+
+		let match = true;
+		for (let co=0; co<conds.length && match; co++) {
+			let cond = conds[co];
+			// - cond[0] is axisIndex
+			// - cond[1] is FilterRangeMinValue
+			// - cond[2] is FilterRangeMaxValue
+			if (tuple[cond[0]] < cond[1] || tuple[cond[0]] > cond[2])
+				match = false;
+		}
+
+		// if tuple satisfied all location conditions
+		if (match) {
+
+			// check if we matched on glyphId (probably should be the other way around!)
+			// - this treats all subsitution in featureVariation the same, so it does not care which feature tag (e.g. "rvrn", "rclt") triggers it
+			for (let sub of featureVariation.substitutions) {
+
+				let feature = font.features[sub[0]];
+				let lookups = sub[1];
+
+				for (let lu=0; lu<lookups.length; lu++) {
+
+					const lookup = lookups[lu];
+					const gIndex = lookup.coverage.indexOf(this.id);
+
+					// success and exit loop
+					if (gIndex !== -1) {
+						if (lookup.substFormat == 1) // deltaGlyphId method
+							newGlyphId = (this.id + lookup.deltaGlyphId + 0x10000) % 0x10000; // we + and % 65536 because (this.id+lookup.deltaGlyphId) can be negative
+						else if (lookup.substFormat == 2) // substituteGlyphIds method
+							newGlyphId = lookup.substituteGlyphIds[gIndex]; // TODO: maybe should return here, to break out of the font.featureVariations loop too
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	return newGlyphId;
+}
+
 
 // svgPath()
 // - export glyph as a string to be used in a SVG <path> "d" attribute
@@ -853,7 +916,7 @@ function SamsaFont (init, config) {
 		// - name must precede fvar
 		// - name must precede STAT
 		// - gvar isn’t short, but we only parse its header here
-		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca"].forEach(tag => {
+		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca", "GSUB"].forEach(tag => {
 
 			if (font.tables[tag])
 				font.parseSmallTable(tag);
@@ -916,7 +979,7 @@ function SamsaFont (init, config) {
 				table.version = data.getUint32(p), p+=4;
 				table.numGlyphs = data.getUint16(p), p+=2;
 				font.numGlyphs = table.numGlyphs;
-				break;
+				break; // maxp end
 
 
 			case "hhea":
@@ -936,7 +999,7 @@ function SamsaFont (init, config) {
 				p+=8;
 				table.metricDataFormat = data.getInt16(p), p+=2;
 				table.numberOfHMetrics = data.getUint16(p), p+=2;
-				break;
+				break; // hhea end
 
 
 			case "head":
@@ -961,7 +1024,7 @@ function SamsaFont (init, config) {
 				table.glyphDataFormat = data.getUint16(p), p+=2;
 
 				font.unitsPerEm = table.unitsPerEm;
-				break;
+				break; // head end
 
 
 			case "hmtx":
@@ -977,7 +1040,7 @@ function SamsaFont (init, config) {
 					else
 						font.widths[m] = font.widths[m-1];
 				}
-				break;
+				break; // hmtx end
 
 
 			case "OS/2":
@@ -1013,7 +1076,7 @@ function SamsaFont (init, config) {
 				table.sTypoLineGap = data.getInt16(p), p+=2;
 				table.usWinAscent = data.getUint16(p), p+=2;
 				table.usWinDescent = data.getUint16(p), p+=2;
-				break;
+				break; // OS/2 end
 
 
 			case "name":
@@ -1088,7 +1151,7 @@ function SamsaFont (init, config) {
 					table.nameRecords.push(nameRecord);
 					p = p_; // restore pointer ready for the next nameRecord
 				}
-				break;
+				break; // name end
 
 
 			case "post":
@@ -1119,7 +1182,7 @@ function SamsaFont (init, config) {
 						font.glyphNames[g] = gni < 258 ? config.postscriptNames[gni] : extraNames[gni-258];
 					}
 				}
-				break;
+				break; // post end
 			
 
 			case "loca":
@@ -1135,7 +1198,7 @@ function SamsaFont (init, config) {
 
 					font.glyphSizes[g] = font.glyphOffsets[g+1] - font.glyphOffsets[g];
 				}
-				break;
+				break; // loca end
 
 
 			case "fvar":
@@ -1212,7 +1275,7 @@ function SamsaFont (init, config) {
 				}
 
 				font.axisCount = table.axisCount;
-				break;
+				break; // fvar end
 
 
 			case "avar":
@@ -1229,7 +1292,7 @@ function SamsaFont (init, config) {
 						font.avar[a][m] = [data.getF2DOT14(p), data.getF2DOT14(p+2)], p+=4; // = [<fromCoordinate>,<toCoordinate>]
 					}
 				}
-				break;
+				break; // avar end
 
 
 			case "gvar":
@@ -1267,7 +1330,7 @@ function SamsaFont (init, config) {
 					font.tupleSizes[g] = font.tupleOffsets[g+1] - font.tupleOffsets[g];
 				}
 				font.sharedTuples = table.sharedTuples;
-				break;
+				break; // gvar end
 
 
 			case "STAT":
@@ -1336,7 +1399,225 @@ function SamsaFont (init, config) {
 					}
 					table.axisValueTables.push(axisValueTable);
 				}
-				break;
+				break; // STAT end
+
+
+			case "GSUB":
+
+				if (font.tables['GSUB'])
+				{
+					table = {};
+					table.majorVersion = data.getUint16(p), p+=2;
+					table.minorVersion = data.getUint16(p), p+=2;
+					if (table.majorVersion == 1 && table.minorVersion <= 1) {
+						table.scriptListOffset = data.getUint16(p), p+=2;
+						table.featureListOffset = data.getUint16(p), p+=2;
+						table.lookupListOffset = data.getUint16(p), p+=2;
+						if (table.minorVersion == 1)
+							table.featureVariationsOffset = data.getUint32(p), p+=4;
+
+						// features
+						table.features = [];
+						p = tableOffset + table.featureListOffset;
+						table.featureCount = data.getUint16(p), p+=2;
+						for (let f=0; f<table.featureCount && f < 100; f++, p+=6) {
+							let feature = {
+								tag: data.getTag(p),
+								offset: data.getUint16(p+4),
+								name: null,
+							};
+							let p_ = tableOffset + table.featureListOffset + feature.offset;
+							if (feature.tag !== false) {
+								feature.featureParams = data.getUint16(p_), p_+=2; // this is an offset, or 0 if there are none
+								feature.lookupIndexCount = data.getUint16(p_), p_+=2;
+
+								// get featureParams (i.e. nice name of this feature)
+								if (feature.featureParams) {
+									p_ = tableOffset + table.featureListOffset + feature.offset + feature.featureParams;
+									feature.featureParamsVersion = data.getUint16(p_), p_+=2;
+									feature.nameId = data.getUint16(p_), p_+=2;
+									if (feature.nameId > 0)
+										feature.name = font.names[feature.nameId];
+								}
+
+								// get featureParams (i.e. nice name of this feature)
+								feature.lookupIds = [];
+								if (feature.lookupIndexCount) {
+									for (let lu=0; lu<feature.lookupIndexCount; lu++) {
+										feature.lookupIds[lu] = data.getUint16(p_), p_+=2;
+									}
+								}
+							}
+							table.features[f] = feature;
+						}
+
+						// lookups: initialize
+						table.lookups = [];
+						p = tableOffset + table.lookupListOffset;
+						table.lookupCount = data.getUint16(p), p+=2;
+
+						for (let lu=0; lu<table.lookupCount; lu++) {
+
+							let offset = data.getUint16(p); p+=2;
+							let p_ = tableOffset + table.lookupListOffset + offset;
+							let lookup = {
+								offset: offset,
+								lookupType: data.getUint16(p_),
+								lookupFlag: data.getUint16(p_+2),
+								subTableCount: data.getUint16(p_+4),
+								subtableOffsets: [],
+								markFilteringSet: undefined,
+							}
+							p_ += 6;
+
+							for (let st=0; st<lookup.subTableCount; st++) {
+								lookup.subtableOffsets[st] = data.getUint16(p_), p_+=2;
+							}
+
+							if (lookup.lookupFlag & 0x0010) { // useMarkFilteringSet
+								lookup.markFilteringSet = data.getUint16(p_), p_+=2; // get markFilteringSet from GDEF using this id
+							}
+							table.lookups.push(lookup);
+						}
+
+						// lookups: process
+						for (let lu=0; lu<table.lookupCount; lu++) {
+							let lookup = table.lookups[lu];
+
+							for (let st=0; st<lookup.subTableCount; st++) {
+
+								p = tableOffset + table.lookupListOffset + lookup.offset + lookup.subtableOffsets[st];
+
+								switch (lookup.lookupType) {
+
+									// only format 1 are allowed in FeatureVariations
+									case 1:
+										lookup.substFormat = data.getUint16(p), p+=2;
+										coverageOffset = data.getUint16(p), p+=2;
+										if (lookup.substFormat == 1) {
+											lookup.deltaGlyphId = data.getInt16(p), p+=2;
+										}
+										else if (lookup.substFormat==2) {
+											lookup.glyphCount = data.getUint16(p), p+=2;
+											lookup.substituteGlyphIds = [];
+											for (let g=0; g<lookup.glyphCount; g++)
+												lookup.substituteGlyphIds[g] = data.getUint16(p), p+=2;
+
+										}
+
+										// get lookup.coverage (an array of glyph ids) whether it is format 1 (simple) or format 2 (ranges)
+										lookup.coverage = [];
+										p = tableOffset + table.lookupListOffset + lookup.offset + lookup.subtableOffsets[st] + coverageOffset;
+										const format = data.getUint16(p);
+										p+=2;
+
+										if (format == 1) {
+											let glyphCount = data.getUint16(p); p+=2;
+											for (let g=0; g<glyphCount; g++) {
+												lookup.coverage[g] = data.getUint16(p), p+=2;
+											}
+										}
+										else if (format == 2) {
+											let rangeCount = data.getUint16(p);
+											p+=2;
+											for (let r=0; r<rangeCount; r++) {
+												let start = data.getUint16(p), end = data.getUint16(p+2);
+												p+=6; // startGlyphID, endGlyphID, coverageIndex (we didn’t use the last)
+												for (let g=start; g<=end; g++) {
+													lookup.coverage.push(g);
+												}
+											}
+										}
+										break;
+
+									// others not yet handled
+									default:
+
+										break;
+
+								}
+							}
+						}
+
+						// FeatureVariations?
+						if (table.featureVariationsOffset) {
+
+							p = tableOffset + table.featureVariationsOffset;
+
+							if (data.getUint16(p) == 1 && data.getUint16(p+2) == 0) { // check version
+								table.featureVariationCount = data.getUint32(p+4);
+								table.featureVariations = [];
+
+								// for each feature variation record
+								for (let fv=0; fv<table.featureVariationCount; fv++) {
+
+									let featureVariation = {
+										conditions: [],
+										substitutions: [],
+									};
+									p = tableOffset + table.featureVariationsOffset + 8 + 8 * fv;
+									let csOffset = data.getUint32(p); // conditionSetOffset
+									let ftsOffset = data.getUint32(p+4); // featureTableSubstitutionOffset
+
+									// get the condition set
+									p = tableOffset + table.featureVariationsOffset + csOffset;
+									let conditionCount = data.getUint16(p);
+									p+=2;
+									for (let cd=0; cd<conditionCount; cd++) {
+										let p_ = tableOffset + table.featureVariationsOffset + csOffset + data.getUint32(p);
+										let format = data.getUint16(p_);
+										if (format == 1) { // only format=1 is defined
+											featureVariation.conditions.push( [
+												data.getUint16(p_+2), // axisIndex
+												data.getF2DOT14(p_+4), // FilterRangeMinValue
+												data.getF2DOT14(p_+6), // FilterRangeMaxValue
+											] );
+										}
+										p+=4; // don’t get confused, this is p, not p_
+									}
+
+									// get the feature table substitutions
+									p = tableOffset + table.featureVariationsOffset + ftsOffset;
+									if (data.getUint16(p) == 1 && data.getUint16(p+2) == 0) { // check version
+										p+=4;
+										let subsCount = data.getUint16(p);
+										p+=2;
+										for (let su=0; su<subsCount; su++) {
+
+											const featureIndex = data.getUint16(p);
+											const offsetToFeatureTable = data.getUint32(p+2);
+											p+=6; // increment pointer where we came from
+
+											// now jump to the alternateFeatureTable that is sitting nearby
+											let p_ = tableOffset + table.featureVariationsOffset + ftsOffset + offsetToFeatureTable; // alternateFeatureTable offset
+											p_+=2; // skip over featureParams, always 0
+											const lookupCount = data.getUint16(p_);
+											p_+=2;
+											let lookups = [];
+											for (let lu=0; lu<lookupCount; lu++) {
+												const lookupId = data.getUint16(p_ + 2*lu);
+												lookups[lu] = table.lookups[lookupId]; // build lookupListIndices, actually build array of real lookups
+											}
+
+											// append this sub as an array
+											featureVariation.substitutions.push( [featureIndex, lookups] );
+										}
+									}
+									table.featureVariations[fv] = featureVariation;
+								}
+							}
+						}
+
+						font.tables['GSUB'].data = table;
+						font.features = table.features;
+						font.lookups = table.lookups;
+						font.featureVariations = table.featureVariations;
+					}
+					else
+						font.errors.push ("GSUB: Unknown version");
+				}
+				
+				break; // GSUB end
 
 		}
 		
@@ -2474,7 +2755,7 @@ function SamsaFont (init, config) {
 		instance.static = this.exportInstance(instance);
 		//console.log ("Finished making static instance for ", this, instance);
 		//console.log (`${instance.timer} ms`);
-}
+	}
 
 
 	//////////////////////////////////
@@ -2625,7 +2906,6 @@ function SamsaFont (init, config) {
 	// Convert from F2DOT14 internal values (-1.0 to +1.0) into user axis values
 	// TODO: include avar
 	this.axisDenormalize = (axis, t) => {
-
 
 	}
 
