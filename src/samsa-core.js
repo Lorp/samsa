@@ -551,65 +551,11 @@ SamsaGlyph.prototype.recalculateBounds = function () {
 
 // featureVariationsGlyphId(tuple)
 // - return a new glyphId for this glyph at the designspace location <tuple> according to FeatureVariations data
-// - return undefined if FeatureVariations has no effect at designspace location <tuple>
-// - return undefined if there is no FeatureVariations data
-// - TODO: make it work only on integers, as we might not want to load an initial glyph
+// - main function is in SamsaFont, so that, given a glyphId, we don’t need to create a SamsaGlyph in order to find FeatureVariations 
 SamsaGlyph.prototype.featureVariationsGlyphId = function (tuple) {
 
-	const font = this.font;
-	let newGlyphId;
+	return this.font.featureVariationsGlyphId(this.id, tuple);
 
-	// are there FeatureVariations in the font
-	if (!font.featureVariations)
-		return newGlyphId;
-
-	// - spec:
-	// - https://docs.microsoft.com/en-us/typography/opentype/spec/gsub (GSUB — Glyph Substitution Table)
-	// - https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2 (OpenType Layout Common Table Formats)
-
-	// does the tuple satisfy all location conditions?
-	for (let featureVariation of font.featureVariations) {
-		const conds = featureVariation.conditions;
-
-		let match = true;
-		for (let co=0; co<conds.length && match; co++) {
-			let cond = conds[co];
-			// - cond[0] is axisIndex
-			// - cond[1] is FilterRangeMinValue
-			// - cond[2] is FilterRangeMaxValue
-			if (tuple[cond[0]] < cond[1] || tuple[cond[0]] > cond[2])
-				match = false;
-		}
-
-		// if tuple satisfied all location conditions
-		if (match) {
-
-			// check if we matched on glyphId (probably should be the other way around!)
-			// - this treats all subsitution in featureVariation the same, so it does not care which feature tag (e.g. "rvrn", "rclt") triggers it
-			for (let sub of featureVariation.substitutions) {
-
-				let feature = font.features[sub[0]];
-				let lookups = sub[1];
-
-				for (let lu=0; lu<lookups.length; lu++) {
-
-					const lookup = lookups[lu];
-					const gIndex = lookup.coverage.indexOf(this.id);
-
-					// success and exit loop
-					if (gIndex !== -1) {
-						if (lookup.substFormat == 1) // deltaGlyphId method
-							newGlyphId = (this.id + lookup.deltaGlyphId + 0x10000) % 0x10000; // we + and % 65536 because (this.id+lookup.deltaGlyphId) can be negative
-						else if (lookup.substFormat == 2) // substituteGlyphIds method
-							newGlyphId = lookup.substituteGlyphIds[gIndex]; // TODO: maybe should return here, to break out of the font.featureVariations loop too
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	return newGlyphId;
 }
 
 
@@ -637,7 +583,7 @@ SamsaGlyph.prototype.svgPath = function () {
 
 		// ensure SVG contour starts with an on-curve point
 		if (contour[0][2] == 0) // is first point off-curve?
-			contour.unshift(contour.pop());
+			contour.unshift(contour.pop()); // OPTIMIZE: unshift is slow, so maybe build two arrays, "actual" and "toAppend", where "actual" starts with an on-curve
 
 		// append this contour
 		contours.push(contour);
@@ -2907,6 +2853,70 @@ function SamsaFont (init, config) {
 	// TODO: include avar
 	this.axisDenormalize = (axis, t) => {
 
+	}
+
+
+	// featureVariationsGlyphId(g, tuple)
+	// - return a new glyphId for glyphId <g> at the designspace location <tuple> according to FeatureVariations data
+	// - there’s also a function SamsaGlyph.featureVariationsGlyphId which calls this function
+	// - return undefined if FeatureVariations has no effect at designspace location <tuple>
+	// - return undefined if there is no FeatureVariations data
+	this.featureVariationsGlyphId = (g, tuple) => {
+
+		let newGlyphId;
+		const font = this;
+
+		// are there FeatureVariations in the font
+		if (!font.featureVariations)
+			return newGlyphId;
+
+		// - spec:
+		// - https://docs.microsoft.com/en-us/typography/opentype/spec/gsub (GSUB — Glyph Substitution Table)
+		// - https://docs.microsoft.com/en-us/typography/opentype/spec/chapter2 (OpenType Layout Common Table Formats)
+
+		// does the tuple satisfy all location conditions?
+		for (let featureVariation of font.featureVariations) {
+			const conds = featureVariation.conditions;
+
+			let match = true;
+			for (let co=0; co<conds.length && match; co++) {
+				let cond = conds[co];
+				// - cond[0] is axisIndex
+				// - cond[1] is FilterRangeMinValue
+				// - cond[2] is FilterRangeMaxValue
+				if (tuple[cond[0]] < cond[1] || tuple[cond[0]] > cond[2])
+					match = false;
+			}
+
+			// if tuple satisfied all location conditions
+			if (match) {
+
+				// check if we matched on glyphId (probably should be the other way around!)
+				// - this treats all subsitution in featureVariation the same, so it does not care which feature tag (e.g. "rvrn", "rclt") triggers it
+				for (let sub of featureVariation.substitutions) {
+
+					let feature = font.features[sub[0]];
+					let lookups = sub[1];
+
+					for (let lu=0; lu<lookups.length; lu++) {
+
+						const lookup = lookups[lu];
+						const gIndex = lookup.coverage.indexOf(g);
+
+						// success and exit loop
+						if (gIndex !== -1) {
+							if (lookup.substFormat == 1) // deltaGlyphId method
+								newGlyphId = (g + lookup.deltaGlyphId + 0x10000) % 0x10000; // we + and % 65536 because (g+lookup.deltaGlyphId) can be negative
+							else if (lookup.substFormat == 2) // substituteGlyphIds method
+								newGlyphId = lookup.substituteGlyphIds[gIndex]; // TODO: maybe should return here, to break out of the font.featureVariations loop too
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		return newGlyphId;
 	}
 
 
