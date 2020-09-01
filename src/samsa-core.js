@@ -1133,16 +1133,17 @@ function SamsaFont (init, config) {
 
 			case "loca":
 
-				let shortOffsets = (font.tables['head'].data.indexToLocFormat == 0);
+				const indexToLocFormat = font.tables['head'].data.indexToLocFormat;
 				font.glyphOffsets[0] = 0;
-				for (let g=0; g < font.numGlyphs; g++) {
+				for (let g=1; g <= font.numGlyphs; g++) {
 
-					if (shortOffsets)
-						font.glyphOffsets[g+1] = 2 * data.getUint16(tableOffset + 2 * (g+1));
+					// long offsets or short offsets?
+					if (indexToLocFormat)
+						font.glyphOffsets[g] = data.getUint32(tableOffset + 4*g);
 					else
-						font.glyphOffsets[g+1] = data.getUint32(tableOffset + 4 * (g+1));
+						font.glyphOffsets[g] = 2 * data.getUint16(tableOffset + 2*g);
 
-					font.glyphSizes[g] = font.glyphOffsets[g+1] - font.glyphOffsets[g];
+					font.glyphSizes[g-1] = font.glyphOffsets[g] - font.glyphOffsets[g-1];
 				}
 				break; // loca end
 
