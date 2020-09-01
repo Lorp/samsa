@@ -27,15 +27,23 @@ Required files and folders:
 * `samsa-gui.html`
 * `samsa-core.js`
 * `samsa-gui.css`
+* `samsa-config.js` (can be empty)
 * `fonts/`
 * `fonts/ui/*`
 
 Optional files and folders:
 
 * `fonts/<font1.ttf>` — any number of fonts to appear in the “Fonts ready to load” panel
-* `samsa-fonts.json` — a JSON file containing an array of strings, each string being a filename of a font to appear in the “Fonts ready to load” panel
 
-_Note: The “Fonts ready to load” panel is populated via a fetch() request for the file `samsa-fonts.json`. This requires a web server setup (e.g. Apache), meaning Samsa’s “Fonts ready to load” panel is empty when Samsa is invoked by simple double-click or File/Open._
+## `samsa-config.js`
+
+This file is intended for Samsa customization. It can be empty, or even absent (though the latter will cause an error).
+
+An important use case is to populate the “Fonts ready to load” panel with a custom list, the `GLOBAL.fontList` array. Each object in the array has a `url` property pointing to a font available on the same domain as Samsa (so use relative URLs). Loading these font files is  performed by JavaScript’s `fetch()` function, which requires a web server setup (e.g. Apache), so these _will not work_ when Samsa is invoked by simple double-click. However, local files can be converted to base64 and embedded in `samsa-config.js` using the `file:` protocol. The online converter [base64encode.org](https://www.base64encode.org) produces suitable base64 strings from uploaded files. This repo’s `samsa-config.js` includes MutatorSans.ttf in this way (commented out) to show the syntax. This method is also suitable for automatic generation of `samsa-config.js`, as is done in [Variable Font Test HTML script](https://github.com/mekkablue/Glyphs-Scripts/) by [@mekkablue](https://github.com/mekkablue), which invokes a just-downloaded version of Samsa. Setting the `preload` property to true causes that font to be loaded immediately.
+
+Customizations to the UI themes are also best done in `samsa-config.js`.
+
+`samsa-config.js` replaces the previous functionality that used `samsa-fonts.json`.
 
 ## Panels
 
