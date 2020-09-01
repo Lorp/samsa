@@ -862,7 +862,7 @@ function SamsaFont (init, config) {
 		// - name must precede fvar
 		// - name must precede STAT
 		// - gvar isn’t short, but we only parse its header here
-		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca", "GSUB"].forEach(tag => {
+		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca", "GSUB", "cmap"].forEach(tag => {
 
 			if (font.tables[tag])
 				font.parseSmallTable(tag);
@@ -1563,6 +1563,103 @@ function SamsaFont (init, config) {
 				}
 				
 				break; // GSUB end
+
+
+			case "cmap":
+
+				// cmap table spec: https://docs.microsoft.com/en-us/typography/opentype/spec/cmap
+				// - parses formats 0, 4
+
+				table.version = data.getUint16(p), p+=2;
+				table.numTables = data.getUint16(p), p+=2;
+				table.encodingRecords = [];
+				table.cmap = []; // character id to glyph id
+				table.segments = [];
+
+				// TODO: do we need to decompress the table? How about methods to get the glyphId from the stored binary data?
+
+				// step thru the encodingRecords
+				for (let t=0; t < table.numTables; t++) {
+					let encodingRecord = {
+						platformID: data.getUint16(p),
+						encodingID: data.getUint16(p+2),
+						offset: data.getUint32(p+4),
+					}
+					console.log(encodingRecord);
+					table.encodingRecords.push(encodingRecord);
+					p+=8;
+
+					// do we choose one of the encodingRecords or do we merge the mappings of all of them?
+					if (encodingRecord.platformID == 3 && encodingRecord.encodingID == 1) {
+						encodingRecord.valid = true;
+					}
+
+					if (encodingRecord.valid) {
+
+						let format, length, language;
+						p = tableOffset + encodingRecord.offset;
+
+						// parse the format, then switch to format-specific parser
+						format = data.getUint16(p), p+=2;
+						switch (format) {
+
+							case 0:
+								length = data.getUint16(p), p+=2;
+								language = data.getUint16(p), p+=2;
+								for (let c=0; c<256; c++) {
+									table.cmap[c] = data.getUint8(p), p++;
+								}
+								break;
+
+							case 4:
+								length = data.getUint16(p), p+=2;
+								language = data.getUint16(p), p+=2;
+								const segCount = data.getUint16(p) / 2;
+								p+=8;
+								for (let s=0; s<segCount; s++) {
+
+									// read this segment’s 4 values in parallel
+									let segment = {
+										start:         data.getUint16(p + segCount*2 + 2 + s*2),
+										end:           data.getUint16(p +                  s*2),
+										idDelta:       data.getUint16(p + segCount*4 + 2 + s*2),
+										idRangeOffset: data.getUint16(p + segCount*6 + 2 + s*2),
+									};
+
+									// get glyphIds for all characters in this segment
+									for (let g, c=segment.start; c<=segment.end; c++) {
+										if (segment.idRangeOffset) {
+											let offsetIntoGlyphIdArray =
+												p + segCount*6 + 2 + s*2     // + &idRangeOffset[i]
+												+ segment.idRangeOffset      // + idRangeOffset[i]/2
+												+ (c - segment.start) * 2;   // + (c - startCode[i])
+											g = data.getUint16(offsetIntoGlyphIdArray);
+											if (g > 0)
+												g += segment.idDelta;
+										}
+										else {
+											g = c + segment.idDelta;
+										}
+
+										g %= 0x10000;
+										table.cmap[c] = g; // this is the font‘s (sparse) cmap lookup array
+									}
+
+									// seems a nice idea to store the segment
+									table.segments.push(segment);
+								}
+
+								break;
+
+							default:
+								console.log(`Error: Not handling cmap format ${format}`);
+								break;
+						}
+					}
+				}
+
+				font.cmap = table.cmap;
+				break;
 
 		}
 		
