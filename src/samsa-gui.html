@@ -1239,6 +1239,7 @@ function vfLoaded (font) {
 			axesUpdateValues();
 			panelSTAT_handleChange();
 			panelWebfont_handleChange();
+			updateDesignspace();
 			font.instances.pop();
 		});
 
@@ -1269,6 +1270,7 @@ function vfLoaded (font) {
 			axesUpdateValues();
 			panelSTAT_handleChange();
 			panelWebfont_handleChange();
+			updateDesignspace();
 			font.instances.pop();
 		});
 
@@ -1551,6 +1553,7 @@ function vfLoaded (font) {
 						axesUpdateValues();
 						panelSTAT_handleChange(fvs); // TODO: add another parameter NOT to update the select selection when false
 						panelWebfont_handleChange();
+						updateDesignspace();
 						font.instances.pop();
 
 					}
@@ -1642,8 +1645,8 @@ function vfLoaded (font) {
 	htmlX = `<div id="xSelect" class="ds-axis-group">`;
 	htmlY = `<div id="ySelect" class="ds-axis-group">`;
 	GLOBAL.vf.axes.forEach((axis,a) => {
-		htmlX += `<div><input type="checkbox" id="x-${axis.tag}" value="${axis.tag}"${a==0 ? " checked" : ""}><label for="x-${axis.tag}">${axis.tag}</label></div>`;
-		htmlY += `<div><input type="checkbox" id="y-${axis.tag}" value="${axis.tag}"${a==1 ? " checked" : ""}><label for="y-${axis.tag}">${axis.tag}</label></div>`;
+		htmlX += `<div><input type="checkbox" id="x-${a}" value="${a}"${a==0 ? " checked" : ""}><label for="x-${a}">${axis.tag}</label></div>`;
+		htmlY += `<div><input type="checkbox" id="y-${a}" value="${a}"${a==1 ? " checked" : ""}><label for="y-${a}">${axis.tag}</label></div>`;
 	});
 	htmlX += `</div>`;
 	htmlY += `</div>`;
@@ -1660,16 +1663,19 @@ function vfLoaded (font) {
 					valid = false;
 				else
 					foundAxes.push(el.value);
+
+				updateDesignspace();
+				redrawFeatureVariationsBoxes(GLOBAL.currentGlyphId);
 			});
 
 			// if invalid, set red background
-			xSelect.style.backgroundColor = ySelect.style.backgroundColor = valid ? "inherit" : "red";
+			xSelect.style.backgroundColor = ySelect.style.backgroundColor = valid ? "inherit" : "red"; // TODO: work out scope of xSelect and ySelect here
 		});
 	});
 
 	// TODO: consider user/normalized option
 
-	updateDesignspace();
+	buildDesignspace();
 
 
 	// TODO: .designspace export - is this useful?
@@ -1775,8 +1781,8 @@ function updateDesignSpaceMoved(e) {
 	y = 1-y/180;
 
 	// update the visual designspace location lines
-	Q("#svgXVal").setAttributeNS(null, "d", `M${x} -1 L${x} 1`);
-	Q("#svgYVal").setAttributeNS(null, "d", `M-1 ${y} L1 ${y}`);
+	Q("#svgXVal").setAttributeNS(null, "d", `M${x} -1 V1`);
+	Q("#svgYVal").setAttributeNS(null, "d", `M-1 ${y} H1`);
 
 	// initialize tuple
 	let tuple = [];
@@ -1784,15 +1790,13 @@ function updateDesignSpaceMoved(e) {
 		tuple.push(0); // default is 0 by definition
 	}
 	
-	// what VF axes are attached to the X axis?
-	Qall("#xSelect input:checked").forEach(el => {
-		font.axisIndices(el.value).forEach(i => tuple[i]=x );
-	});
+	// X: set all checked axes to the X value
+	for (let el of Qall("#xSelect input:checked"))
+		tuple[el.value] = x; // el.value is axisId
 
-	// what VF axes are attached to the Y axis?
-	Qall("#ySelect input:checked").forEach(el => {
-		font.axisIndices(el.value).forEach(i => tuple[i]=y );
-	});
+	// Y: set all checked axes to the Y value
+	for (let el of Qall("#ySelect input:checked"))
+		tuple[el.value] = y; // el.value is axisId
 
 	// update the text fields
 	Q("#xValue").innerText = x.toFixed(5);
@@ -1940,16 +1944,16 @@ function axisInput(ev) {
 	axesUpdateValues();
 	panelSTAT_handleChange();
 	panelWebfont_handleChange();
+	updateDesignspace();
 
 	// delete instance
 	font.instances.pop();
 	Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 }
 
-function updateDesignspace() {
+function buildDesignspace() {
 
 	const ui = CONFIG.ui;
-	let cb = Q("#dsAxesMultiple");
 	let xSelect = Q("#xSelect");
 	let ySelect = Q("#ySelect");
 
@@ -1957,14 +1961,21 @@ function updateDesignspace() {
 	let cartesian = Q("#ds-cartesian");
 
 	let svg = SVG("svg");
+	svg.id = "svg-designspace";
 	let svgg = SVG("g"); // this transforms everything inside it
-	svgg.id = "svg-transform-group";
+	svgg.id = "svg-designspace-transform";
 	let svgXYAxes, svgXVal, svgYVal;
 	let scale = 360/2; // 360 is the width & height of the cartesian space in px, 2 is the width & height of the cartesian space in normalized units (-1 to +1)
 	svg.setAttributeNS(null, "width","360");
 	svg.setAttributeNS(null, "height","360");
-	svgg.setAttributeNS(null, "transform", `translate(180,180) scale(${scale},-${scale})`);
+	svgg.setAttributeNS(null, "transform", `translate(180,180) scale(${scale},-${scale})`); // TODO: rewrite this with a viewBox on the parent SVG
 
+	// feature variations layer
+	let svgFV = SVG("g");
+	svgFV.id = "svg-designspace-featurevariations";
+	svgFV.style.pointerEvents = "none"; // disable click, mousemove etc. so we don’t interfere with dragging around
+
+	// cartesian axes
 	svgXYAxes = SVG("path");
 	svgXYAxes.attrsSVG({
 		d: "M-1 0 L1 0 M0 -1 L0 1",
@@ -1974,26 +1985,29 @@ function updateDesignspace() {
 		"pointer-events": "none",
 	});
 
+	// x value
 	svgXVal = SVG("path");
 	svgXVal.id = "svgXVal";
 	svgXVal.attrsSVG({
-		d: "M0 -1 L0 1",
+		d: "M0 -1 V1",
 		stroke: ui.designspace.colors[1],
 		"stroke-width": `${1/scale}px`,
 		fill: "none",
 		"pointer-events": "none",
 	});
 
+	// y value
 	svgYVal = SVG("path");
 	svgYVal.id = "svgYVal";
 	svgYVal.attrsSVG({
-		d: "M-1 0 L1 0",
+		d: "M-1 0 H1",
 		stroke: ui.designspace.colors[0],
 		"stroke-width": `${1/scale}px`,
 		fill: "none",
 		"pointer-events": "none",
 	});
 
+	svgg.appendChild(svgFV);
 	svgg.appendChild(svgXVal);
 	svgg.appendChild(svgYVal);
 	svgg.appendChild(svgXYAxes);
@@ -2014,6 +2028,26 @@ function updateDesignspace() {
 
 }
 
+
+// handle change when axes move
+function updateDesignspace() {
+
+	// TODO: represent invalid axis settings better
+	// - currently we set the axes to default if they are invalid, so that we don’t need to unhide them when they are valid again...
+
+	let x=0, y=0; // 0 is default, and also represents the error condition when an unhandled number of var axes are tied to a coordinate axis
+	let xAxes = Qall("#xSelect input[type=checkbox]:checked"); // which var axes are tied to the X cartesian axis?
+	let yAxes = Qall("#ySelect input[type=checkbox]:checked"); // which var axes are tied to the Y cartesian axis?
+
+	if (xAxes.length == 1)
+		x = GLOBAL.tuple[xAxes[0].value * 1]; // xAxes[0] is the only one checked
+
+	if (yAxes.length == 1)
+		y = GLOBAL.tuple[yAxes[0].value * 1]; // yAxes[0] is the only one checked
+
+	Q("#svgXVal").setAttributeNS(null, "d", `M${x} -1 V1`);
+	Q("#svgYVal").setAttributeNS(null, "d", `M-1 ${y} H1`);
+}
 
 function panelSTAT_handleChange(fvs) {
 
@@ -2512,6 +2546,85 @@ function updateTvts (glyph, iglyph) {
 
 }
 
+function redrawFeatureVariationsBoxes(g) {
+
+	const font = GLOBAL.vf;
+
+	let svgFV = Q("#svg-designspace-featurevariations");
+	if (svgFV) {
+		while(svgFV.childNodes.length) // empty the node
+			svgFV.removeChild(svgFV.firstChild);
+	}
+       
+	let featureVarBoxes = font.featureVariationsBoxes(g);
+	for (fvBox of featureVarBoxes) {
+
+		// show the cartesian x axis var axis using x and width
+		// show the cartesian y axis var axis using y and height
+		// abort if the designspace uses multiple var axes on a single cartesian axis
+
+		let xSelects = Qall("#xSelect input[type='checkbox']");
+		let ySelects = Qall("#ySelect input[type='checkbox']");
+		let x, y, width, height;
+		let xAxisId, yAxisId;
+
+		let found;
+		found = false;
+		for (let a=0; a<font.axisCount; a++) {
+			if (xSelects[a].checked) {
+				if (!found) {
+					xAxisId = a;
+					found = true;
+				}
+				else 
+					xAxisId = undefined; // invalidate, because there are >1
+			}
+		}
+		found = false;
+		for (let a=0; a<font.axisCount; a++) {
+			if (ySelects[a].checked) {
+				if (!found) {
+					yAxisId = a;
+					found = true;
+				}
+				else 
+					yAxisId = undefined; // invalidate, because there are >1
+			}
+		}
+
+		if (xAxisId === undefined || fvBox[xAxisId] === undefined) {
+			x = -1;
+			width = 2;
+		}
+		else {
+			x = fvBox[xAxisId][0];
+			width = fvBox[xAxisId][1] - fvBox[xAxisId][0];
+		}
+		if (yAxisId === undefined || fvBox[yAxisId] === undefined) {
+			y = -1;
+			height = 2;
+		}
+		else {
+			y = fvBox[yAxisId][0];
+			height = fvBox[yAxisId][1] - fvBox[yAxisId][0];
+		}
+
+		if (!(x == -1 && width == 2 && y == -1 && height == 2)) {
+			let svgBox = SVG("rect");
+			svgBox.attrsSVG({
+				width: width,
+				height: height,
+				x: x,
+				y: y,
+				fill: "green",
+				strokeWidth: 0,
+				opacity: 0.25,
+			});
+			svgFV.appendChild(svgBox);
+		}
+	}	
+}
+
 function setActiveGlyph (g, instance) {
 
 	let font = GLOBAL.vf;
@@ -2545,6 +2658,10 @@ function setActiveGlyph (g, instance) {
 	lh.appendChild(axesHeader);
 
 	panel.appendChild(lh);
+
+
+	// display the feature variations for this glyph on the designspace svg
+	redrawFeatureVariationsBoxes(g);
 
 	updateGlyphSVG (g, instance);
 }
@@ -2943,10 +3060,10 @@ function updateGlyphSVG (g, instance) {
 					// check which tuple values are non-default
 					// - what VF axes are attached to the X and Y axes?
 					Qall("#xSelect input:checked").forEach(el => {
-						font.axisIndices(el.value).forEach(i => tupleX[i] = T );
+						tupleX[el.value*1] = T;
 					});
 					Qall("#ySelect input:checked").forEach(el => {
-						font.axisIndices(el.value).forEach(i => tupleY[i] = T );
+						tupleY[el.value*1] = T;
 					});
 					
 					// make instance
@@ -3151,6 +3268,7 @@ document.onclick = function (event) {
 			axesUpdateValues();
 			panelSTAT_handleChange();
 			panelWebfont_handleChange();
+			updateDesignspace();
 			setAxes (GLOBAL.vf, fvs);
 		}
 		handled = true;
@@ -3336,6 +3454,7 @@ document.onclick = function (event) {
 		axesUpdateValues();
 		panelSTAT_handleChange();
 		panelWebfont_handleChange();
+		updateDesignspace();
 		setAxes (font, font.tupleToFvs(GLOBAL.tuple));
 		font.instances.pop();
 		handled = true;

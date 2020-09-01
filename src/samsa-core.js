@@ -1352,7 +1352,6 @@ function SamsaFont (init, config) {
 
 				if (font.tables['GSUB'])
 				{
-					table = {};
 					table.majorVersion = data.getUint16(p), p+=2;
 					table.minorVersion = data.getUint16(p), p+=2;
 					if (table.majorVersion == 1 && table.minorVersion <= 1) {
@@ -1764,7 +1763,6 @@ function SamsaFont (init, config) {
 		glyph.points.push([0,0,0], [font.widths[g], 0, 0], [0,0,0], [0,0,0]);
 
 		return glyph;
-
 	}
 
 	//////////////////////////////////
@@ -2766,7 +2764,7 @@ function SamsaFont (init, config) {
 	//  axisIndices()
 	//////////////////////////////////
 	this.axisIndices = tag => {
-		// returns an array containing the axis indicies for this axis tag
+		// returns an array containing the axis indices for this axis tag
 		// - normally the array will have only one element
 		// - HOI fonts may contain multiple axes with identical tags
 		// - an empty array means the axis tag is not in this font
@@ -2892,7 +2890,8 @@ function SamsaFont (init, config) {
 			if (match) {
 
 				// check if we matched on glyphId (probably should be the other way around!)
-				// - this treats all subsitution in featureVariation the same, so it does not care which feature tag (e.g. "rvrn", "rclt") triggers it
+				// - this treats all subsitution in featureVariation the same
+				// - i.e. it does not care which feature tag (e.g. "rvrn", "rclt") triggers it
 				for (let sub of featureVariation.substitutions) {
 
 					let feature = font.features[sub[0]];
@@ -2917,6 +2916,59 @@ function SamsaFont (init, config) {
 		}
 
 		return newGlyphId;
+	}
+
+
+	// return the box implied by the condition set(s) for this glyph
+	// - each conditionSet results in a n-dimensional box where n is the number of conditions
+	// - in a single conditionSet, it only makes sense to have one condition per axis
+	this.featureVariationsBoxes = g => {
+		const font = this;
+		let boxes = [];
+
+		if (!font.featureVariations)
+			return boxes;
+
+		for (let featureVariation of font.featureVariations) {
+
+			const conds = featureVariation.conditions;
+			let newGlyphId;
+
+			// check if we matched on glyphId (probably should be the other way around!)
+			// - this treats all subsitution in featureVariation the same, so it does not care which feature tag (e.g. "rvrn", "rclt") triggers it
+			for (let sub of featureVariation.substitutions) {
+
+				let feature = font.features[sub[0]];
+				let lookups = sub[1];
+
+				for (let lu=0; lu<lookups.length; lu++) {
+
+					const lookup = lookups[lu];
+					const gIndex = lookup.coverage.indexOf(g);
+
+					// success and exit loop
+					if (gIndex !== -1) {
+						if (lookup.substFormat == 1) // deltaGlyphId method
+							newGlyphId = (g + lookup.deltaGlyphId + 0x10000) % 0x10000; // we + and % 65536 because (g+lookup.deltaGlyphId) can be negative
+						else if (lookup.substFormat == 2) // substituteGlyphIds method
+							newGlyphId = lookup.substituteGlyphIds[gIndex]; // TODO: maybe should return here, to break out of the font.featureVariations loop too
+						break;
+					}
+				}
+			}
+
+			if (newGlyphId !== undefined) {
+
+				let box = [];
+				for (let co=0; co<conds.length; co++) {
+					let cond = conds[co]; // each cond is [axisIndex, FilterRangeMinValue, FilterRangeMaxValue]
+					box[cond[0]] = [cond[1], cond[2]]; // only define axes that are in the condition, the consumer must deal with the undefineds
+				}
+				boxes.push(box);
+			}
+		}
+
+		return boxes;
 	}
 
 
