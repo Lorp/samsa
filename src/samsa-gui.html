@@ -2563,34 +2563,16 @@ function redrawFeatureVariationsBoxes(g) {
 		// show the cartesian y axis var axis using y and height
 		// abort if the designspace uses multiple var axes on a single cartesian axis
 
-		let xSelects = Qall("#xSelect input[type='checkbox']");
-		let ySelects = Qall("#ySelect input[type='checkbox']");
+		let xSelects = Qall("#xSelect input[type='checkbox']:checked");
+		let ySelects = Qall("#ySelect input[type='checkbox']:checked");
 		let x, y, width, height;
 		let xAxisId, yAxisId;
 
-		let found;
-		found = false;
-		for (let a=0; a<font.axisCount; a++) {
-			if (xSelects[a].checked) {
-				if (!found) {
-					xAxisId = a;
-					found = true;
-				}
-				else 
-					xAxisId = undefined; // invalidate, because there are >1
-			}
-		}
-		found = false;
-		for (let a=0; a<font.axisCount; a++) {
-			if (ySelects[a].checked) {
-				if (!found) {
-					yAxisId = a;
-					found = true;
-				}
-				else 
-					yAxisId = undefined; // invalidate, because there are >1
-			}
-		}
+		if (xSelects.length == 1)
+			xAxisId = xSelects[0].value * 1;
+
+		if (ySelects.length == 1)
+			yAxisId = ySelects[0].value * 1;
 
 		if (xAxisId === undefined || fvBox[xAxisId] === undefined) {
 			x = -1;
@@ -2600,6 +2582,7 @@ function redrawFeatureVariationsBoxes(g) {
 			x = fvBox[xAxisId][0];
 			width = fvBox[xAxisId][1] - fvBox[xAxisId][0];
 		}
+
 		if (yAxisId === undefined || fvBox[yAxisId] === undefined) {
 			y = -1;
 			height = 2;
