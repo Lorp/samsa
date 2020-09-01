@@ -2692,8 +2692,8 @@ function updateGlyphSVG (g, instance) {
 
 
 	// clear main window and tvts panel
-	let drawing = Q("#drawing");
-	drawing.innerHTML = "";
+	let drawingEl = Q("#drawing");
+	drawingEl.innerHTML = "";
 
 
 	let scale = 0.5 / uiScale;
@@ -2702,8 +2702,8 @@ function updateGlyphSVG (g, instance) {
 	let svgg = SVG("g"); // this transforms everything inside it
 	svgg.id = "svg-transform-group";
 	svg.attrsSVG( {
-		width: 1000,
-		height: 1000,
+		width: drawingEl.clientWidth,
+		height: drawingEl.clientHeight,
 		style: `background-color: ${ui.glyphDefault.backgroundColor};`,
 	});
 	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
@@ -3171,7 +3171,7 @@ function updateGlyphSVG (g, instance) {
 
 
 	svg.appendChild(svgg);
-	drawing.appendChild(svg);
+	drawingEl.appendChild(svg);
 
 }
 
@@ -3633,6 +3633,19 @@ document.addEventListener("keyup", ev => {
 
 });
 
+
+window.onresize = () => {
+
+	// make the SVG fit exactly into the #drawing quadrant of the main grid
+	const drawingEl = Q("#drawing");
+	const svgEl = Q("#drawing>svg");
+	if (drawingEl && svgEl) {
+		svgEl.attrsSVG({
+			width: drawingEl.clientWidth,
+			height: drawingEl.clientHeight,
+		});
+	}
+}
 
 window.onload = () => {
 
