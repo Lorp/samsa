@@ -6,7 +6,7 @@ Class representing a glyph in the variable font object SamsaFont. They are usual
 
 ### `SamsaGlyph( init )`
 
-**Parameters:**
+#### Parameters
 
 1. `init` : `Object`
 
@@ -18,11 +18,11 @@ init: {
 }
 ```
 
-**Returns:** 
+#### Returns
 
 `SamsaGlyph`
 
-**Example:**
+#### Example
 
 ```jsx
 new SamsaGlyph({
@@ -38,11 +38,15 @@ new SamsaGlyph({
 
 Type: `Number`
 
+This is 2 for glyphs with quadratic curves, that is, curves from TrueType glyphs. No other glyphs are handled currently, but this field would be 3 for glyphs with cubic outlines.
+
 ---
 
 ### `.endPts`
 
 Type: `Array` of `Number`
+
+In a simple glyph, this array contains point ids for the last point of each contour. There are `numContours` entries. The last entry is equal to `numPoints - 1`. The array is imported directly from the TrueType source font. In a complex glyph, `endPts` is not used.
 
 ---
 
@@ -70,7 +74,7 @@ Type: `Number`
 
 ### `.name`
 
-Glyph’s name, such as "A"
+Postscript name for this glyph, such as "A", ".notdef", "dollar", "acircumflex".
 
 Type: `String`
 
@@ -78,7 +82,7 @@ Type: `String`
 
 ### `.numContours`
 
-Total number of Contours for simple glyphs. It is `-1` for composite glyphs.
+For simple glyphs this is the number of contours. It is `-1` for composite glyphs.
 
 Type: `Number`
 
@@ -86,7 +90,7 @@ Type: `Number`
 
 ### `.numPoints`
 
-Total number of Points, not including phantom points. For simple glyphs, `.numPoints` is 4 less than `.points.length`. Composite glyphs do not use `.numPoints`.
+Total number of Points, not including phantom points. For simple glyphs, `.numPoints` is 4 less than `.points.length` because of the 4 phantom points representing metrics. Composite glyphs do not use `.numPoints`.
 
 Type: `Number`
 
@@ -98,9 +102,10 @@ Array of Points, including phantom points. For simple glyphs, `.points.length` i
 
 Type: `Array` of `Array`
 
-- Example:
+#### Example
 
-In this example, points 0 to 3 define a rectangle, and points 4 to 7 are the phantom points which Samsa has automatically added. The advance width is always the first element in the point 3rd from last, in this case 500. Note that `.numPoints` in this example is 4.
+
+In this example, points 0 to 3 define a rectangle, and points 4 to 7 are the phantom points which Samsa has automatically added. The advance width is always the first element in the point 3rd from last, in this case 500. Note that `.numPoints` in this example is 4, while `.points.length` is 8.
 
 ```jsx
 [
@@ -162,16 +167,16 @@ Because TVT data is not always required, is not parsed as part of creating new g
 
 Decompose a composite glyph into a new simple glyph
 
-**Parameters:**
+#### Parameters
 
 1. `tuple` : `Array`
 2. `params` : `Object` – (optional)
 
-**Returns:**  
+#### Returns
 
 `Object (SamsaGlyph)`
 
-**Source:** 
+#### Source
 
 [samsa/src/samsa-core.js:201](https://github.com/Lorp/samsa/blob/master/src/samsa-core.js#L201)
 
@@ -181,23 +186,23 @@ Decompose a composite glyph into a new simple glyph
 
 Take a default glyph and return the instantiation produced using the userTuple or instance settings
 
-**Parameters:**
+#### Parameters
 
 1. `userTuple` : `Array` or `null`
 2. `instance` : `Object`
 3. `extra` : `Object` – (optional)
 
-**Returns:** 
+#### Returns
 
 `Object (SamsaGlyph)`
 
-**Example:** 
+#### Example
 
 ```jsx
 glyph.instantiate(null, instance)
 ```
 
-**Source:** 
+#### Source
 
 [samsa/src/samsa-core.js:311](https://github.com/Lorp/samsa/blob/master/src/samsa-core.js#L311)
 
@@ -209,17 +214,17 @@ Convert glyph’s points to a string that can be used as an SVG <path> "d" attri
 	
 Coordinates are identical to those used in the font, so the SVG typically needs scaling and flipping vertically. The transformation is typically perfomed in an enclosing `<g>` tag to transform multiple SVG elements together.
 
-**Returns:** 
+#### Returns
 
 `String`
 
-**Example:**
+#### Example
 
 ```jsx
 glyph.svgPath();
 ```
 
-**Result:**
+#### Result
 
 `"M50 0L450 0L450 700L50 700Z"`
 
@@ -231,7 +236,7 @@ glyph.svgPath();
 </svg>
 ```
 
-**Source:** 
+#### Source
 
 [samsa/src/samsa-core.js:525](https://github.com/Lorp/samsa/blob/master/src/samsa-core.js#L525)
 
