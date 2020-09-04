@@ -177,6 +177,7 @@ function SamsaGlyph (init) {
 	this.numContours = 0; // -1 is the flag for composite
 	this.instructionLength = 0;
 	this.points = [];
+	this.components = [];
 	this.endPts = [];
 	this.tvts = [];
 	this.curveOrder = init.curveOrder || 2;
@@ -1570,7 +1571,6 @@ function SamsaFont (init, config) {
 
 				// cmap table spec: https://docs.microsoft.com/en-us/typography/opentype/spec/cmap
 				// - parses formats 0, 4
-
 				table.version = data.getUint16(p), p+=2;
 				table.numTables = data.getUint16(p), p+=2;
 				table.encodingRecords = [];
@@ -1586,7 +1586,6 @@ function SamsaFont (init, config) {
 						encodingID: data.getUint16(p+2),
 						offset: data.getUint32(p+4),
 					}
-					console.log(encodingRecord);
 					table.encodingRecords.push(encodingRecord);
 					p+=8;
 
@@ -1792,7 +1791,6 @@ function SamsaFont (init, config) {
 			else if (glyph.numContours < 0) {
 
 				let flag;
-				glyph.components = [];
 				do  {
 					let component = {};
 					component.flags = flag = data.getUint16(p), p+=2;
