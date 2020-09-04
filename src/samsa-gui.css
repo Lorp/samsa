@@ -128,12 +128,25 @@ h1 {
 	text-decoration: underline;
 }
 
-#controls {
+
+#panels-left {
+}
+
+#panels-right {
+	position: absolute;
+	width: 360px;
+	height: 100%;
+	right: 0px;
+	z-index: 1;
+}
+
+.panel-container {
+	position: relative;
 	background-color: beige;
 	overflow-y: scroll;
 }
 
-#controls h2 {
+.panel-container h2 {
 	position: relative;
 	font-size: 1em;
 	font-weight: 500;
@@ -146,6 +159,7 @@ h1 {
 }
 
 .panel>div {
+	position: relative;
 	width: 100%;
 	background-color: lightgrey;
 }
@@ -165,12 +179,12 @@ h1 {
 	margin-top: 4px;
 }
 
-#panel-glyphs.panel label {
-	margin-top: 0px;
-}
-
 .panel input[type=checkbox] {
 	margin-top: 4px;
+}
+
+#panel-glyphs.panel label {
+	margin-top: 0px;
 }
 
 #panel-webfont.panel>div {
@@ -220,6 +234,20 @@ h1 {
 
 #drawing {
 	position: relative;
+}
+
+#drawing svg {
+	position: absolute;
+}
+
+#glyph-info {
+	position: absolute;
+	box-sizing: border-box;
+	width: calc(100% - 360px);
+	height: 240px;
+	bottom: 0px;
+	background-color: lightgrey;
+	z-index: 1;
 }
 
 .inactive {
@@ -343,14 +371,6 @@ pre {
 
 #drag-drop-zone>div>p {
 	cursor: default;
-}
-
-#controls {
-	position: relative;
-}
-
-.panel>div {
-	position: relative;
 }
 
 .popup-modal {

@@ -11,7 +11,7 @@
 // - data URLs need a filename parameter
 // - on optional preload parameter forces that font to be loaded when the app starts (only one font can be preloaded)
 
-GLOBAL.fontList = [
+CONFIG.fontList = [
 
 	// {
 	// 	name: "Mutator Sans",
@@ -73,3 +73,18 @@ GLOBAL.fontList = [
 	},
 ];
 
+// assigns UI panels to the left and right "panels-container" respectively
+CONFIG.panels = [
+	{id: "panel-info", side: "left"},
+	{id: "panel-ui", side: "left"},
+	{id: "panel-webfont", side: "left"},
+	{id: "panel-axes", side: "left"},
+	{id: "panel-stat", side: "left", open: false},
+	{id: "panel-instances", side: "left"},
+	{id: "panel-tvts", side: "left"},
+	{id: "panel-designspace", side: "left"},
+	{id: "panel-font-list", side: "left"},
+	{id: "panel-media", side: "left"},
+	{id: "panel-about", side: "left"},
+	{id: "panel-glyphs", side: "right"},
+];

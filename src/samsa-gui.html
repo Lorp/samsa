@@ -35,7 +35,7 @@
 	<!-- &lt;drop a variable font here&gt; -->
 </div>
 
-<div id="controls">
+<div id="panels-left" class="panel-container">
 
 	<div id="panel-info" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Info</h2>
@@ -150,7 +150,20 @@
 
 </div>
 
-<div id="drawing" style="display:none;"></div>
+<div id="drawing" style="display:none;">
+	
+	<div id="panels-right" class="panel-container"></div>
+	<div id="glyph-info" style="display:none;">
+		<label>id</label><input class="id">
+		<label>name</label><input class="name">
+		<label>num-contours</label><input class="num-contours">
+		<label>num-points</label><input class="num-points">
+		<label>num-components</label><input class="num-components">
+		<label>glyph-size</label><input class="glyph-size">
+		<label>tuple-size</label><input class="tuple-size">
+	</div>
+
+</div>
 
 </div>
 
@@ -161,7 +174,6 @@
 let GLOBAL = {
 	vf: null, // maybe allow an array of fonts... select them with a drop down in info panel
 	currentGlyphId: null,
-	fontList: [],
 };
 
 CONFIG.visualization = true;
@@ -574,7 +586,7 @@ CONFIG.docs = {
 
 
 // add an info (help) icon to each panel
-Qall("#controls .panel>h2").forEach(header => {
+Qall(".panel>h2").forEach(header => {
 	let info = EL("div");
 	info.innerHTML = "&#xf129;";
 	info.classList.add("icon");
@@ -1772,7 +1784,7 @@ function vfLoaded (font) {
 
 function updateDesignSpaceMoved(e) {
 
-	const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
+	const saveScrollY = Q("#panels-left").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
 	let font = GLOBAL.vf;
 	let rect = e.target.getBoundingClientRect();
 	let x = e.clientX - rect.left;
@@ -1819,7 +1831,7 @@ function updateDesignSpaceMoved(e) {
 	axesUpdateValues();
 	panelWebfont_handleChange();
 
-	Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
+	Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 }
 
 function numberFormat(val, axis) {
@@ -1927,7 +1939,7 @@ function panelWebfont_handleChange() {
 
 function axisInput(ev) {
 
-	const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
+	const saveScrollY = Q("#panels-left").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
 	let font = GLOBAL.vf;
 	let fvsFromSliders = getCurrentFvs();
 	let fvs = font.tupleToFvs(GLOBAL.tuple);
@@ -1948,7 +1960,7 @@ function axisInput(ev) {
 
 	// delete instance
 	font.instances.pop();
-	Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
+	Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 }
 
 function buildDesignspace() {
@@ -2626,8 +2638,8 @@ function setActiveGlyph (g, instance) {
 	Q(`#g-${g}`).classList.add("active");
 
 	// create the empty tvts panel
-	let panel = Q("#panel-tvts>div");
-	panel.innerHTML = "";
+	let panelTvts = Q("#panel-tvts>div");
+	panelTvts.innerHTML = "";
 
 	// tvts header row
 	const lh = EL("li");
@@ -2640,11 +2652,26 @@ function setActiveGlyph (g, instance) {
 
 	lh.appendChild(axesHeader);
 
-	panel.appendChild(lh);
+	panelTvts.appendChild(lh);
 
 
 	// display the feature variations for this glyph on the designspace svg
 	redrawFeatureVariationsBoxes(g);
+
+	let glyphInfo = {
+		id: glyph.id,
+		name: glyph.name,
+		"num-contours": glyph.numContours,
+		"num-points": glyph.numPoints,
+		"num-components": glyph.components.length,
+		"glyph-size": font.glyphOffsets[g+1] - font.glyphOffsets[g],
+		"tuple-size": font.tupleSizes[g],
+	};
+
+	let panel = Q("#glyph-info");
+	Object.keys(glyphInfo).forEach(elClass => {
+		panel.querySelector(`.${elClass}`).value = glyphInfo[elClass];
+	});
 
 	updateGlyphSVG (g, instance);
 }
@@ -2663,7 +2690,6 @@ function updateGlyphSVG (g, instance) {
 
 	GLOBAL.currentGlyphId = g; // hmm, should be part of the font, not GLOBAL … TODO: check g < numGlyphs
 	let glyph = font.glyphs[g];
-
 
 
 	if (instance) {
@@ -2693,12 +2719,14 @@ function updateGlyphSVG (g, instance) {
 
 	// clear main window and tvts panel
 	let drawingEl = Q("#drawing");
-	drawingEl.innerHTML = "";
-
+	//drawingEl.innerHTML = "";
+	let svgEl = Q("#samsa-svg");
+	if (svgEl)
+		svgEl.remove();
 
 	let scale = 0.5 / uiScale;
-	let opacity = 0.5;
 	let svg = SVG("svg");
+	svg.id = "samsa-svg";
 	let svgg = SVG("g"); // this transforms everything inside it
 	svgg.id = "svg-transform-group";
 	svg.attrsSVG( {
@@ -3194,11 +3222,11 @@ document.onclick = function (event) {
 	// - order matters! (e.g. an icon within an instance row must be handled before the instance row itself)
 	let target;
 	let font = GLOBAL.vf;
-	const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
+	const saveScrollY = Q("#panels-left").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
 	let handled = false;
 
 
-	if (target = event.target.closest("#controls .panel .instantiate")) {
+	if (target = event.target.closest("#panels-left .panel .instantiate")) {
 
 		// create and download the instance		
 		let instanceEl = target.closest(".instance");
@@ -3263,7 +3291,7 @@ document.onclick = function (event) {
 		handled = true;
 	}
 
-	else if (target = event.target.closest("#controls .panel>h2 .info")) {
+	else if (target = event.target.closest("#panels-left .panel>h2 .info")) {
 
 		// load help file
 		const helpFile = target.parentNode.parentNode.id + ".md"; // one of these for each panel, so panel-glyphs.md, panel-stat.md, etc.
@@ -3395,7 +3423,7 @@ document.onclick = function (event) {
 		handled = true;
 	}
 
-	else if (target = event.target.closest("#controls .panel>h2")) {
+	else if (target = event.target.closest(".panel>h2")) {
 
 		// toggle display of panel when panel header is clicked
 		let panelDiv = target.parentNode.querySelector("div.panel-content");
@@ -3471,7 +3499,7 @@ document.onclick = function (event) {
 	}
 
 	if (handled) {
-		Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
+		Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 		return false;
 	}
 
@@ -3598,13 +3626,13 @@ document.addEventListener("keydown", ev => {
 		// switch to preview mode if not in preview mode
 		ev.preventDefault();
 		if (Q("#ui-mode").value != "preview") {
-			const saveScrollY = Q("#controls").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
+			const saveScrollY = Q("#panels-left").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
 			GLOBAL.quickPreviewSaved = GLOBAL.vf.config.ui.name;
 			GLOBAL.vf.config.ui = GLOBAL.vf.config.uiModes["preview"];
 			let instance = GLOBAL.vf.addInstance(null, {tuple: GLOBAL.tuple});
 			setActiveGlyph (GLOBAL.currentGlyphId, instance);
 			GLOBAL.vf.instances.pop();
-			Q("#controls").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
+			Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 		}
 		return false;
 	}
@@ -3639,12 +3667,18 @@ window.onresize = () => {
 	// make the SVG fit exactly into the #drawing quadrant of the main grid
 	const drawingEl = Q("#drawing");
 	const svgEl = Q("#drawing>svg");
+
 	if (drawingEl && svgEl) {
 		svgEl.attrsSVG({
 			width: drawingEl.clientWidth,
 			height: drawingEl.clientHeight,
 		});
 	}
+
+	let rightCol = Q("#panels-right");
+	let glyphInfoBox = Q("#glyph-info");
+	rightCol.style.right = "0px";
+	glyphInfoBox.style.bottom = "0px";
 }
 
 window.onload = () => {
@@ -3659,7 +3693,7 @@ window.onload = () => {
 	ul.style.padding = 0;
 	ul.style.margin = 0;
 	ul.style.whiteSpace = "nowrap";
-	for (let font of GLOBAL.fontList) {
+	for (let font of CONFIG.fontList) {
 
 		// work out a filename if it doesn’t have one
 		const isDataUrl = font.url.indexOf("data:") === 0;
@@ -3692,6 +3726,17 @@ window.onload = () => {
 	}
 	panel.appendChild(ul);
 
+
+	// assign panels to left and right panel-container
+	const panelsLeft = Q("#panels-left");
+	const panelsRight = Q("#panels-right");
+
+	for (let panelInfo of CONFIG.panels) {
+		let panel = Q(`#${panelInfo.id}`);
+		let container = panelInfo.side == "left" ? panelsLeft : panelsRight;
+		panel.classList.add(panelInfo.open == false ? "closed" : "open");
+		container.appendChild(panel);		
+	}
 }
 
 </script>
