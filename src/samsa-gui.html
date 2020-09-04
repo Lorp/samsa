@@ -92,7 +92,12 @@
 			<span class="texticon" id="glyphs-ids" title="Glyph IDs">123</span>
 			<!-- <span class="icon bold" id="glyphs-fastforward">&#xf04e;</span> -->
 		</h2>
-		<div class="panel-content"></div>
+		<div class="panel-content">
+			<div class="header">
+				<label for="glyph-filter">Filter by name or id</label><input id="glyph-filter">
+				<label for="string-filter">Filter by string</label><input id="string-filter">
+			</div>
+		</div>
 	<br clear="all">
 
 	</div>
@@ -2188,7 +2193,12 @@ function updateGlyphsPanel(instance) {
 	// glyphs panel
 	///////////////////////////////////////////////////////
 	const panel = Q("#panel-glyphs>div");
-	panel.innerText = "";
+	const panelHeader = panel.querySelector(".header"); // save the header
+	panel.innerText = ""; // clear all
+	panelHeader.querySelectorAll("input").forEach(el => el.value = ""); // clear the input boxes
+	panel.appendChild(panelHeader); // restore the header
+
+
 	const scale = 0.05 * 1000 / font.unitsPerEm;
 	const showGlyphIds = Q("#panel-glyphs>h2 #glyphs-ids").classList.contains("active");
 
@@ -2231,7 +2241,7 @@ function updateGlyphsPanel(instance) {
 		spanName.innerText = font.glyphs[g].name || "undefined";
 		spanName.classList.add("name");
 		spanId.innerText = g;
-		spanId.classList.add("number");
+		spanId.classList.add("id");
 		if (showGlyphIds)
 			spanName.style.display = "none";
 		else
@@ -3417,7 +3427,7 @@ document.onclick = function (event) {
 		let active = Q("#glyphs-ids").classList.toggle("active");
 		let glyphLabels = Qall("#panel-glyphs .glyph-thumb label");
 		glyphLabels.forEach(label => {			
-			label.querySelector(".number").style.display = active ? "inline" : "none";
+			label.querySelector(".id").style.display = active ? "inline" : "none";
 			label.querySelector(".name").style.display = active ? "none" : "inline";
 		})
 		handled = true;
@@ -3659,6 +3669,44 @@ document.addEventListener("keyup", ev => {
 		return false;
 	}
 
+});
+
+
+// filter by glyph name or glyph id
+Q("#glyph-filter").addEventListener("input", e => {
+
+	Q("#string-filter").value = "";
+	const glyphThumbs = Qall(".glyph-thumb");
+	let filter = Q("#glyph-filter").value;
+	let reg = new RegExp(filter, "i"); // case-insensitive
+	for (let g=0; g<glyphThumbs.length; g++) {
+		let thumbEl = glyphThumbs[g];
+		let name = thumbEl.querySelector(".name").textContent;
+		let id = thumbEl.querySelector(".id").textContent;
+		thumbEl.style.display = (name.match(reg) || id == filter) ? "block" : "none";
+	}
+});
+
+
+// filter by string
+Q("#string-filter").addEventListener("input", e => {
+
+	Q("#glyph-filter").value = "";
+	const glyphThumbs = Qall(".glyph-thumb");
+	let filter = Q("#string-filter").value;
+
+	//let chars = filter.split("");
+
+	let glyphIds = [];
+	for (let c=0; c<filter.length; c++){
+		let uni = filter.charCodeAt(c);
+		glyphIds.push(GLOBAL.vf.cmap[uni]);
+	}
+
+	for (let g=0; g<glyphThumbs.length; g++) {
+		let thumbEl = glyphThumbs[g];
+		thumbEl.style.display = (glyphIds.indexOf(g) != -1) ? "block" : "none";
+	}
 });
 
 

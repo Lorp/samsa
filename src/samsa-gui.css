@@ -76,6 +76,7 @@ html {
 body {
 	margin: 0;
 	padding: 0;
+	box-sizing: border-box;
 }
 
 h1 {
@@ -191,6 +192,18 @@ h1 {
 	font-size: 48px;
 	font-family: Webfont;
 	background-color: white;
+}
+
+#panel-glyphs .header {
+	width: 100%;
+	background-color: lightgrey;
+	padding: 2px 4px;
+	display: grid;
+	grid-template-columns: 35% 40%;
+}
+
+#panel-glyphs .header label {
+	padding-top: 7px;
 }
 
 .instance {
