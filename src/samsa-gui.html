@@ -3683,7 +3683,7 @@ Q("#glyph-filter").addEventListener("input", e => {
 		let thumbEl = glyphThumbs[g];
 		let name = thumbEl.querySelector(".name").textContent;
 		let id = thumbEl.querySelector(".id").textContent;
-		thumbEl.style.display = (name.match(reg) || id == filter) ? "block" : "none";
+		thumbEl.style.display = filter == "" || name.match(reg) || id == filter ? "block" : "none";
 	}
 });
 
@@ -3705,7 +3705,7 @@ Q("#string-filter").addEventListener("input", e => {
 
 	for (let g=0; g<glyphThumbs.length; g++) {
 		let thumbEl = glyphThumbs[g];
-		thumbEl.style.display = (glyphIds.indexOf(g) != -1) ? "block" : "none";
+		thumbEl.style.display = (glyphIds.length == 0) || (glyphIds.indexOf(g) != -1) ? "block" : "none";
 	}
 });
 
