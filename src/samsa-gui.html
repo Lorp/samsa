@@ -766,9 +766,12 @@ function exportImage (format, filename="samsa-drawing", params) {
 	else
 		GLOBAL.frameIndex++;
 
-	let svgCode = Q("#drawing").innerHTML;
-
+	let svgCode = Q("#samsa-svg").outerHTML;
 	svgCode = svgCode.replace(`<svg `, `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" `);
+
+	// replace clientWidth, clientHeight with 1000,1000 - seems to work pretty well, but should be improved and made configurable
+	svgCode = svgCode.replace(/ width="\d*"/, ` width="1000"`);
+	svgCode = svgCode.replace(/ height="\d*"/, ` height="1000"`);
 
 	if (format == "svg") {
 		let fauxLink = document.createElement("a");
@@ -778,18 +781,19 @@ function exportImage (format, filename="samsa-drawing", params) {
 		fauxLink.click();
 		fauxLink.remove();
 	}
+
 	else if (format == "png") {
 	
 		// 1. create the image
 		// 2. define what happens when it’s loaded
 		// 3. define what to load
-		let img = new Image(800, 800);
+		let img = new Image(1000, 1000);
 		img.onload = function () {
 
 			// make a canvas to export the bitmap
 			let canvas = document.createElement("canvas");
-			canvas.setAttribute("width", 1080);
-			canvas.setAttribute("height", 720);
+			canvas.setAttribute("width", 1000);
+			canvas.setAttribute("height", 1000);
 			canvas.id = "samsa-drawing-canvas" + "-" + filename;
 			canvas.style.border = "1px solid red";
 			document.body.appendChild(canvas);
@@ -816,11 +820,12 @@ function exportImage (format, filename="samsa-drawing", params) {
 		// give the <img> a src attribute with an SVG data url, to render the SVG on the canvas
 		img.src = "data:image/svg+xml," + encodeURIComponent(svgCode);	
 	}
+
 	else if (format == "svg-animation") {
 
-		let svg = Q("#drawing svg").cloneNode();
-		let svgg = Q("#drawing svg #svg-transform-group").cloneNode();
-		let svgInstance = Q("#drawing svg #layer-instance").cloneNode();
+		let svg = Q("#samsa-svg").cloneNode();
+		let svgg = Q("#samsa-svg #svg-transform-group").cloneNode();
+		let svgInstance = Q("#samsa-svg #layer-instance").cloneNode();
 		let svgAnimate = SVG("animate");
 
 		svgg.removeAttribute("id");
@@ -838,8 +843,13 @@ function exportImage (format, filename="samsa-drawing", params) {
 		svgInstance.appendChild(svgAnimate);
 		svgg.appendChild(svgInstance);
 		svg.appendChild(svgg);
-		let svgCode = svg.outerHTML;
+		let svgCode = svg.outerHTML; // local scope svgCode
+
+		// same fixups as in simple "svg" export
 		svgCode = svgCode.replace(`<svg `, `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" `);
+		svgCode = svgCode.replace(/ width="\d*"/, ` width="1000"`);
+		svgCode = svgCode.replace(/ height="\d*"/, ` height="1000"`);
+
 		let fauxLink = document.createElement("a");
 		fauxLink.download = filename + ".svg";
 		fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
@@ -2668,6 +2678,8 @@ function setActiveGlyph (g, instance) {
 	// display the feature variations for this glyph on the designspace svg
 	redrawFeatureVariationsBoxes(g);
 
+	/*
+	// disabled for now
 	let glyphInfo = {
 		id: glyph.id,
 		name: glyph.name,
@@ -2682,6 +2694,7 @@ function setActiveGlyph (g, instance) {
 	Object.keys(glyphInfo).forEach(elClass => {
 		panel.querySelector(`.${elClass}`).value = glyphInfo[elClass];
 	});
+	*/
 
 	updateGlyphSVG (g, instance);
 }
@@ -2730,17 +2743,19 @@ function updateGlyphSVG (g, instance) {
 	// clear main window and tvts panel
 	let drawingEl = Q("#drawing");
 	//drawingEl.innerHTML = "";
+
+
 	let svgEl = Q("#samsa-svg");
 	if (svgEl)
 		svgEl.remove();
 
 	let scale = 0.5 / uiScale;
-	let svg = SVG("svg");
-	svg.id = "samsa-svg";
+	svgEl = SVG("svg");
+	svgEl.id = "samsa-svg";
 	let svgg = SVG("g"); // this transforms everything inside it
 	svgg.id = "svg-transform-group";
-	svg.attrsSVG( {
-		width: drawingEl.clientWidth,
+	svgEl.attrsSVG( {
+		width: drawingEl.clientWidth, // we rewrite width and height on export, so clientWidth/clientHeight have no effect
 		height: drawingEl.clientHeight,
 		style: `background-color: ${ui.glyphDefault.backgroundColor};`,
 	});
@@ -3208,8 +3223,8 @@ function updateGlyphSVG (g, instance) {
 	});
 
 
-	svg.appendChild(svgg);
-	drawingEl.appendChild(svg);
+	svgEl.appendChild(svgg);
+	drawingEl.appendChild(svgEl);
 
 }
 
@@ -3714,7 +3729,7 @@ window.onresize = () => {
 
 	// make the SVG fit exactly into the #drawing quadrant of the main grid
 	const drawingEl = Q("#drawing");
-	const svgEl = Q("#drawing>svg");
+	const svgEl = Q("#samsa-svg");
 
 	if (drawingEl && svgEl) {
 		svgEl.attrsSVG({
@@ -3775,10 +3790,8 @@ window.onload = () => {
 	panel.appendChild(ul);
 
 
-	// assign panels to left and right panel-container
-	const panelsLeft = Q("#panels-left");
-	const panelsRight = Q("#panels-right");
-
+	// assign each panel to left or right panel-container
+	const panelsLeft = Q("#panels-left"), panelsRight = Q("#panels-right");
 	for (let panelInfo of CONFIG.panels) {
 		let panel = Q(`#${panelInfo.id}`);
 		let container = panelInfo.side == "left" ? panelsLeft : panelsRight;
