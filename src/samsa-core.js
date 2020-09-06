@@ -657,7 +657,7 @@ SamsaGlyph.prototype.ttx = function () {
 // - export glyph as a JSON string but without the circular references of the internal object
 SamsaGlyph.prototype.json = function () {
 
-	const replacer = ["id", "name", "curveOrder", "endPts", "numContours", "numPoints", "points"];
+	const replacer = ["id", "name", "curveOrder", "endPts", "numContours", "numComponents", "numPoints", "points", "components"];
 	return JSON.stringify(this, replacer, 4);
 };
 
@@ -1679,25 +1679,7 @@ function SamsaFont (init, config) {
 		let offset = font.glyphOffsets[g];
 		let size = font.glyphSizes[g];
 		let pt;
-
-
-
 		let glyph = new SamsaGlyph( { id: g, name: font.glyphNames[g], font: font } );
-		
-		/*
-		let glyph = {
-			font: font,
-			name: font.glyphNames[g],
-			id: g,
-			numPoints: 0,
-			numContours: 0,
-			instructionLength: 0,
-			points: [],
-			endPts: [],
-			tvts: [], // tuple variable tables (see gvar spec)
-		};
-		*/
-
 		let fd, read, write;
 		if (node) {
 			fd = this.fd;
@@ -1896,9 +1878,6 @@ function SamsaFont (init, config) {
 
 		// do we have data?
 		if (font.tupleSizes[g] > 0) {
-	/*
-	<Buffer 80 03 00 10 00 0a 20 01 00 0a 20 02 00 0c 00 00 00 02 01 05 02 01 2c d4 01 d4 2c 02 01 05 02 01 d8 28 01 28 d8 81 04 d0 d0 00 d0 d0 81 00 d0 81 8b 00>
-	*/
 
 			// [[ 1a ]] get tvts header
 			let tupleCount, tuplesSharePointNums, offsetToSerializedData;
@@ -2048,16 +2027,12 @@ function SamsaFont (init, config) {
 									pointData = data.getUint8(ps), ps++;
 
 								pointNum += pointData;
-								pointIds.push(pointNum); // TODO: THIS IS BAD!!!!!!!!!!!!!!!!!!!! typically gives values of 32768, 34179
+								pointIds.push(pointNum);
 							}
 							pc += runLength;
 						}
 					}
 				}
-
-	/* TODO: check that this spec clause is observed
-	"Since the values in the packed data are all unsigned, point numbers will be given in increasing order. Since the packed representation can include zero values, it is possible for a given point number to be repeated in the derived point number list. In that case, there will be multiple delta values in the deltas data associated with that point number. All of these deltas must be applied cumulatively to the given point."
-	*/
 
 				// DELTAS
 				// get the packed delta values for this tuple
@@ -2070,9 +2045,9 @@ function SamsaFont (init, config) {
 					runLength = (runLength & 0x3f) +1;
 					let r;
 					switch (bytesPerNum) {
-						case 0: /*console.log(`@${ps} BPN-0 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(0); break;
-						case 1: /*console.log(`@${ps} BPN-1 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(data.getInt8(ps)), ps++; break;
-						case 2: /*console.log(`@${ps} BPN-2 *${runLength}`);*/ for (r=0; r < runLength; r++) unpacked.push(data.getInt16(ps)), ps+=2; break;
+						case 0: for (r=0; r < runLength; r++) unpacked.push(0); break;
+						case 1: for (r=0; r < runLength; r++) unpacked.push(data.getInt8(ps)), ps++; break;
+						case 2: for (r=0; r < runLength; r++) unpacked.push(data.getInt16(ps)), ps+=2; break;
 					}
 				}
 
@@ -2081,7 +2056,6 @@ function SamsaFont (init, config) {
 				//  - working nicely for sparse delta arrays 
 				//  - TODO: check it works when PRIVATE_POINT_NUMBERS is not set
 				//  - TODO: check it works when impliedAllPoints is true
-				// console.log("pointIds:" + pointIds); // if !PRIVATE_POINT_NUMBERS, what is the state of pointIds?
 
 				if (impliedAllPoints) {
 					for (let pt=0; pt < font.glyphs[g].points.length; pt++) {
