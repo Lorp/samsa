@@ -3693,12 +3693,20 @@ Q("#glyph-filter").addEventListener("input", e => {
 	Q("#string-filter").value = "";
 	const glyphThumbs = Qall(".glyph-thumb");
 	let filter = Q("#glyph-filter").value;
-	let reg = new RegExp(filter, "i"); // case-insensitive
+	let min, max, reg;
+	let numeric = filter.match(/^(\d+)(-(\d+))?$/); // a range like "87-106"
+	if (numeric) {
+		min = numeric[1] * 1;
+		max = numeric[3] === undefined ? min : numeric[3] * 1; // max = min if there’s no range
+	}
+	else
+		reg = new RegExp(filter, "i"); // case-insensitive
+
 	for (let g=0; g<glyphThumbs.length; g++) {
 		let thumbEl = glyphThumbs[g];
 		let name = thumbEl.querySelector(".name").textContent;
 		let id = thumbEl.querySelector(".id").textContent;
-		thumbEl.style.display = filter == "" || name.match(reg) || id == filter ? "block" : "none";
+		thumbEl.style.display = filter == "" || (numeric ? g >= min && g <= max : name.match(reg)) || id == filter ? "block" : "none";
 	}
 });
 
@@ -3709,10 +3717,8 @@ Q("#string-filter").addEventListener("input", e => {
 	Q("#glyph-filter").value = "";
 	const glyphThumbs = Qall(".glyph-thumb");
 	let filter = Q("#string-filter").value;
-
-	//let chars = filter.split("");
-
 	let glyphIds = [];
+
 	for (let c=0; c<filter.length; c++){
 		let uni = filter.charCodeAt(c);
 		glyphIds.push(GLOBAL.vf.cmap[uni]);
@@ -3720,7 +3726,7 @@ Q("#string-filter").addEventListener("input", e => {
 
 	for (let g=0; g<glyphThumbs.length; g++) {
 		let thumbEl = glyphThumbs[g];
-		thumbEl.style.display = (glyphIds.length == 0) || (glyphIds.indexOf(g) != -1) ? "block" : "none";
+		thumbEl.style.display = glyphIds.length == 0 || glyphIds.indexOf(g) != -1 ? "block" : "none";
 	}
 });
 
