@@ -67,6 +67,11 @@
 	font-weight: bold;
 }
 
+* {
+	box-sizing: border-box;
+	font-family: inherit;
+}
+
 html {
 	font-family: IBMPlexVariable, -apple-system, ".SFNSText", "San Francisco", "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;
 	font-size: 16px;
@@ -76,13 +81,36 @@ html {
 body {
 	margin: 0;
 	padding: 0;
-	box-sizing: border-box;
 }
 
 h1 {
-	font-size: 4rem;
+	font-size: 3rem;
 	font-style: normal;
 	font-weight: 400;
+}
+
+a {
+	color: currentColor;
+}
+
+input,
+select,
+button {
+	margin: 0 .2em .2em 0;
+}
+
+select,
+button {
+	padding: .25em .1em .2em .1em;
+}
+
+button {
+	padding: .3em .6em .2em .6em;
+	border-radius: 3px;
+	border: 1px solid darkgrey;
+	border-width: 0 1px 1px 0;
+	background: #cacac5;
+	font-weight: 500;
 }
 
 #container {
@@ -91,31 +119,40 @@ h1 {
 	display: grid;
 	grid-template-columns: 360px 1fr;
 	grid-template-rows: 80px 1fr;
-	background-color: beige; /* on font load becomes transparent */
+	background-color: beige;
+	/* on font load becomes transparent */
 }
 
 #title {
 	background-color: orange;
-	padding: 0px 20px;
+	padding: 8px 8px 0 8px;
 	position: relative;
+	border-bottom: 1px solid darkorange;
 }
 
 #title h1 {
+	font-size: 4rem;
 	font-weight: 700;
 	padding: 0;
 	margin: 0;
+	text-shadow: 1px 1px 0px rgba(255, 255, 255, .2)
 }
 
 .subtitle {
 	position: absolute;
 	width: 120px;
-	right: 26px;
-	top: 8px;
-	font-size: 1rem;
+	right: 10px;
+	top: 10px;
+	font-size: .8rem;
 	line-height: 1.2;
 	display: inline-block;
 	text-transform: uppercase;
 	text-align: right;
+}
+
+.subtitle a {
+	position: relative;
+	top: 1em;
 }
 
 #font-file {
@@ -123,14 +160,16 @@ h1 {
 	font-size: 4rem;
 	padding: 0px 20px;
 	white-space: nowrap;
+	border-bottom: 1px solid lightgrey
 }
 
 .font-file {
-	text-decoration: underline;
+	text-decoration: none;
+	cursor: pointer
 }
 
-
-#panels-left {
+.font-file:hover {
+	font-weight: 600;
 }
 
 #panels-right {
@@ -147,29 +186,70 @@ h1 {
 	overflow-y: scroll;
 }
 
+
 .panel-container h2 {
 	position: relative;
 	font-size: 1em;
-	font-weight: 500;
-	background-color: darkgrey;
-	color: white;
-	padding-left: 1em;
+	font-weight: 600;
+	background-color: #cacac5;
+	color: black;
 	margin: 0;
-	border-bottom: 1px solid black;
-	padding-left: 2em;
+	border-bottom: 1px solid darkgrey;
+	padding: .3em .5em .05em 1.8em;
 }
 
-.panel>div {
+.panel-container h2 .icon {
+	font-size: .7em;
+	margin-top: .1em;
+}
+
+.panel-container h2 .icon.info {
+	padding: .5em;
+	margin-top: 0;
+	opacity: .4;
+}
+
+.panel-container h2 .icon.info:hover {
+	opacity: 1;
+}
+
+#panels-left .panel-content {
+	overflow-y: scroll;
+}
+
+#panel-info .panel-content:not(:empty),
+#panel-ui .panel-content:not(:empty),
+#panel-axes .panel-content:not(:empty),
+#panel-stat .panel-content:not(:empty),
+#panel-font-list .panel-content:not(:empty),
+#panel-media .panel-content:not(:empty),
+#panel-media .panel-content:not(:empty),
+#panel-about .panel-content:not(:empty),
+#panel-glyphs .panel-content .header {
+	padding: .5rem .6rem;
+}
+
+/* this one has inline styles hence the !important */
+#panel-about .panel-content:not(:empty) {
+	padding: .5rem .6rem!important;
+}
+
+
+#panel-webfont .panel-content {
+	padding: 0 .5rem
+}
+
+.panel > div {
 	position: relative;
 	width: 100%;
-	background-color: lightgrey;
+	background-color: #eaeae3;
 }
 
-.panel.closed>div {
+.panel.closed > div {
 	display: none;
 }
 
-.panel>div>.slider {
+.panel > div > .slider {
 	position: relative;
 	width: calc(100% - 20px);
 	left: 8px;
@@ -188,7 +268,7 @@ h1 {
 	margin-top: 0px;
 }
 
-#panel-webfont.panel>div {
+#panel-webfont.panel > div {
 	font-size: 48px;
 	font-family: Webfont;
 	background-color: white;
@@ -196,7 +276,7 @@ h1 {
 
 #panel-glyphs .header {
 	width: 100%;
-	background-color: lightgrey;
+	background-color: #eaeae3;
 	padding: 2px 4px;
 	display: grid;
 	grid-template-columns: 35% 40%;
@@ -204,6 +284,14 @@ h1 {
 
 #panel-glyphs .header label {
 	padding-top: 6px;
+}
+
+#panel-glyphs h2 span:not(.open) {
+	margin-left: .5em;
+}
+
+#panel-glyphs h2 #glyphs-ids {
+	padding: 3px 6px 1px 6px;
 }
 
 .instance {
@@ -228,21 +316,27 @@ h1 {
 .glyph-thumb {
 	width: 90px;
 	height: 90px;
-	border: 0.5px solid lightgrey;
+	border-width: 0 1px 1px 0;
 	float: left;
 	box-sizing: border-box;
 	position: relative;
 }
 
-.glyph-thumb>label {
+.glyph-thumb > label {
 	position: absolute;
-	left: 0;
-	top: 0;
+	left: -1px;
+	top: -1px;
 	_border: 1px solid lightgrey;
-	color: white;
-	background-color: darkgrey;
+	color: beige;
+	background-color: #aaaaa1;
 	font-size: 75%;
 	padding: 0 2px;
+	font-weight: 500
+}
+
+.glyph-thumb:hover > label {
+	background-color: black;
+	z-index: 1;
 }
 
 #drawing {
@@ -269,7 +363,7 @@ h1 {
 }
 
 .active {
-	background-color: #d0f473;
+	background-color: #E1F5FE;
 }
 
 code {
@@ -298,7 +392,7 @@ pre {
 
 .texticon {
 	font-size: 75%;
-	border: 1px solid  white;
+	border: 1px solid white;
 	border-radius: 1em;
 	padding: 1px 2px;
 }
@@ -308,12 +402,15 @@ pre {
 	background-color: white;
 }
 
-.icon:link, .icon:hover, .icon:visited, .icon:active {
+.icon:link,
+.icon:hover,
+.icon:visited,
+.icon:active {
 	color: black;
 	text-decoration: none;
 }
 
-.glyph-thumb>.selected {
+.glyph-thumb > .selected {
 	display: none;
 	position: absolute;
 	left: 0;
@@ -325,23 +422,20 @@ pre {
 	opacity: 0.5;
 }
 
-.font-file {
-
-}
-
 .reveal {
 	transform: rotate(0turn);
 	position: absolute;
 	_position: relative;
 	left: 1em;
 	text-align: left;
-	top: 0.25em;
-	transition: transform 0.2s ease-out;
+	top: 0.6em;
+	transition: transform 0.05s ease-out;
 }
 
 .open .reveal {
 	transform: rotate(0.25turn);
 }
+
 
 .cartesian-axis-row {
 	display: grid;
@@ -360,13 +454,13 @@ pre {
 }
 
 .no-select {
-	-webkit-user-select: none;  
-	-moz-user-select: none;    
-	-ms-user-select: none;      
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
 	user-select: none;
 }
 
-#drag-drop-zone	{
+#drag-drop-zone {
 	display: flex;
 	position: relative;
 	color: grey;
@@ -375,27 +469,31 @@ pre {
 	align-items: center;
 	justify-content: center;
 	border: 4px dashed grey;
-	margin: 10px;
+	border-radius: 1.5em;
+	margin: 2em;
+	padding: 1em;
 }
 
-#drag-drop-zone>div {
+#drag-drop-zone > div {
 	text-align: center;
 }
 
-#drag-drop-zone>div>p {
+#drag-drop-zone > div > p {
 	cursor: default;
 }
 
 .popup-modal {
-	width: 400px;
+	width: 500px;
 	height: 80%;
-	position: fixed; 
+	position: fixed;
 	left: calc(50% - 200px);
 	top: calc(50% - 40%);
 	background-color: beige;
-	padding: 1em;
-	border-radius: 1em;
+	border: 2px solid beige;
+	padding: .4em 1.6em 1.2em 1.6em;
+	border-radius: .4em;
 	overflow-y: scroll;
+	z-index: 1;
 }
 
 .popup-overlay {
@@ -406,6 +504,7 @@ pre {
 	top: 0;
 	background-color: black;
 	opacity: 0.6;
+	z-index: 1;
 }
 
 /* used in markdown help files */
