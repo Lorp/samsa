@@ -3316,7 +3316,7 @@ document.onclick = function (event) {
 		handled = true;
 	}
 
-	else if (target = event.target.closest("#panels-left .panel>h2 .info")) {
+	else if (target = event.target.closest(".panel>h2 .info")) {
 
 		// load help file
 		const helpFile = target.parentNode.parentNode.id + ".md"; // one of these for each panel, so panel-glyphs.md, panel-stat.md, etc.
@@ -3767,8 +3767,8 @@ window.onload = () => {
 		// work out a filename if it doesn’t have one
 		const isDataUrl = font.url.indexOf("data:") === 0;
 		const filename = font.filename ? font.filename
-		                             : isDataUrl ? `${font.name}.ttf` 
-		                                         : font.url.substr(font.url.lastIndexOf("/")+1);
+		                               : isDataUrl ? `${font.name}.ttf` 
+		                                           : font.url.substr(font.url.lastIndexOf("/")+1);
 
 		// add the font to the list
 		let li = EL("li");
