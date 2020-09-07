@@ -59,7 +59,7 @@ Specifying location on axes not in the font applies well to static, non-variable
 ### Range specification
 A range can be specified in a STAT record, as well as a value. Samsa represents ranges thus:
 
-_nominalValue [rangeMin, rangeMax]_.
+_nominalValue [rangeMin, rangeMax]_
 
 STAT ranges may help apps provide meaningful names even when a designspace location does not exactly match a STAT name’s value, and also allow static fonts to assert their intended range of operation. Although the feature was intended to allow selection of particular optical size masters for ranges of sizes in the real world (e.g. use _Caption_ up to 8pt, use _Text_ from 8pt to 14pt, use _Display_ from 14pt and above), the Adobe Source variable fonts also use ranges for the Weight axis, thus its Regular STAT record has a nominal value of 400, with a range from 350 to 450. It is unclear whether such usage is recommended [June 2020].
 
@@ -68,7 +68,7 @@ Ranges are limited to single-axis STAT records.
 ### Linked value specification
 A linked value can be specified in a STAT record. Typical usage is to link the “Regular” weight to the Bold (so the wght=400 record links to 700) or to link “Roman” on the Italic axis to “Italic” (so the ital=0 record links to 1). Samsa represents ranges thus:
 
-_nominalValue → linkedvalue_.
+_nominalValue → linkedvalue_
 
 An app might use this information to build a UI toggle, enabling users to switch easily between Regular and Bold, and Roman and Italic. Note that the linked location, especially regarding the Italic axis, may be in a separate variable font file in the same family.
 
