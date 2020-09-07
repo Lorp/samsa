@@ -316,9 +316,9 @@ button {
 .glyph-thumb {
 	width: 90px;
 	height: 90px;
-	border-width: 0 1px 1px 0;
+	border: 1px solid lightgrey;
+	border-width:0 1px 1px 0;
 	float: left;
-	box-sizing: border-box;
 	position: relative;
 }
 
@@ -540,4 +540,4 @@ h4 {
 
 .tvt-points {
 	font-size: 75%;
-}
+} 
