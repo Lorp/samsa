@@ -3355,7 +3355,7 @@ document.onclick = function (event) {
 			const closeButton = EL("button");
 			closeButton.style.position = "absolute";
 			closeButton.style.top = "1em";
-			closeButton.style.right = "2em";
+			closeButton.style.right = "1em";
 			closeButton.innerText = "Close";
 			help.appendChild(closeButton);
 
@@ -3508,7 +3508,7 @@ Q("#file-upload-input").addEventListener("change", ev => {
 
 // show that dragging is active
 Q("#file-upload-input").addEventListener("dragenter", ev => {
-	Q("#drag-drop-zone").style.borderColor = "limegreen"; //"#d0f473";
+	Q("#drag-drop-zone").style.borderColor = "black";
 });
 Q("#file-upload-input").addEventListener("dragleave", ev => {
 	Q("#drag-drop-zone").style.borderColor = "grey";
