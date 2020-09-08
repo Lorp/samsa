@@ -127,7 +127,7 @@ button {
 
 #title {
 	background-color: orange;
-	padding: 8px 8px 0 8px;
+	padding: 0 8px 0 8px;
 	position: relative;
 	border-bottom: 1px solid darkorange;
 }
@@ -145,7 +145,7 @@ button {
 	width: 120px;
 	right: 10px;
 	top: 10px;
-	font-size: .8rem;
+	font-size: 1rem;
 	line-height: 1.2;
 	display: inline-block;
 	text-transform: uppercase;
