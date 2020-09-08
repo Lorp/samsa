@@ -36,9 +36,12 @@
 
 <div id="panels-left" class="panel-container">
 
-	<div id="panel-info" class="panel open">
-		<h2><span class="icon bold reveal">&#xf04b;</span> Info</h2>
-		<div class="panel-content"></div>
+	<div id="panel-fonts" class="panel open">
+		<h2><span class="icon bold reveal">&#xf04b;</span> Fonts</h2>
+		<div class="panel-content">
+			<select class="font-selector"></select>			
+			<div class="font-info"></div>			
+		</div>
 	</div>
 
 	<div id="panel-ui" class="panel open">
@@ -97,13 +100,7 @@
 				<label for="string-filter">Filter by string</label><input id="string-filter">
 			</div>
 		</div>
-	<br clear="all">
-
-	</div>
-
-	<div id="panel-font-list" class="panel open">
-		<h2><span class="icon bold reveal open">&#xf04b;</span> Fonts ready to load</h2>
-		<div class="panel-content"></div>
+		<br clear="all">
 	</div>
 
 	<div id="panel-media" class="panel open">
@@ -113,7 +110,7 @@
 
 	<div id="panel-about" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> About</h2>
-		<div class="panel-content" style="padding: 0.5em; font-size: 75%;">
+		<div class="panel-content">
 			Samsa is developed by <a href="https://www.lorp.org/">Laurence Penney</a> 2017–present. In 2019 Google Fonts funded major improvements and libre licensing.
 			<ul>
 			<li><a href="https://github.com/Lorp/samsa">GitHub repository</a></li>
@@ -122,34 +119,6 @@
 			<li><a href="https://twitter.com/axis_praxis">@axis_praxis</a> updates via Twitter</li>
 			</ul>
 		</div>
-	</div>
-
-	<div class="template">
-
-		<div class="tvt-live open" style="position:relative;">
-			<div style="display:grid; grid-template-columns: 50px 50px 50px 50px auto;">
-				<!--<div class="tvt-reveal icon bold">&#xf04b;</div>-->
-				<!--<div class="tvt-reveal icon bold _reveal" style="position:relative; left: 0px; transform-origin: 6px 7px; transform:rotate(0.25turn);">&#xf04b;</div>-->
-				<div class="tvt-reveal" style="position: relative;">
-					<div class="icon bold reveal" style="position: absolute; left: 0.3em;">
-					&#xf04b;
-					</div>
-				</div>
-				<div class="tvt-id">1</div>
-				<div class="tvt-points">2</div>
-				<div class="tvt-scalar">3</div>
-				<div class="tvt-axes">4</div>
-			</div>
-			<div style="display:grid; grid-template-columns: 50px 50px 50px auto;">
-				<!--
-				<div class="index">0</div>
-				<div class="dx">0</div>
-				<div class="dy">0</div>
-				<div class="note"></div>
-				-->
-			</div>
-		</div>
-
 	</div>
 
 </div>
@@ -863,7 +832,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 function vfLoaded (font) {
 
 	GLOBAL.vf = font;
-	let panel;
+	let panel, panelPart;
 
 	GLOBAL.tvtToggles = [];
 
@@ -891,20 +860,21 @@ function vfLoaded (font) {
 
 
 	///////////////////////////////////////////////////////
-	// Info panel
+	// Fonts panel
 	///////////////////////////////////////////////////////
-	panel = Q("#panel-info>div");
-	panel.innerText = "";
-	panel.style.fontSize = "75%";
-	panel.style.wordBreak = "break-all";
+	panelPart = Q("#panel-fonts .font-info");
+	panelPart.innerText = "";
+	panelPart.style.fontSize = "75%";
+	panelPart.style.wordBreak = "break-all";
 	[
 		["File", font.filename],
 		["Size", font.filesize],
 		["Full name", font.names[4]],
 		["Version", font.names[5]],
 	].forEach(item => {
-		panel.innerHTML += `<em>${item[0]}:</em> ${item[1]}<br>`;
+		panelPart.innerHTML += `<em>${item[0]}:</em> ${item[1]}<br>`;
 	});
+
 
 	///////////////////////////////////////////////////////
 	// UI Panel
@@ -3495,33 +3465,6 @@ document.onclick = function (event) {
 		handled = true;
 	}
 
-	else if (target = event.target.closest("#panel-font-list .font-file")) {
-
-		event.preventDefault(); // stops the <a href...> having an effect?
-		const isDataUrl = target.data.url.indexOf("data:") === 0;
-
-		// if the app is running in file: protocol, skip any fonts that are not data: protocol
-		if (location.protocol == "file:" && !isDataUrl) {
-			
-			alert ("Cannot load font files from disk if application is on file: protocol. You must embed the fonts as base64 in samsa-config.js or install Samsa on a web server such as localhost.");
-		
-		}
-		else {
-
-			// load the font
-			let vf = new SamsaFont({
-
-				fontFamily: "FontNameShouldGoHere",
-				filename: target.data.filename,
-				url: target.data.url,
-				callback: vfLoaded,
-
-			});
-		}
-
-		handled = true;
-	}
-
 	if (handled) {
 		Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 		return false;
@@ -3585,7 +3528,6 @@ function removeOverlay () {
 // - https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
 function dropHandler(ev) {
   
-	console.log("dropHandler");
 	ev.preventDefault(); // prevent default behavior (which is to open the file)
 
 	Q("body").style.cursor = "wait";
@@ -3730,6 +3672,35 @@ Q("#string-filter").addEventListener("input", e => {
 });
 
 
+Q("#panel-fonts .font-selector").addEventListener("change", e => {
+
+	let target = e.target; //this.querySelector("option:selected");
+
+	if (target.selectedIndex > 0) {
+
+		let option = target[target.selectedIndex];
+		let fontData, url;
+
+		const isDataUrl = option.data.url.indexOf("data:") === 0;
+
+		// if the app is running in file: protocol, skip any fonts that are not data: protocol
+		if (location.protocol == "file:" && !isDataUrl) {
+			
+			alert ("Cannot load font files from disk if application is on file: protocol. You must embed the fonts as base64 in samsa-config.js or install Samsa on a web server such as localhost.");			
+		}
+		else {
+			// load the font
+			let vf = new SamsaFont({
+				fontFamily: "FontNameShouldGoHere",
+				filename: option.data.filename,
+				url: option.data.url,
+				callback: vfLoaded,
+			});
+		}
+	}
+});
+
+
 window.onresize = () => {
 
 	// make the SVG fit exactly into the #drawing quadrant of the main grid
@@ -3751,16 +3722,22 @@ window.onresize = () => {
 
 window.onload = () => {
 
-	// populate the font list
-	const panel = Q("#panel-font-list>div");
-	let preloaded = false;
-	panel.innerHTML = "";
+	// panels that need to be initialized once per session
+	let panel, panelPart;
 
-	const ul = EL("ul");
-	ul.style.listStyle = "none";
-	ul.style.padding = 0;
-	ul.style.margin = 0;
-	ul.style.whiteSpace = "nowrap";
+
+	///////////////////////////////////////////////////////
+	// Fonts panel
+	///////////////////////////////////////////////////////
+
+	let preloaded = false;
+	panelPart = Q("#panel-fonts .font-selector");
+	panelPart.innerHTML = "";
+
+	let option = EL("option");
+	option.value = -1;
+	option.innerText = "[no font selected]";
+	panelPart.appendChild(option);
 	for (let font of CONFIG.fontList) {
 
 		// work out a filename if it doesn’t have one
@@ -3768,17 +3745,20 @@ window.onload = () => {
 		const filename = font.filename ? font.filename
 		                               : isDataUrl ? `${font.name}.ttf` 
 		                                           : font.url.substr(font.url.lastIndexOf("/")+1);
+		
+		option = EL("option");
+		option.value = filename; // filename;
+		option.innerText = filename; // filename;
 
-		// add the font to the list
-		let li = EL("li");
-		li.classList.add("font-file");
-		li.innerHTML = `<div class="icon" style="display: inline-block; width: 1.5em; text-align: center;"><strong>${ isDataUrl ? "&#xF0E7;" : "&#xF381" }</strong></div> ` + filename;
-		li.data = { filename: filename, url: font.url }; // this is used when we click on it
-		if (location.protocol == "file:" && !isDataUrl)
-			li.style.color = "grey"; // signal that these won’t load
-		ul.appendChild(li);
+		option.data = {
+			url: font.url,
+			filename: font.filename,
+			name: font.name,
+		};
 
-		// preload the font?
+		panelPart.appendChild(option);
+
+		// preload this font if it has preload property
 		if (font.preload && !preloaded) {
 
 			let vf = new SamsaFont({
@@ -3790,18 +3770,19 @@ window.onload = () => {
 			});
 
 			preloaded = true; // we preload max one font
-		}
+			Q(".font-selector").value = filename;
+		}		
 	}
-	panel.appendChild(ul);
 
 
 	// assign each panel to left or right panel-container
 	const panelsLeft = Q("#panels-left"), panelsRight = Q("#panels-right");
 	for (let panelInfo of CONFIG.panels) {
-		let panel = Q(`#${panelInfo.id}`);
-		let container = panelInfo.side == "left" ? panelsLeft : panelsRight;
-		panel.classList.add(panelInfo.open == false ? "closed" : "open");
-		container.appendChild(panel);		
+		if (panel = Q(`#${panelInfo.id}`)) { // = not ==
+			let container = panelInfo.side == "right" ? panelsRight : panelsLeft;
+			panel.classList.add(panelInfo.open == false ? "closed" : "open");
+			container.appendChild(panel);		
+		}
 	}
 }
 

@@ -67,9 +67,11 @@
 	font-weight: bold;
 }
 
+/* Selectors */
 * {
 	box-sizing: border-box;
 	font-family: inherit;
+	--panel-background-color: #eaeae3; /* light greyish */
 }
 
 html {
@@ -217,11 +219,10 @@ button {
 	overflow-y: scroll;
 }
 
-#panel-info .panel-content:not(:empty),
+#panel-fonts .panel-content:not(:empty),
 #panel-ui .panel-content:not(:empty),
 #panel-axes .panel-content:not(:empty),
 #panel-stat .panel-content:not(:empty),
-#panel-font-list .panel-content:not(:empty),
 #panel-media .panel-content:not(:empty),
 #panel-media .panel-content:not(:empty),
 #panel-about .panel-content:not(:empty),
@@ -229,20 +230,22 @@ button {
 	padding: .5rem .6rem;
 }
 
-/* this one has inline styles hence the !important */
-#panel-about .panel-content:not(:empty) {
-	padding: .5rem .6rem!important;
+#panel-fonts .font-info {
+	padding-top: 0.5em;
 }
-
 
 #panel-webfont .panel-content {
 	padding: 0 .5rem
 }
 
+#panel-about .panel-content {
+	font-size: 75%;
+}
+
 .panel > div {
 	position: relative;
 	width: 100%;
-	background-color: #eaeae3;
+	background-color: var(--panel-background-color);
 }
 
 .panel.closed > div {
@@ -276,7 +279,7 @@ button {
 
 #panel-glyphs .header {
 	width: 100%;
-	background-color: #eaeae3;
+	background-color: var(--panel-background-color);
 	padding: 2px 4px;
 	display: grid;
 	grid-template-columns: 35% 40%;
