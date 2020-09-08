@@ -230,8 +230,12 @@ button {
 	padding: .5rem .6rem;
 }
 
-#panel-fonts .font-info {
+#panel-fonts .font-info:not(:empty) {
 	padding-top: 0.5em;
+}
+
+#panel-fonts select {
+	max-width:100%;
 }
 
 #panel-webfont .panel-content {
@@ -240,6 +244,10 @@ button {
 
 #panel-about .panel-content {
 	font-size: 75%;
+}
+
+#panel-media.open .panel-content {
+	display:grid!important;
 }
 
 .panel > div {
@@ -293,14 +301,25 @@ button {
 	margin-left: .5em;
 }
 
-#panel-glyphs h2 #glyphs-ids {
-	padding: 3px 6px 1px 6px;
-}
-
 .instance {
 	background-color: white;
 	padding: 4px;
 	margin: 4px;
+	position:relative;
+}
+
+.instance svg {
+	display: block;
+	position:absolute;
+	top: 3px;
+}
+
+.instance div {
+	align-self:center
+}
+
+.instance input {
+	margin:0;
 }
 
 .tiles .instance {
@@ -395,14 +414,15 @@ pre {
 
 .texticon {
 	font-size: 75%;
-	border: 1px solid white;
+	border: 1px solid;
 	border-radius: 1em;
-	padding: 1px 2px;
+	padding: 3px 6px 1px 6px;
 }
 
 .texticon.active {
-	color: grey;
-	background-color: white;
+	color: #cacac5;
+	background-color: black;
+	border-color: black;
 }
 
 .icon:link,
