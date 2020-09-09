@@ -3478,15 +3478,12 @@ document.onclick = function (event) {
 function loadingAnimationStart() {
 	const fontInfo = Q("#panel-fonts .font-info");
 	const loading = EL("div");
-	console.log("loading");
 	const loadingIcon = EL("span");
 	fontInfo.style.minHeight = "6rem";
 	loadingIcon.classList.add("icon", "bold");
-
 	loading.classList.add("loading");
 	loading.appendChild(loadingIcon);
 	fontInfo.appendChild(loading);
-	console.log(loading);
 }
 
 

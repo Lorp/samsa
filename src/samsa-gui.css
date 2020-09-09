@@ -179,12 +179,13 @@ button .close {
 	font-size: 4rem;
 	padding: 0px 20px;
 	white-space: nowrap;
-	border-bottom: 1px solid lightgrey
+	overflow-x: hidden;
+	border-bottom: 1px solid lightgrey;
 }
 
 .font-file {
 	text-decoration: none;
-	cursor: pointer
+	cursor: pointer;
 }
 
 .font-file:hover {
@@ -261,9 +262,7 @@ button .close {
 	font-size: 3rem;
 	left: 12px;
 	top: 12px;
-	_margin: 10px 80px 0 0;
 	animation: rotate-360 infinite linear 1.5s;
-	_top: 16px;
 }
 
 #panel-fonts .loading {
@@ -272,7 +271,6 @@ button .close {
 	top: 0;
 	left: 0;
 	min-height: 100%;
-	_z-index: 1;
 	background-color: var(--color-panel-background);
 }
 
