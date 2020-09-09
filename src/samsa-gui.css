@@ -67,6 +67,15 @@
 	font-weight: bold;
 }
 
+@keyframes rotate-360 {
+	0% {
+		transform: rotate(0turn);
+	}
+	100% {
+		transform: rotate(1turn);
+	}
+}
+
 /* Selectors */
 * {
 	box-sizing: border-box;
@@ -240,10 +249,35 @@ button .close {
 
 #panel-fonts .font-info:not(:empty) {
 	padding-top: 0.5em;
+	position: relative;
 }
 
 #panel-fonts select {
 	max-width: 100%;
+}
+
+#panel-fonts .loading .icon {
+	position: absolute;
+	font-size: 3rem;
+	left: 12px;
+	top: 12px;
+	_margin: 10px 80px 0 0;
+	animation: rotate-360 infinite linear 1.5s;
+	_top: 16px;
+}
+
+#panel-fonts .loading {
+	position: absolute;
+	width: 100%;
+	top: 0;
+	left: 0;
+	min-height: 100%;
+	_z-index: 1;
+	background-color: var(--color-panel-background);
+}
+
+#panel-fonts .loading .icon::before {
+	content: '\f2f1';
 }
 
 #panel-webfont .panel-content {

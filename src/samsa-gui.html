@@ -833,6 +833,8 @@ function exportImage (format, filename="samsa-drawing", params) {
 
 function vfLoaded (font) {
 
+	//loadingAnimationEnd();
+
 	GLOBAL.vf = font;
 	let panel, panelPart;
 
@@ -3472,14 +3474,35 @@ document.onclick = function (event) {
 }
 
 
+
+function loadingAnimationStart() {
+	const fontInfo = Q("#panel-fonts .font-info");
+	const loading = EL("div");
+	console.log("loading");
+	const loadingIcon = EL("span");
+	fontInfo.style.minHeight = "6rem";
+	loadingIcon.classList.add("icon", "bold");
+
+	loading.classList.add("loading");
+	loading.appendChild(loadingIcon);
+	fontInfo.appendChild(loading);
+	console.log(loading);
+}
+
+
+function loadingAnimationEnd() {
+	const loading = Q("#panel-fonts .font-info .loading");
+	if (loading)
+		loading.remove();
+}
+
+
 // handle click to upload file
 Q("#file-upload-input").addEventListener("change", ev => {
 
-	console.log("ok we got input");
-	console.log(ev.target.files[0]);
+	loadingAnimationStart();
 
 	const file = ev.target.files[0];
-
 	Q("body").style.cursor = "wait";
 
     const reader = new FileReader();
@@ -3536,6 +3559,7 @@ function dropHandler(ev) {
 
 			// if this item is not a file, reject it
 			if (ev.dataTransfer.items[i].kind === "file") {
+				loadingAnimationStart();
 				const file = ev.dataTransfer.items[i].getAsFile();
 				const reader = new FileReader();
 				reader.__file__ = file;
@@ -3687,6 +3711,7 @@ Q("#panel-fonts .font-selector").addEventListener("change", e => {
 		}
 		else {
 			// load the font
+			loadingAnimationStart();
 			let vf = new SamsaFont({
 				fontFamily: "FontNameShouldGoHere",
 				filename: option.data.filename,
