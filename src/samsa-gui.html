@@ -3593,47 +3593,63 @@ SVGElement.prototype.attrsSVG = function (attrs) {
 };
 
 
-document.addEventListener("keydown", ev => {
+document.onkeydown = e => {
 
-	if (ev.key == " " && GLOBAL.vf) {
-		const el = ev.target;
+	const font = GLOBAL.vf;
+
+	// space key: switch to preview mode
+	if (e.key == " " && GLOBAL.vf) {
+		const el = e.target;
 		const tagName = el.tagName.toLowerCase();
 		if (el.isContentEditable || (tagName == "input" && el.type == "text") || tagName == "textarea") {
 			return true;
 		}
 
-		if (ev.repeat) {
-			ev.preventDefault(); // we don’t want anything to scroll, which is default behaviour for space
+		if (e.repeat) {
+			e.preventDefault(); // we don’t want anything to scroll, which is default behaviour for space
 			return true;
 		}
 
-		// switch to preview mode if not in preview mode
-		ev.preventDefault();
+		// switch to preview UI mode if not in preview UI mode
+		e.preventDefault();
 		if (Q("#ui-mode").value != "preview") {
 			const saveScrollY = Q("#panels-left").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
-			GLOBAL.quickPreviewSaved = GLOBAL.vf.config.ui.name;
-			GLOBAL.vf.config.ui = GLOBAL.vf.config.uiModes["preview"];
-			let instance = GLOBAL.vf.addInstance(null, {tuple: GLOBAL.tuple});
+			GLOBAL.quickPreviewSaved = font.config.ui.name;
+			font.config.ui = font.config.uiModes["preview"];
+			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
 			setActiveGlyph (GLOBAL.currentGlyphId, instance);
-			GLOBAL.vf.instances.pop();
+			font.instances.pop();
 			Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 		}
 		return false;
 	}
 
-	if (ev.keyCode == 27) {
+	// escape key
+	if (e.keyCode == 27) {
 		removeOverlay();
 	}
 
-});
+	// alt-left-arrow and alt-right-arrow: next/previous glyph
+	if ((e.keyCode == 37 || e.keyCode == 39) && e.altKey) {
+		console.log(e);
+		e.preventDefault();
+		let increment = e.keyCode == 37 ? -1 : 1;
+		GLOBAL.currentGlyphId = (GLOBAL.currentGlyphId + increment + font.numGlyphs) % font.numGlyphs;
+
+		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		setActiveGlyph (GLOBAL.currentGlyphId, instance);
+		font.instances.pop();
+	}
+
+};
 
 
-document.addEventListener("keyup", ev => {
+document.onkeyup = e => {
 
-	if (ev.key == " " && GLOBAL.vf) {
-		// switch to preview mode if not in preview mode
+	if (e.key == " " && GLOBAL.vf) {
+		// switch from preview UI mode back to the saved UI mode
 		if (GLOBAL.quickPreviewSaved) {
-			ev.preventDefault();
+			e.preventDefault();
 			GLOBAL.vf.config.ui = GLOBAL.vf.config.uiModes[GLOBAL.quickPreviewSaved];
 			GLOBAL.quickPreviewSaved = null;
 			let instance = GLOBAL.vf.addInstance(null, {tuple: GLOBAL.tuple});
@@ -3643,7 +3659,7 @@ document.addEventListener("keyup", ev => {
 		return false;
 	}
 
-});
+};
 
 
 // filter by glyph name or glyph id
