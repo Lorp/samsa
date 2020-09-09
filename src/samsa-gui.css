@@ -71,7 +71,9 @@
 * {
 	box-sizing: border-box;
 	font-family: inherit;
-	--panel-background-color: #eaeae3; /* light greyish */
+	--color-panel-background: #EAEAE3; /* light greyish */
+	--color-panel-header: #CACAC5; /* mid grey */
+	--color-active: #E1F5FE; /* light blue */
 }
 
 html {
@@ -111,8 +113,14 @@ button {
 	border-radius: 3px;
 	border: 1px solid darkgrey;
 	border-width: 0 1px 1px 0;
-	background: #cacac5;
+	background: var(--color-panel-header);
 	font-weight: 500;
+}
+
+button .close {
+	position: absolute;
+	top: 1em;
+	right: 1em;
 }
 
 #container {
@@ -191,9 +199,9 @@ button {
 
 .panel-container h2 {
 	position: relative;
-	font-size: 1em;
-	font-weight: 600;
-	background-color: #cacac5;
+	font-size: 1.1em;
+	font-weight: 599; /* this was 600 but macOS 10.14 Safari 12 adds faux-bold at that weight! */
+	background-color: var(--color-panel-header);
 	color: black;
 	margin: 0;
 	border-bottom: 1px solid darkgrey;
@@ -230,12 +238,21 @@ button {
 	padding: .5rem .6rem;
 }
 
-#panel-fonts .font-info {
+#panel-fonts .font-info:not(:empty) {
 	padding-top: 0.5em;
+}
+
+#panel-fonts select {
+	max-width: 100%;
 }
 
 #panel-webfont .panel-content {
 	padding: 0 .5rem
+}
+
+#panel-media .media-grid {
+	display: grid;
+	grid-template-columns: auto auto;
 }
 
 #panel-about .panel-content {
@@ -245,7 +262,7 @@ button {
 .panel > div {
 	position: relative;
 	width: 100%;
-	background-color: var(--panel-background-color);
+	background-color: var(--color-panel-background);
 }
 
 .panel.closed > div {
@@ -279,7 +296,7 @@ button {
 
 #panel-glyphs .header {
 	width: 100%;
-	background-color: var(--panel-background-color);
+	background-color: var(--color-panel-background);
 	padding: 2px 4px;
 	display: grid;
 	grid-template-columns: 35% 40%;
@@ -298,9 +315,28 @@ button {
 }
 
 .instance {
+	position:relative;
 	background-color: white;
 	padding: 4px;
 	margin: 4px;
+}
+
+.instance .preview {
+	position: relative;
+}
+
+.instance .preview svg {
+	display: block;
+	position: absolute;
+	top: -11px;
+}
+
+.instance div {
+	align-self: center
+}
+
+.instance input {
+	margin: 0;
 }
 
 .tiles .instance {
@@ -366,7 +402,7 @@ button {
 }
 
 .active {
-	background-color: #E1F5FE;
+	background-color: var(--color-active);
 }
 
 code {
@@ -395,14 +431,18 @@ pre {
 
 .texticon {
 	font-size: 75%;
-	border: 1px solid white;
+	_border: 1px solid white;
+	_padding: 1px 2px;
+
+	border: 1px solid;
 	border-radius: 1em;
-	padding: 1px 2px;
+	padding: 3px 6px 1px 6px;	
 }
 
 .texticon.active {
-	color: grey;
-	background-color: white;
+	color: var(--color-panel-header);
+	background-color: black;
+	border-color: black;	
 }
 
 .icon:link,

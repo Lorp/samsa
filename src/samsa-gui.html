@@ -105,7 +105,9 @@
 
 	<div id="panel-media" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Media</h2>
-		<div class="panel-content"></div>
+		<div class="panel-content">
+			<div class="media-grid"></div>
+		</div>
 	</div>
 
 	<div id="panel-about" class="panel open">
@@ -651,6 +653,7 @@ function appendInstanceEl(instance, select) {
 	// SVG of the A glyph
 	// - would current glyph be better? ... the image serves as a kind of visual label, but...
 	let cell1 = document.createElement("div");
+	cell1.classList.add("preview");
 	let svg = SVG("svg");
 
 	let glyph = font.glyphs[getDefaultGlyphId(font)];
@@ -661,11 +664,10 @@ function appendInstanceEl(instance, select) {
 		// simple glyph
 		let svgPath = SVG("path");
 		let svgg = SVG("g");
-		let scale = 0.02 * 1000 / font.unitsPerEm;
+		let scale = 20 / font.unitsPerEm;
 		svg.setAttributeNS(null, "width","30");
 		svg.setAttributeNS(null, "height","30");
 		svgg.setAttributeNS(null, "transform", `translate(4,20) scale(${scale},-${scale})`);
-		
  		svgPath.setAttributeNS(null, "d", iglyph.svgPath());
 		svgg.appendChild(svgPath);
 		svg.appendChild(svgg);
@@ -834,6 +836,7 @@ function vfLoaded (font) {
 	GLOBAL.vf = font;
 	let panel, panelPart;
 
+	GLOBAL.currentGlyphId = 0;
 	GLOBAL.tvtToggles = [];
 
 	// set up initial global tuple, the default designspace location
@@ -856,7 +859,6 @@ function vfLoaded (font) {
 	// Filename box
 	///////////////////////////////////////////////////////
 	Q("#font-file").innerText = font.filename; // or font.names[6];
-
 
 
 	///////////////////////////////////////////////////////
@@ -932,18 +934,17 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Media panel
 	///////////////////////////////////////////////////////
-	panel = Q("#panel-media>div");
-	panel.innerText = "";
-	panel.style.display = "grid";
-	panel.style.gridTemplateColumns = "auto auto auto";
+	let mediaGrid = Q("#panel-media .media-grid");
+	mediaGrid.innerText = "";
 
 	// export buttons
-	panel.innerHTML += `<div></div><div></div><button id="export-svg">Export SVG</button>`;
-	panel.innerHTML += `<div></div><div></div><button id="export-png">Export PNG</button>`;
-	panel.innerHTML += `<div></div><div></div><button id="export-mp4">Export MP4</button>`;
-	panel.innerHTML += `<label>Select axis</label>`;
+	mediaGrid.innerHTML += `<div></div><button id="export-svg">Export SVG</button>`;
+	mediaGrid.innerHTML += `<div></div><button id="export-png">Export PNG</button>`;
+	mediaGrid.innerHTML += `<div></div><button id="export-mp4">Export MP4</button>`;
+	let svgAxisSel = EL("div");
+	svgAxisSel.innerHTML += `<label>Select axis</label>`;
 
-	// axis selector	
+	// axis selector
 	let mediaAxisSelect = EL("select");
 	mediaAxisSelect.id = "svg-animation-axis";
 	font.axes.forEach(axis => {
@@ -952,164 +953,124 @@ function vfLoaded (font) {
 		option.innerText = `${axis.tag} (${axis.id})`;
 		mediaAxisSelect.appendChild(option);
 	});
-	panel.appendChild(mediaAxisSelect);
-	panel.innerHTML += `<button id="export-svg-animation">Export SVG animation</button>`;
+	svgAxisSel.appendChild(mediaAxisSelect);
+	mediaGrid.appendChild(svgAxisSel);
+	mediaGrid.innerHTML += `<button id="export-svg-animation">Export SVG animation</button>`;
 	
 	// SVG export
 	Q("#export-svg").addEventListener("click", () => {
 		exportImage ("svg");
 	});
 
-	// SVG export
-	if (Q("#export-svg-animation")) {
+	// SVG animation export
+	Q("#export-svg-animation").addEventListener("click", () => {
 
-		Q("#export-svg-animation").addEventListener("click", () => {
+		// build special animation object to pass to the exporter
+		// - MDN https://developer.mozilla.org/en-US/docs/Web/SVG/Element/animate
+		// - CSS-Tricks/Sara Soueidan https://css-tricks.com/guide-svg-animations-smil/
 
-			// build special animation object object to pass to the exporter
-			// - MDN https://developer.mozilla.org/en-US/docs/Web/SVG/Element/animate
-			// - CSS-Tricks/Sara Soueidan https://css-tricks.com/guide-svg-animations-smil/
+		// for every single-axis tuple that controls axis 0
+		// - record start, peak, end
+		// - build this into a sorted array of timing values
+		// - then use this array of timing values to get the required instances
 
-			// for every single-axis tuple that controls axis 0
-			// - record start, peak, end
-			// - build this into a sorted array of timing values
-			// - then use this array of timing values to get the required instances
-
-			// let’s build fvs, not tuple, so we don’t need to worry about avar or whether default is at min or max
-			// - hmm, are you sure? we’re using normalized values because we parse tvts
+		// let’s build fvs, not tuple, so we don’t need to worry about avar or whether default is at min or max
+		// - hmm, are you sure? we’re using normalized values because we parse tvts
 
 
-			let fvs = {};
-			let glyph = font.glyphs[GLOBAL.currentGlyphId];
-			let keyTimesSet = new Set();
-			let thisAxis = Q("#panel-media #svg-animation-axis").value;
-			let svgAnimation;
+		let fvs = {};
+		let glyph = font.glyphs[GLOBAL.currentGlyphId];
+		let keyTimesSet = new Set();
+		let thisAxis = Q("#panel-media #svg-animation-axis").value;
+		let svgAnimation;
 
-			// find the tvts that only affect the chosen axis, then record their start, peak, end
-			glyph.tvts.forEach(tvt => {
+		// find the tvts that only affect the chosen axis, then record their start, peak, end
+		glyph.tvts.forEach(tvt => {
 
-				// check it’s just axis 0 that is non-zero
-				if (tvt.peak[thisAxis] != 0.0) {
+			// check it’s just axis 0 that is non-zero
+			if (tvt.peak[thisAxis] != 0.0) {
 
-					let valid = true;
-					for (let a=0; a<font.axes.length; a++) {
-						if (tvt.peak[a] != 0.0 && a != thisAxis) {
-							valid = false;
-							break;
-						}
-					}
-					if (valid) {
-						keyTimesSet.add(tvt.start[thisAxis]).add(tvt.peak[thisAxis]).add(tvt.end[thisAxis]);
+				let valid = true;
+				for (let a=0; a<font.axes.length; a++) {
+					if (tvt.peak[a] != 0.0 && a != thisAxis) {
+						valid = false;
+						break;
 					}
 				}
+				if (valid) {
+					keyTimesSet.add(tvt.start[thisAxis]).add(tvt.peak[thisAxis]).add(tvt.end[thisAxis]);
+				}
+			}
+		});
+
+		if (keyTimesSet.size > 0) {
+
+			// create a sorted keyTimes array from the set of unique values
+			let keyTimes = Array.from(keyTimesSet).sort((a, b) => a - b);
+			let keyTimesZeroOne; // normalized on a scale from 0 to 1
+			let keyPaths = [];
+			keyTimes.forEach(T => {
+
+				let animInstance, iglyph;
+				let frameTuple = []; // create tuple for this frame’s instance
+				for (let a=0; a < font.axes.length; a++) {
+					frameTuple[a] = a==thisAxis ? T : 0; // animate the <thisAxis> axis
+				}
+				
+				animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
+				iglyph = glyph.instantiate(animInstance.tuple);
+				keyPaths.push(iglyph.decompose(frameTuple).svgPath());
+
+				font.instances.pop(); // pop instance
 			});
 
-			if (keyTimesSet.size > 0) {
-
-				// create a sorted keyTimes array from the set of unique values
-				let keyTimes = Array.from(keyTimesSet).sort((a, b) => a - b);
-				let keyTimesZeroOne; // normalized on a scale from 0 to 1
-				let keyPaths = [];
+			// create keyTimesZeroOne array, normalized onto range [0,1]
+			let kMin=keyTimes[0], kMax=keyTimes[keyTimes.length-1];
+			if (kMin == 0.0 && kMax == 1.0)
+				keyTimesZeroOne = keyTimes;
+			else {
+				keyTimesZeroOne = [];
 				keyTimes.forEach(T => {
-
-					let animInstance, iglyph;
-					let frameTuple = []; // create tuple for this frame’s instance
-					for (let a=0; a < font.axes.length; a++) {
-						frameTuple[a] = a==thisAxis ? T : 0; // animate the <thisAxis> axis
-					}
-					
-					animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
-					iglyph = glyph.instantiate(animInstance.tuple);
-					keyPaths.push(iglyph.decompose(frameTuple).svgPath());
-
-					font.instances.pop(); // pop instance
+					keyTimesZeroOne.push((T-kMin) / (kMax-kMin));
 				});
-
-				// create keyTimesZeroOne array, normalized onto range [0,1]
-				let kMin=keyTimes[0], kMax=keyTimes[keyTimes.length-1];
-				if (kMin == 0.0 && kMax == 1.0)
-					keyTimesZeroOne = keyTimes;
-				else {
-					keyTimesZeroOne = [];
-					keyTimes.forEach(T => {
-						keyTimesZeroOne.push((T-kMin) / (kMax-kMin));
-					});
-				}
-
-				// build svg using keyPaths and keyTimes
-				svgAnimation = {
-					attributeName: "d",
-					dur: "5s",
-					values: keyPaths.join(";"),
-					keyTimes: keyTimesZeroOne.join(";"),
-					repeatCount: "indefinite",
-				};
 			}
-			if (svgAnimation)
-				exportImage ("svg-animation", "samsa-animation", svgAnimation);
-		});
-	}
+
+			// build svg using keyPaths and keyTimes
+			svgAnimation = {
+				attributeName: "d",
+				dur: "5s",
+				values: keyPaths.join(";"),
+				keyTimes: keyTimesZeroOne.join(";"),
+				repeatCount: "indefinite",
+			};
+		}
+		if (svgAnimation)
+			exportImage ("svg-animation", "samsa-animation", svgAnimation);
+	});
+
 	// PNG export
 	Q("#export-png").addEventListener("click", () => {
 		exportImage ("png");
 	});
 
-	if (Q("#export-mp4")) {
+	// MP4 export
+	Q("#export-mp4").addEventListener("click", () => {
 
-		Q("#export-mp4").addEventListener("click", () => {
+		// TODO: more efficient to just make one canvas, and blank it for each frame?
 
-			// TODO: more efficient to just make one canvas, and blank it for each frame?
+		if (0) {
+			GLOBAL.animSteps = 10;
+			GLOBAL.animCurrent = 0;
 
-			if (0) {
-				GLOBAL.animSteps = 10;
-				GLOBAL.animCurrent = 0;
+			function doAnimationFrame () {
+				if (GLOBAL.animCurrent < GLOBAL.animSteps) {
 
-				function doAnimationFrame () {
-					if (GLOBAL.animCurrent < GLOBAL.animSteps) {
-
-						let animInstance, iglyph;
-						let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
-						let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
-						let T = Tmin + GLOBAL.animCurrent/(GLOBAL.animSteps-1) * (Tmax-Tmin);
-						let frameNumberStr = GLOBAL.animCurrent.toString();
-						while (frameNumberStr.length < 3)
-							frameNumberStr = `0${frameNumberStr}`;
-
-						let frameTuple = []; // create tuple for this frame’s instance
-						for (let a=0; a < font.axes.length; a++) {
-							frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
-						}
-						
-						animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
-						iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
-
-						setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
-						exportImage ("png", `samsa-frame${frameNumberStr}`, {frameNumbers: false}); // place SVG on canvas, export canvas as PNG
-						font.instances.pop(); // pop instance
-
-						GLOBAL.animCurrent++;
-					}
-					else {
-						console.log(`end`);
-						clearInterval (GLOBAL.animTimer);
-						GLOBAL.animTimer = undefined;
-					}
-
-				}
-
-				GLOBAL.animTimer = setInterval(doAnimationFrame, 200);
-			}
-			else {
-
-				const steps = 50;
-
-				for (let s=0; s<steps; s++) {
-
-					let animInstance, glyph, iglyph;
+					let animInstance, iglyph;
 					let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
 					let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
-					let T = Tmin + s/(steps-1) * (Tmax-Tmin);
-					let frameNumberStr = s.toString();
-					while (frameNumberStr.length < 3) // generate frame number string (TODO: write padWithZeroes() function)
+					let T = Tmin + GLOBAL.animCurrent/(GLOBAL.animSteps-1) * (Tmax-Tmin);
+					let frameNumberStr = GLOBAL.animCurrent.toString();
+					while (frameNumberStr.length < 3)
 						frameNumberStr = `0${frameNumberStr}`;
 
 					let frameTuple = []; // create tuple for this frame’s instance
@@ -1118,27 +1079,63 @@ function vfLoaded (font) {
 					}
 					
 					animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
-					glyph = font.glyphs[GLOBAL.currentGlyphId];
-					iglyph = glyph.numContours < 0 ? glyph.decompose(animInstance.tuple) : glyph.instantiate(null, animInstance);
+					iglyph = glyphApplyVariations(font.glyphs[GLOBAL.currentGlyphId], null, animInstance); // make instance glyph
+
 					setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
 					exportImage ("png", `samsa-frame${frameNumberStr}`, {frameNumbers: false}); // place SVG on canvas, export canvas as PNG
 					font.instances.pop(); // pop instance
+
+					GLOBAL.animCurrent++;
+				}
+				else {
+					console.log(`end`);
+					clearInterval (GLOBAL.animTimer);
+					GLOBAL.animTimer = undefined;
 				}
 
-				// save shell script to invoke ffmpeg
-				let frameRate = 24;
-				let shellScript = `ffmpeg -r ${frameRate} -i samsa-frame%03d.png -vcodec libx264 -pix_fmt yuv420p samsa-movie.mp4`;
-				let scriptLink = document.createElement("a");
-				scriptLink.download = "samsa-movie.sh";
-				scriptLink.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(shellScript));
-				document.body.appendChild(scriptLink); // needed for Firefox, not Chrome or Safari
-				scriptLink.click();
-				document.body.removeChild(scriptLink);
 			}
 
-		});
-	}
+			GLOBAL.animTimer = setInterval(doAnimationFrame, 200);
+		}
+		else {
 
+			const steps = 50;
+
+			for (let s=0; s<steps; s++) {
+
+				let animInstance, glyph, iglyph;
+				let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
+				let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
+				let T = Tmin + s/(steps-1) * (Tmax-Tmin);
+				let frameNumberStr = s.toString();
+				while (frameNumberStr.length < 3) // generate frame number string (TODO: write padWithZeroes() function)
+					frameNumberStr = `0${frameNumberStr}`;
+
+				let frameTuple = []; // create tuple for this frame’s instance
+				for (let a=0; a < font.axes.length; a++) {
+					frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
+				}
+				
+				animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
+				glyph = font.glyphs[GLOBAL.currentGlyphId];
+				iglyph = glyph.numContours < 0 ? glyph.decompose(animInstance.tuple) : glyph.instantiate(null, animInstance);
+				setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
+				exportImage ("png", `samsa-frame${frameNumberStr}`, {frameNumbers: false}); // place SVG on canvas, export canvas as PNG
+				font.instances.pop(); // pop instance
+			}
+
+			// save shell script to invoke ffmpeg
+			let frameRate = 24;
+			let shellScript = `ffmpeg -r ${frameRate} -i samsa-frame%03d.png -vcodec libx264 -pix_fmt yuv420p samsa-movie.mp4`;
+			let scriptLink = document.createElement("a");
+			scriptLink.download = "samsa-movie.sh";
+			scriptLink.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(shellScript));
+			document.body.appendChild(scriptLink); // needed for Firefox, not Chrome or Safari
+			scriptLink.click();
+			document.body.removeChild(scriptLink);
+		}
+
+	});
 
 
 	///////////////////////////////////////////////////////
@@ -2178,7 +2175,7 @@ function updateGlyphsPanel(instance) {
 	panel.appendChild(panelHeader); // restore the header
 
 
-	const scale = 0.05 * 1000 / font.unitsPerEm;
+	const scale = 50 / font.unitsPerEm;
 	const showGlyphIds = Q("#panel-glyphs>h2 #glyphs-ids").classList.contains("active");
 
 	for (let g=0; g < font.numGlyphs; g++) {
@@ -3342,23 +3339,23 @@ document.onclick = function (event) {
 			doc = doc.replace( /`([^ \n]*?)`/g, `<code>$1</code>`); // <code>
 
 			// build ui
+			// - create the transparent overlay
 			const overlay = EL("div");
 			overlay.classList.add("popup-overlay");
 			document.body.appendChild(overlay);
 
+			// - create the help window
 			const help = EL("div");
-			help.id = "help-overlay";
 			help.classList.add("popup-modal");
+			help.id = "help-overlay";
 			help.innerHTML = doc;
 			document.body.appendChild(help);
 
+			// - create the "Close" button at top right
 			const closeButton = EL("button");
-			closeButton.style.position = "absolute";
-			closeButton.style.top = "1em";
-			closeButton.style.right = "2em";
+			closeButton.classList.add("close");
 			closeButton.innerText = "Close";
 			help.appendChild(closeButton);
-
 			closeButton.addEventListener("click", removeOverlay);
 			overlay.addEventListener("click", removeOverlay);
 						
@@ -3508,7 +3505,7 @@ Q("#file-upload-input").addEventListener("change", ev => {
 
 // show that dragging is active
 Q("#file-upload-input").addEventListener("dragenter", ev => {
-	Q("#drag-drop-zone").style.borderColor = "limegreen"; //"#d0f473";
+	Q("#drag-drop-zone").style.borderColor = "black";
 });
 Q("#file-upload-input").addEventListener("dragleave", ev => {
 	Q("#drag-drop-zone").style.borderColor = "grey";
