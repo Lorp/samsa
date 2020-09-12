@@ -241,8 +241,7 @@ button.close {
 #panel-ui .panel-content:not(:empty),
 #panel-axes .panel-content:not(:empty),
 #panel-stat .panel-content:not(:empty),
-#panel-media .panel-content:not(:empty),
-#panel-media .panel-content:not(:empty),
+#panel-media .media-grid:not(:empty),
 #panel-about .panel-content:not(:empty),
 #panel-glyphs .panel-content .header {
 	padding: .5rem .6rem;
@@ -406,6 +405,10 @@ button.close {
 }
 
 .glyph-thumb:hover > label {
+	z-index: 2;
+}
+
+.glyph-thumb.active > label {
 	background-color: black;
 	z-index: 1;
 }
@@ -443,11 +446,12 @@ code {
 }
 
 pre {
-	background-color: #eeeeee;
+	background-color: var(--color-panel-background);
 	color: #404040;
 	font-size: 75%;
 	font-weight: normal;
 	padding: 0.5em;
+	overflow: auto;
 }
 
 .icon {
@@ -583,7 +587,7 @@ pre {
 	width: 500px;
 	height: 80%;
 	position: fixed;
-	left: calc(50% - 200px);
+	left: calc(50% - 250px);
 	top: calc(50% - 40%);
 	background-color: beige;
 	border: 2px solid beige;
