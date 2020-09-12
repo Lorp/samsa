@@ -21,8 +21,9 @@
 	<div class="subtitle"></div>
 </div>
 
-<div id="drag-drop-zone" style="position: relative;">
-	<div>
+<div id="drag-drop-zone" class="drag-drop" style="position: relative;">
+	<div class="border"></div>
+	<div class="instructions">
 		<h1>Drop a variable font here</h1>
 		<p style="text-decoration: underline;">or click to select a variable font from your computer</p>
 		<p>or choose from the list of variable fonts on the left</p>
@@ -30,7 +31,7 @@
 	<input id="file-upload-input" type="file" style="position: absolute; left: 0; top: 0; opacity: 0.0; width: 100%; height: 100%;">
 </div>
 
-<div id="font-file" class="inactive" style="display:none;">
+<div id="font-file" class="drag-drop" style="display:none;">
 	<!-- &lt;drop a variable font here&gt; -->
 </div>
 
@@ -125,7 +126,7 @@
 
 </div>
 
-<div id="drawing" style="display:none;">
+<div id="drawing" class="drag-drop" style="display:none;">
 	
 	<div id="panels-right" class="panel-container"></div>
 	<div id="glyph-info" style="display:none;">
@@ -833,7 +834,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 
 function vfLoaded (font) {
 
-	//loadingAnimationEnd();
+	loadingAnimationEnd();
 
 	GLOBAL.vf = font;
 	let panel, panelPart;
@@ -854,7 +855,6 @@ function vfLoaded (font) {
 	Q("#font-file").style.display = "block";
 	Q("#drawing").style.display = "block";
 	Q("#container").style.backgroundColor = "transparent";
-	Q("body").style.cursor = "default";
 
 
 	///////////////////////////////////////////////////////
@@ -3474,7 +3474,6 @@ document.onclick = function (event) {
 }
 
 
-
 function loadingAnimationStart() {
 	const fontInfo = Q("#panel-fonts .font-info");
 	const loading = EL("div");
@@ -3488,29 +3487,22 @@ function loadingAnimationStart() {
 
 
 function loadingAnimationEnd() {
-	const loading = Q("#panel-fonts .font-info .loading");
+	let loading = Q("#panel-fonts .font-info .loading");
 	if (loading)
-		loading.remove();
+	 	loading.remove();
 }
 
 
-// handle click to upload file
-Q("#file-upload-input").addEventListener("change", ev => {
+// handles drag-drop drops and also handles the click to choose a file (because it’s an <input type="file">)
+Q("#file-upload-input").onchange = e => {
 
 	loadingAnimationStart();
-
-	const file = ev.target.files[0];
-	Q("body").style.cursor = "wait";
-
+	const file = e.target.files[0];
     const reader = new FileReader();
     reader.__file__ = file;
     reader.onload = function (event) {
 
-		console.log (this.result);
-		console.log (event.target);
-		console.log(this.__file__.size);
 		let vf = new SamsaFont({
-
 			arrayBuffer: this.result,
 			inFile: this.__file__.name,
 			filesize: this.__file__.size,
@@ -3521,15 +3513,23 @@ Q("#file-upload-input").addEventListener("change", ev => {
 
 	reader.readAsArrayBuffer(file); // https://stackoverflow.com/questions/22659164/read-a-drag-and-dropped-file
 
-});
+};
 
-// show that dragging is active
-Q("#file-upload-input").addEventListener("dragenter", ev => {
-	Q("#drag-drop-zone").style.borderColor = "black";
-});
-Q("#file-upload-input").addEventListener("dragleave", ev => {
-	Q("#drag-drop-zone").style.borderColor = "grey";
-});
+
+// handle drag onto drag-drop zones
+// - any element of class "drag-drop" is ok to drop on
+// - the file processing is handled in Q("#file-upload-input").addEventListener("change", ev => {
+document.ondragenter = e => {
+	if (e.target.closest(".drag-drop")) {
+		Q("#drag-drop-zone").style.display = "flex";
+		Q("#font-file").style.display = "none";
+		Q("#drag-drop-zone .border").style.borderColor = "black";
+	}
+	else { // dragged out of a drag-drop zone
+		Q("#drag-drop-zone").style.display = "none";
+		Q("#font-file").style.display = "block";
+	}
+};
 
 
 // destroy the elements that make the overlay popup
@@ -3539,49 +3539,6 @@ function removeOverlay () {
 		el.remove();
 	});
 }
-
-
-// handle the drag-drop
-// - https://developer.mozilla.org/en-US/docs/Web/API/HTML_Drag_and_Drop_API/File_drag_and_drop
-function dropHandler(ev) {
-  
-	ev.preventDefault(); // prevent default behavior (which is to open the file)
-
-	Q("body").style.cursor = "wait";
-
-	if (ev.dataTransfer.items) {
-		const numItems = 1; // ev.dataTransfer.items.length; // for now, only process the first file dropped
-
-		for (let i = 0; i < numItems; i++) {
-
-			// if this item is not a file, reject it
-			if (ev.dataTransfer.items[i].kind === "file") {
-				loadingAnimationStart();
-				const file = ev.dataTransfer.items[i].getAsFile();
-				const reader = new FileReader();
-				reader.__file__ = file;
-				reader.onload = function (event) {
-
-					let vf = new SamsaFont({
-						arrayBuffer: event.target.result,
-						inFile: this.__file__.name,
-						filesize: this.__file__.size,
-						date: this.__file__.lastModified,  // doesn't retrieve the real file date
-						callback: vfLoaded,
-					});
-				};
-			reader.readAsArrayBuffer(file); // https://stackoverflow.com/questions/22659164/read-a-drag-and-dropped-file
-			}
-		}
-	}
-}
-
-Q("#font-file").addEventListener("drop", dropHandler);
-Q("#font-file").addEventListener("dragover",function(e){
-	e = e || event;
-	e.preventDefault();
-},false);
-
 
 
 // method to attach multiple SVG attributes at once

@@ -126,7 +126,7 @@ button {
 	font-weight: 500;
 }
 
-button .close {
+button.close {
 	position: absolute;
 	top: 1em;
 	right: 1em;
@@ -428,7 +428,7 @@ button .close {
 	z-index: 1;
 }
 
-.inactive {
+#font-file {
 	color: grey;
 	font-style: italic;
 }
@@ -539,23 +539,45 @@ pre {
 	display: flex;
 	position: relative;
 	color: grey;
-	grid-area: 1 / 2 / 3 / 3;
+	grid-area: 1 / 2 / 3 / 3; /* occupy the upper-right and lower-right two cells in the *parent* grid */
 	background-color: beige;
 	align-items: center;
 	justify-content: center;
-	border: 4px dashed grey;
-	border-radius: 1.5em;
-	margin: 2em;
-	padding: 1em;
+	_border: 4px dashed grey;
+	_border-radius: 1.5em;
+	margin: 0;
+	padding: 0;
 }
 
-#drag-drop-zone > div {
+#drag-drop-zone .border {
+	position: absolute;
+ 	left: 2em;
+ 	top: 2em;
+ 	width: calc(100% - 4em);
+ 	height: calc(100% - 4em);
+	border: 4px dashed grey;
+	border-radius: 1.5em;
+	margin: 0;
+}
+
+#drag-drop-zone .instructions {
 	text-align: center;
 }
 
-#drag-drop-zone > div > p {
+#drag-drop-zone input {
+ 	position: absolute;
+ 	left: 0;
+ 	top: 0;
+ 	width: 100%;
+ 	height: 100%;
+ 	opacity: 0.0;
+}
+
+/*
+#__drag-drop-zone > div > p {
 	cursor: default;
 }
+*/
 
 .popup-modal {
 	width: 500px;
