@@ -404,13 +404,8 @@ button.close {
 	font-weight: 500
 }
 
-.glyph-thumb:hover > label {
-	z-index: 2;
-}
-
-.glyph-thumb.active > label {
+.glyph-thumb.active > label, .glyph-thumb:hover > label {
 	background-color: black;
-	z-index: 1;
 }
 
 #drawing {
