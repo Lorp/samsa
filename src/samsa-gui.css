@@ -258,7 +258,6 @@ button.close {
 
 #panel-fonts .loading .icon {
 	position: absolute;
-	font-size: 3rem;
 	left: 12px;
 	top: 12px;
 	animation: rotate-360 infinite linear 1.5s;
@@ -404,7 +403,11 @@ button.close {
 	font-weight: 500
 }
 
-.glyph-thumb.active > label, .glyph-thumb:hover > label {
+.glyph-thumb:hover > label {
+	background-color: black;
+}
+
+.glyph-thumb.active > label {
 	background-color: black;
 }
 
