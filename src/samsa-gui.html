@@ -2183,9 +2183,11 @@ function updateGlyphsPanel(instance) {
 	for (let g=0; g < font.numGlyphs; g++) {
 
 		let glyph = font.glyphs[g];
+		let glyphName = font.glyphs[g].name || "undefined";
 		let glyphThumb = document.createElement("div");
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
+		glyphThumb.setAttribute("title", `${g}: ${glyphName}`);
 
 		if (glyph) {
 
@@ -2216,7 +2218,7 @@ function updateGlyphsPanel(instance) {
 		// set the label for the glyph thumb: glyph name and glyph id
 		let label = document.createElement("label");
 		let spanName = document.createElement("span"), spanId = document.createElement("span");
-		spanName.innerText = font.glyphs[g].name || "undefined";
+		spanName.innerText = glyphName;
 		spanName.classList.add("name");
 		spanId.innerText = g;
 		spanId.classList.add("id");
