@@ -2,7 +2,7 @@
 @font-face {
 	font-family: IBMPlexVariable;
 	src: url(fonts/ui/IBMPlexSansVar-Roman.woff2) format("woff2");
-	font-weight: 1 1000;
+	font-weight: 100 700;
 	font-stretch: 85 100;
 }
 
@@ -10,7 +10,7 @@
 	font-family: IBMPlexVariable;
 	src: url(fonts/ui/IBMPlexSansVar-Italic.woff2) format("woff2");
 	font-style: italic;
-	font-weight: 1 1000;
+	font-weight: 100 700;
 	font-stretch: 85 100;
 }
 
