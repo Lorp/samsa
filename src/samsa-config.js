@@ -30,6 +30,12 @@ CONFIG.fontList = [
 		url: "fonts/Amstelvar-Roman-parametric-VF.ttf",
 	},
 	{
+		url: "fonts/Bitter-VariableFont_wght.ttf",
+	},
+	{
+		url: "fonts/Bitter-Italic-VariableFont_wght.ttf"
+	},
+	{
 		url: "fonts/DecovarAlpha-VF.ttf",
 	},
 	{
@@ -49,6 +55,12 @@ CONFIG.fontList = [
 	},
 	{
 		url: "fonts/LibreFranklinGX-Italic.ttf",
+	},
+	{
+		url: "fonts/Literata-VariableFont_opsz,wght.ttf"
+	},
+	{
+		url: "fonts/Literata-Italic-VariableFont_opsz,wght.ttf"
 	},
 	{
 		url: "fonts/MutatorSans.ttf",
