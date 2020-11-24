@@ -26,7 +26,7 @@
 	<div class="instructions">
 		<h1>Drop a variable font here</h1>
 		<p style="text-decoration: underline;">or click to select a variable font from your computer</p>
-		<p>or choose from the list of variable fonts on the left</p>
+		<p>or select from the drop-down list in the Fonts panel</p>
 	</div>
 	<input id="file-upload-input" type="file" style="position: absolute; left: 0; top: 0; opacity: 0.0; width: 100%; height: 100%;">
 </div>
@@ -129,14 +129,19 @@
 <div id="drawing" class="drag-drop" style="display:none;">
 	
 	<div id="panels-right" class="panel-container"></div>
-	<div id="glyph-info" style="display:none;">
-		<label>id</label><input class="id">
-		<label>name</label><input class="name">
-		<label>num-contours</label><input class="num-contours">
-		<label>num-points</label><input class="num-points">
-		<label>num-components</label><input class="num-components">
-		<label>glyph-size</label><input class="glyph-size">
-		<label>tuple-size</label><input class="tuple-size">
+	<div id="glyph-info" class="panel">
+		<h2>Glyph info</h2>
+		<div class="panel-content">
+			<label>id</label><input class="id">
+			<label>name</label><input class="name">
+			<label>curve-order</label><input class="curve-order">
+			<label>num-contours</label><input class="num-contours">
+			<label>num-points</label><input class="num-points">
+			<label>num-components</label><input class="num-components">
+			<label>glyph-size</label><input class="glyph-size">
+			<label>num-tuples</label><input class="num-tuples">
+			<label>tuple-size</label><input class="tuple-size">
+		</div>
 	</div>
 
 </div>
@@ -179,11 +184,15 @@ CONFIG.uiModes = {
 		},
 
 		designspace: {
-			colors: ["blue", "red"],
+			colors: ["blue", "red"], // these are used for the position indicators in the Designspace panel and for drawing their associated loci in the main window
 		},
 
 		tuple: {
 			colors: ["#f57670", "#c39921","#57b21f","#1ebf95","#1fb7e9","#a58efc","#f966d5"], // "ggplot2 hue" palette from https://serialmentor.com/dataviz/color-basics.html
+		},
+
+		axis: {
+			colors: ["#6991fc", "#5da2b2", "#5fa963", "#a88f30", "#c57c1d", "#df5c4b", "#b670d3", "#9381ef"], // taken from 5th column of "IBM Design v2.0 palette" https://medium.com/design-ibm/inclusive-color-sequences-for-data-viz-in-6-steps-712869b910c2
 		},
 
 		tupleNeedle: {
@@ -944,7 +953,7 @@ function vfLoaded (font) {
 	mediaGrid.innerHTML += `<div></div><button id="export-png">Export PNG</button>`;
 	mediaGrid.innerHTML += `<div></div><button id="export-mp4">Export MP4</button>`;
 	let svgAxisSel = EL("div");
-	svgAxisSel.innerHTML += `<label>Select axis</label>`;
+	svgAxisSel.innerHTML += `<label>Select axis</label> `;
 
 	// axis selector
 	let mediaAxisSelect = EL("select");
@@ -2477,20 +2486,17 @@ function updateTvts (glyph, iglyph) {
 				svgg.appendChild(path);
 
 				// draw current axis position
-				if (iglyph.instance && iglyph.instance.tuple[a] != 0) {
+				if (GLOBAL.tuple[a] != 0) {	
 					let needle = SVG("line");
 					let needleColor = ui.tupleNeedle.stroke;
-					needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: iglyph.instance.tuple[a]*20, y1: 0, x2: iglyph.instance.tuple[a]*20, y2: 20});
+					needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: GLOBAL.tuple[a]*20, y1: 0, x2: GLOBAL.tuple[a]*20, y2: 20});
 					svgg.appendChild(needle);
-					//tvtGraphEl.style.backgroundColor = "white";
 				}
 				tvtOrder++;
 			}
 
 			tvtGraph.appendChild(svgg);
 			tvtGraphEl.appendChild(tvtGraph);
-
-			//tvtGraphEl.style.textAlign = "right";
 			tvtGraphEl.style.display = "inline-block";
 			tvtGraphEl.style.width = "50px";
 			li.appendChild(tvtGraphEl);
@@ -2648,15 +2654,16 @@ function setActiveGlyph (g, instance) {
 	// display the feature variations for this glyph on the designspace svg
 	redrawFeatureVariationsBoxes(g);
 
-	/*
-	// disabled for now
+	// Glyph info panel is display:none for now
 	let glyphInfo = {
 		id: glyph.id,
 		name: glyph.name,
+		"curve-order": glyph.curveOrder,
 		"num-contours": glyph.numContours,
 		"num-points": glyph.numPoints,
 		"num-components": glyph.components.length,
 		"glyph-size": font.glyphOffsets[g+1] - font.glyphOffsets[g],
+		"num-tuples": glyph.tvts.length,
 		"tuple-size": font.tupleSizes[g],
 	};
 
@@ -2664,7 +2671,6 @@ function setActiveGlyph (g, instance) {
 	Object.keys(glyphInfo).forEach(elClass => {
 		panel.querySelector(`.${elClass}`).value = glyphInfo[elClass];
 	});
-	*/
 
 	updateGlyphSVG (g, instance);
 }
