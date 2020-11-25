@@ -534,6 +534,14 @@ pre {
 	border-radius: 3px;
 }
 
+#avar {
+	position: relative;
+	width: 100%;
+	min-height: 100px;
+	display: none;
+	left: -10px;
+}
+
 .no-select {
 	-webkit-user-select: none;
 	-moz-user-select: none;
