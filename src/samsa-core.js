@@ -180,7 +180,7 @@ function SamsaGlyph (init) {
 	this.components = [];
 	this.endPts = [];
 	this.tvts = [];
-	this.curveOrder = init.curveOrder || 2;
+	this.curveOrder = this.font.curveOrder;
 
 }
 
@@ -194,6 +194,7 @@ SamsaGlyph.prototype.decompose = function (tuple, params) {
 		id: this.id,
 		name: this.name,
 		font: this.font,
+		curveOrder: this.curveOrder,
 		decompositionForGlyph: this,
 	} );
 
@@ -319,6 +320,7 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 	newGlyph.type = "instance";
 	newGlyph.points = [];
 	newGlyph.touched = [];
+	newGlyph.curveOrder = this.curveOrder;
 	newGlyph.numContours = this.numContours;
 	newGlyph.components = this.components;
 	newGlyph.endPts = this.endPts;
@@ -565,52 +567,85 @@ SamsaGlyph.prototype.featureVariationsGlyphId = function (tuple) {
 SamsaGlyph.prototype.svgPath = function () {
 
 	let contours = [];
-	let contour, pt, pt_, c, p;
-
-	// convert the glyph contours into an SVG-compatible contours array
-	let startPt = 0;
-	for (endPt of this.endPts) {
-		const numPoints = endPt-startPt+1; // number of points in this contour
-		contour = [];
-
-		// insert on-curve points between any two consecutive off-curve points
-		for (p=startPt; p<=endPt; p++) {
-			pt = this.points[p];
-			pt_ = this.points[(p-startPt+1)%numPoints+startPt];
-			contour.push (pt);
-			if (pt[2] == 0 && pt_[2] == 0) // if we have 2 consecutive off-curve points...
-				contour.push ( [ (pt[0]+pt_[0])/2, (pt[1]+pt_[1])/2, 1 ] ); // ...we insert the implied on-curve point
-		}
-
-		// ensure SVG contour starts with an on-curve point
-		if (contour[0][2] == 0) // is first point off-curve?
-			contour.unshift(contour.pop()); // OPTIMIZE: unshift is slow, so maybe build two arrays, "actual" and "toAppend", where "actual" starts with an on-curve
-
-		// append this contour
-		contours.push(contour);
-
-		startPt = endPt+1;
-	}
-
-	// convert contours array to an actual SVG path
-	// - we’ve already fixed things so there are never consecutive off-curve points
+	let contour, pt, pt_, pt__, c, p, startPt;
 	let path = "";
-	for (contour of contours) {
-		for (p=0; p<contour.length; p++) {
-			pt = contour[p];
-			if (p==0)
-				path += `M${pt[0]} ${pt[1]}`;
-			else {
-				if (pt[2] == 0) { // off-curve point (consumes 2 points)
-					pt_ = contour[(++p) % contour.length]; // increments loop variable p
-					path += `Q${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]}`;
+
+	switch (this.curveOrder) {
+
+		// quadratic curves
+		case 2:
+
+			// LOOP 1: convert the glyph contours into an SVG-compatible contours array
+			startPt = 0;
+			for (endPt of this.endPts) {
+				const numPoints = endPt-startPt+1; // number of points in this contour
+				contour = [];
+
+				// insert on-curve points between any two consecutive off-curve points
+				for (p=startPt; p<=endPt; p++) {
+					pt = this.points[p];
+					pt_ = this.points[(p-startPt+1)%numPoints+startPt];
+					contour.push (pt);
+					if (pt[2] == 0 && pt_[2] == 0) // if we have 2 consecutive off-curve points...
+						contour.push ( [ (pt[0]+pt_[0])/2, (pt[1]+pt_[1])/2, 1 ] ); // ...we insert the implied on-curve point
 				}
-				else // on-curve point
-					path += `L${pt[0]} ${pt[1]}`;
-				if (p == contour.length-1)
-					path += "Z";
+
+				// ensure SVG contour starts with an on-curve point
+				if (contour[0][2] == 0) // is first point off-curve?
+					contour.unshift(contour.pop()); // OPTIMIZE: unshift is slow, so maybe build two arrays, "actual" and "toAppend", where "actual" starts with an on-curve
+
+				// append this contour
+				contours.push(contour);
+
+				startPt = endPt+1;
 			}
-		}
+
+			// LOOP 2: convert contours array to an actual SVG path
+			// - we’ve already fixed things in loop 1 so there are never consecutive off-curve points
+			for (contour of contours) {
+				for (p=0; p<contour.length; p++) {
+					pt = contour[p];
+					if (p==0)
+						path += `M${pt[0]} ${pt[1]}`;
+					else {
+						if (pt[2] == 0) { // off-curve point (consumes 2 points)
+							pt_ = contour[(++p) % contour.length]; // increments loop variable p
+							path += `Q${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]}`;
+						}
+						else // on-curve point
+							path += `L${pt[0]} ${pt[1]}`;
+						if (p == contour.length-1)
+							path += "Z";
+					}
+				}
+			}
+			break;
+
+		// cubic curves
+		// - EXPERIMENTAL!
+		// - for use with ttf-cubic format and cff (when we implement cff)
+		case 3:
+			startPt = 0;
+			for (endPt of this.endPts) {
+				for (p=0; p<endPt-startPt+1; p++) {
+					pt = this.points[startPt+p];
+					if (p==0)
+						path += `M${pt[0]} ${pt[1]}`;
+					else {
+						if (pt[2] == 0) { // off-curve point (consumes 3 points)
+							pt_ = this.points[startPt + ((++p) % (endPt-startPt+1))]; // increments loop variable p
+							pt__ = this.points[startPt + ((++p) % (endPt-startPt+1))]; // increments loop variable p
+							path += `C${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]} ${pt__[0]} ${pt__[1]}`;
+						}
+						else // on-curve point
+							path += `L${pt[0]} ${pt[1]}`;
+						if (p == (endPt-startPt+1)-1)
+							path += "Z";
+					}
+				}
+				startPt = endPt+1;
+			}
+			break;
 	}
 
 	return path;
@@ -811,9 +846,15 @@ function SamsaFont (init, config) {
 			case 0x00010000: // normal TrueType
 			case 0x74727565: // 'true' (as in Skia.ttf)
 				font.flavor = "truetype";
+				font.curveOrder = 2;
 				break;
 			case 0x4f54544f: // 'OTTO' (as in OpenType OTF fonts)
 				font.flavor = "cff";
+				font.curveOrder = 3;
+				break;
+			case 0x43554245: // 'CUBE' (for EXPERIMENTAL "ttf-cubic" fonts)
+				font.flavor = "CUBE";
+				font.curveOrder = 3;
 				break;
 			default:
 				font.errors.push ("Invalid first 4 bytes of the file. Must be one of: 0x00010000, 0x74727565, 0x4f54544f");
@@ -1679,7 +1720,12 @@ function SamsaFont (init, config) {
 		let offset = font.glyphOffsets[g];
 		let size = font.glyphSizes[g];
 		let pt;
-		let glyph = new SamsaGlyph( { id: g, name: font.glyphNames[g], font: font } );
+		let glyph = new SamsaGlyph( {
+			id: g,
+			name: font.glyphNames[g],
+			font: font,
+			curveOrder: font.curveOrder,
+		});
 		let fd, read, write;
 		if (node) {
 			fd = this.fd;

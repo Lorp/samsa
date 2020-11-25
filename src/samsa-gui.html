@@ -129,7 +129,7 @@
 <div id="drawing" class="drag-drop" style="display:none;">
 	
 	<div id="panels-right" class="panel-container"></div>
-	<div id="glyph-info" class="panel">
+	<div id="glyph-info" class="panel" style="display:none">
 		<h2>Glyph info</h2>
 		<div class="panel-content">
 			<label>id</label><input class="id">
@@ -935,11 +935,13 @@ function vfLoaded (font) {
 	panel.innerText = "AaBbCc";
 	panel.setAttribute("contentEditable", true);
 
-	// add the webfont
-	let webfontFace = new FontFace("Webfont", font.data.buffer)
-	webfontFace.load().then(webfontFace => {
-		document.fonts.add(webfontFace);
-	});
+	// add the webfont (not experimental CUBE fonts though)
+	if (font.flavor != "CUBE") {	
+		let webfontFace = new FontFace("Webfont", font.data.buffer)
+		webfontFace.load().then(webfontFace => {
+			document.fonts.add(webfontFace);
+		});
+	}
 
 
 	///////////////////////////////////////////////////////
@@ -3596,7 +3598,6 @@ document.onkeydown = e => {
 
 	// alt-left-arrow and alt-right-arrow: next/previous glyph
 	if ((e.keyCode == 37 || e.keyCode == 39) && e.altKey) {
-		console.log(e);
 		e.preventDefault();
 		let increment = e.keyCode == 37 ? -1 : 1;
 		GLOBAL.currentGlyphId = (GLOBAL.currentGlyphId + increment + font.numGlyphs) % font.numGlyphs;
