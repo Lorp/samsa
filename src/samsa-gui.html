@@ -580,7 +580,7 @@ Qall(".panel>h2").forEach(header => {
 	info.style.position = "absolute";
 	info.style.right = "0.5em";
 	info.style.top = "0.1em";
-	header.appendChild(info);
+	header.append(info);
 });
 
 
@@ -679,11 +679,11 @@ function appendInstanceEl(instance, select) {
 		svg.setAttributeNS(null, "height","30");
 		svgg.setAttributeNS(null, "transform", `translate(4,20) scale(${scale},-${scale})`);
  		svgPath.setAttributeNS(null, "d", iglyph.svgPath());
-		svgg.appendChild(svgPath);
-		svg.appendChild(svgg);
+		svgg.append(svgPath);
+		svg.append(svgg);
 	}
 
-	cell1.appendChild(svg);
+	cell1.append(svg);
 
 	// instance name
 	let cell2 = document.createElement("div");
@@ -708,11 +708,7 @@ function appendInstanceEl(instance, select) {
 	cell4.innerHTML = "&#xf358;"; //"&#xf56d;" // download
 
 	// append all the elements so far
-	li.appendChild(cell0);
-	li.appendChild(cell1);
-	li.appendChild(cell2);
-	li.appendChild(cell3);
-	li.appendChild(cell4);
+	li.append(cell0, cell1, cell2, cell3, cell4);
 
 	// all the axis settings
 	GLOBAL.vf.axes.forEach((axis, a) => {
@@ -720,14 +716,14 @@ function appendInstanceEl(instance, select) {
 		axisCell.style.fontSize = "75%";
 		axisCell.style.textAlign = "right";
 		axisCell.innerText = instance.fvs[axis.tag];
-		li.appendChild(axisCell);
+		li.append(axisCell);
 	});
 
 	// bind instance data to instance element
 	li.data = { instance: instance };
 
 	// append the instance DOM element
-	panel.appendChild(li);
+	panel.append(li);
 
 	cell2.addEventListener("input", ev => {
 		instance.name = ev.target.value;
@@ -757,7 +753,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 		let fauxLink = document.createElement("a");
 		fauxLink.download = filename + ".svg";
 		fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
-		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
+		document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
 		fauxLink.click();
 		fauxLink.remove();
 	}
@@ -776,7 +772,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 			canvas.setAttribute("height", 1000);
 			canvas.id = "samsa-drawing-canvas" + "-" + filename;
 			canvas.style.border = "1px solid red";
-			document.body.appendChild(canvas);
+			document.body.append(canvas);
 			let frameIndexStr = GLOBAL.frameIndex.toString();
 			while (frameIndexStr.length<3)
 				frameIndexStr = `0${frameIndexStr}`;
@@ -791,7 +787,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 			let fauxLink = document.createElement("a");
 			fauxLink.download = filename;
 			fauxLink.href = canvas.toDataURL('image/png'); // get pixels from canvas
-			document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
+			document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
 			fauxLink.click();
 			fauxLink.remove();
 			canvas.remove(); // better to just blank it each time, when exporting multiple frames?
@@ -820,9 +816,9 @@ function exportImage (format, filename="samsa-drawing", params) {
 			repeatCount: params.repeatCount,
 		});
 
-		svgInstance.appendChild(svgAnimate);
-		svgg.appendChild(svgInstance);
-		svg.appendChild(svgg);
+		svgInstance.append(svgAnimate);
+		svgg.append(svgInstance);
+		svg.append(svgg);
 		let svgCode = svg.outerHTML; // local scope svgCode
 
 		// same fixups as in simple "svg" export
@@ -833,7 +829,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 		let fauxLink = document.createElement("a");
 		fauxLink.download = filename + ".svg";
 		fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
-		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
+		document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
 		fauxLink.click();
 		fauxLink.remove();
 	}
@@ -964,10 +960,10 @@ function vfLoaded (font) {
 		let option = EL("option");
 		option.setAttribute("value", axis.id);
 		option.innerText = `${axis.tag} (${axis.id})`;
-		mediaAxisSelect.appendChild(option);
+		mediaAxisSelect.append(option);
 	});
-	svgAxisSel.appendChild(mediaAxisSelect);
-	mediaGrid.appendChild(svgAxisSel);
+	svgAxisSel.append(mediaAxisSelect);
+	mediaGrid.append(svgAxisSel);
 	mediaGrid.innerHTML += `<button id="export-svg-animation">Export SVG animation</button>`;
 	
 	// SVG export
@@ -1143,7 +1139,7 @@ function vfLoaded (font) {
 			let scriptLink = document.createElement("a");
 			scriptLink.download = "samsa-movie.sh";
 			scriptLink.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(shellScript));
-			document.body.appendChild(scriptLink); // needed for Firefox, not Chrome or Safari
+			document.body.append(scriptLink); // needed for Firefox, not Chrome or Safari
 			scriptLink.click();
 			document.body.removeChild(scriptLink);
 		}
@@ -1163,7 +1159,7 @@ function vfLoaded (font) {
 	liH.style.display = "grid";
 	liH.style.gridTemplateColumns = `35px 20px 1fr 50px 50px 50px 50px 10px`;
 	liH.innerHTML = `<label>Tag</label><label class="icon bold">&#xf129;</label><label>Name</label><label class="min icon bold" style="text-align:center;">&#xf13a;</label><label class="default icon bold" style="text-align:center;">&#xf015;</label><label class="max icon bold" style="text-align:center;">&#xf139;</label><label class="icon bold" style="text-align:center;">&#xf007;</label>`;
-	panel.appendChild(liH);
+	panel.append(liH);
 
 	// add each axis
 	font.axes.forEach((axis, a) => {
@@ -1200,9 +1196,9 @@ function vfLoaded (font) {
 		nudger.style.fontSize = "0.5rem";
 		nudger.innerHTML += `<div class="axis-nudge">+</div>`;
 		nudger.innerHTML += `<div class="axis-nudge">−</div>`;
-		li.appendChild(nudger);
+		li.append(nudger);
 
-		panel.appendChild(li);
+		panel.append(li);
 
 		// handle text input
 		li.querySelector(".axis-current").addEventListener("change", ev => {
@@ -1256,7 +1252,7 @@ function vfLoaded (font) {
 		slider.setAttribute("max", 1.0);
 		slider.setAttribute("step", 0.001);
 
-		panel.appendChild(slider);
+		panel.append(slider);
 
 		slider.data = li.data = {axis: axis, current: axis.default};
 
@@ -1300,9 +1296,7 @@ function vfLoaded (font) {
 	let axisValueLabel = EL("label");
 	axisValueLabel.innerText = "Number format";
 
-	grid.appendChild(axisValueLabel);
-	grid.appendChild(axisValueFormat);
-	grid.appendChild(addInstanceEl);
+	grid.append(axisValueLabel, axisValueFormat, addInstanceEl);
 
 	// avar toggle
 	if (font.avar.length > 0) {
@@ -1312,15 +1306,14 @@ function vfLoaded (font) {
 		avarChk.id = "avarChk";
 		avarLabel.innerText = "Show avar";
 		avarLabel.setAttribute("for", avarChk)
-		grid.appendChild(avarLabel);
-		grid.appendChild(avarChk);
+		grid.append(avarLabel, avarChk);
 
 		avarChk.addEventListener("change", ev => {
 			Q(`#avar`).style.display = avarChk.checked ? "block" : "none";
 		});
 	}
 
-	panel.appendChild(grid);
+	panel.append(grid);
 
 	// avar ui
 	const avarDiv = EL("div");
@@ -1353,7 +1346,7 @@ function vfLoaded (font) {
 					"stroke-width": 0.25,
 					fill: "none",
 				});
-				avarSVG.appendChild(rect);
+				avarSVG.append(rect);
 
 				axisMaps.forEach(map => {
 
@@ -1383,8 +1376,7 @@ function vfLoaded (font) {
 						fill: avarMapColor,
 					});
 
-					avarSVG.appendChild(arrowLine);
-					avarSVG.appendChild(arrowHead);
+					avarSVG.append(arrowLine, arrowHead);
 				});
 
 				// current line
@@ -1415,19 +1407,18 @@ function vfLoaded (font) {
 				avarCurrentLine.classList.add("avar-current");
 				avarCurrentHead.classList.add("avar-current");
 
-				avarSVG.appendChild(avarCurrentLine);
-				avarSVG.appendChild(avarCurrentHead);
+				avarSVG.append(avarCurrentLine, avarCurrentHead);
 
 				let titleEl = SVG("title");
 				titleEl.textContent = `${font.axes[a].default}\n→ ${0}\n → ${0}\n${font.axes[a].default}`;
-				avarSVG.appendChild(titleEl);
+				avarSVG.append(titleEl);
 
-				avarDiv.appendChild(avarSVG);
+				avarDiv.append(avarSVG);
 			}
 
 		});
 	}
-	panel.appendChild(avarDiv);
+	panel.append(avarDiv);
 
 	// handle events
 
@@ -1473,9 +1464,7 @@ function vfLoaded (font) {
 		const versionCol1 = EL("label");
 		versionCol0.innerText = "STAT version";
 		versionCol1.innerText = `${STAT.majorVersion}.${STAT.minorVersion}`;
-		grid.appendChild(versionCol0);
-		grid.appendChild(versionCol1);
-		grid.appendChild(new EL("div")); // blank
+		grid.append(versionCol0, versionCol1, new EL("div")); // last cell is blank
 
 		// for each STAT designAxis create a <select>; plus a <select> for multiaxis axisValueTables
 		let selects = [];
@@ -1489,7 +1478,7 @@ function vfLoaded (font) {
 			let option = EL("option");
 			option.value = -1;
 			option.innerText = "[no match]";
-			select.appendChild(option)
+			select.append(option)
 
 			selects.push(select);
 		}
@@ -1509,11 +1498,11 @@ function vfLoaded (font) {
 
 				case 1: case 2: case 3:
 					let designAxis = STAT.designAxes[avt.axisIndex];
-					selects[designAxis.axisOrdering].appendChild(option); // TODO: vulnerability when axisOrdering values are not well formed, zero-indexed ids
+					selects[designAxis.axisOrdering].append(option); // TODO: vulnerability when axisOrdering values are not well formed, zero-indexed ids
 					break;
 
 				case 4:
-					selects[STAT.designAxesSorted.length].appendChild(option); // append to the last select (for multi-axis records)
+					selects[STAT.designAxesSorted.length].append(option); // append to the last select (for multi-axis records)
 					break;
 			}
 
@@ -1527,7 +1516,7 @@ function vfLoaded (font) {
 				// handle a <select> without options
 				let option = EL("option");
 				option.innerText = "(none)";
-				select.appendChild(option);
+				select.append(option);
 				select.disabled = true;
 			}
 			else {
@@ -1576,9 +1565,7 @@ function vfLoaded (font) {
 				select.disabled = true;	
 
 			// append these to the grid
-			grid.appendChild(label);
-			grid.appendChild(select);
-			grid.appendChild(EL("label"));
+			grid.append(label, select, EL("label"));
 
 		});
 
@@ -1587,19 +1574,16 @@ function vfLoaded (font) {
 
 		input.id = "stat-composed-name";
 		input.readOnly = true;
-
 		label.innerText = "Composed name";
-		grid.appendChild(label);
-		grid.appendChild(input);
 
 		// "Add instance" button
 		let addInstanceEl = document.createElement("button");
 		addInstanceEl.innerText = "Add instance";
 		addInstanceEl.class = "instance-add";
-		grid.appendChild(addInstanceEl);
 
 		// add grid to the panel
-		panel.appendChild(grid);
+		grid.append(label, input, addInstanceEl);
+		panel.append(grid);
 
 		// set current STAT instance and add it to the Instances panel
 		addInstanceEl.addEventListener("click", () => {
@@ -1644,7 +1628,7 @@ function vfLoaded (font) {
 	let cartesian = document.createElement("div");
 	cartesian.id = "ds-cartesian";
 	cartesian.setAttribute("style", "width: 100%; height: 360px;");
-	panel.appendChild(cartesian);
+	panel.append(cartesian);
 
 	// checkboxes for X and Y axis assignment
 	let htmlX, htmlY;
@@ -1690,7 +1674,7 @@ function vfLoaded (font) {
 		let exportEl = document.createElement("button");
 		exportEl.innerText = "Export as .designspace";
 		exportEl.id = "instance-add";
-		panel.appendChild(exportEl);
+		panel.append(exportEl);
 
 		/*
 		<designspace format="3">
@@ -1721,16 +1705,14 @@ function vfLoaded (font) {
 			dsAxis.setAttribute("minimum", axis.min);
 			dsAxis.setAttribute("default", axis.default);
 			dsAxis.setAttribute("maximum", axis.max);
-			dsAxes.appendChild(dsAxis);
+			dsAxes.append(dsAxis);
 		})
 		// what to do about sources?
 		GLOBAL.vf.instances.forEach(instance => {
 			let dsInst = document.createElement("instance");
 			//dsInstances.appendChild(dsInst);
 		})
-		designspace.appendChild(dsAxes);
-		designspace.appendChild(dsSources);
-		designspace.appendChild(dsInstances);
+		designspace.append(dsAxes, dsSources, dsInstances);
 		console.log ("<?xml version='1.0' encoding='utf-8'?>\n" + designspace.outerHTML);
 	}
 
@@ -2013,13 +1995,9 @@ function buildDesignspace() {
 		"pointer-events": "none",
 	});
 
-	svgg.appendChild(svgFV);
-	svgg.appendChild(svgXVal);
-	svgg.appendChild(svgYVal);
-	svgg.appendChild(svgXYAxes);
-	svg.appendChild(svgg);
-
-	cartesian.appendChild(svg);
+	svgg.append(svgFV, svgXVal, svgYVal, svgXYAxes);
+	svg.append(svgg);
+	cartesian.append(svg);
 
 
 	// draw some glyphs (at named instance locations)
@@ -2185,7 +2163,7 @@ function updateGlyphsPanel(instance) {
 	const panelHeader = panel.querySelector(".header"); // save the header
 	panel.innerText = ""; // clear all
 	panelHeader.querySelectorAll("input").forEach(el => el.value = ""); // clear the input boxes
-	panel.appendChild(panelHeader); // restore the header
+	panel.append(panelHeader); // restore the header
 
 
 	const scale = 50 / font.unitsPerEm;
@@ -2220,9 +2198,9 @@ function updateGlyphsPanel(instance) {
 				"stroke-width": `${GLOBAL.vf.config.ui.glyphThumb.strokeWidth}px`,
 				fill: GLOBAL.vf.config.ui.glyphThumb.fill,
 			});
-			svgg.appendChild(svgPath);
-			svg.appendChild(svgg);
-			glyphThumb.appendChild(svg);
+			svgg.append(svgPath);
+			svg.append(svgg);
+			glyphThumb.append(svg);
 
 		}
 
@@ -2239,10 +2217,9 @@ function updateGlyphsPanel(instance) {
 			spanId.style.display = "none";
 
 		// append the elements
-		label.appendChild(spanName);
-		label.appendChild(spanId);
-		glyphThumb.appendChild(label);
-		panel.appendChild(glyphThumb);
+		label.append(spanName, spanId);
+		glyphThumb.append(label);
+		panel.append(glyphThumb);
 	}
 
 	setActiveGlyph(GLOBAL.currentGlyphId, instance);
@@ -2446,9 +2423,7 @@ function updateTvts (glyph, iglyph) {
 		}
 
 
-		li.appendChild(tvtId);
-		li.appendChild(tvtDeltas);
-		li.appendChild(tvtS);
+		li.append(tvtId, tvtDeltas, tvtS);
 
 		// add a graph for each axis
 		// - each graph is a single SVG element with descendants
@@ -2475,7 +2450,7 @@ function updateTvts (glyph, iglyph) {
 			pathG.setAttributeNS(null, "stroke", "darkgrey");
 			pathG.setAttributeNS(null, "stroke-width", "0.5");
 			pathG.setAttributeNS(null, "d", `M ${Sx*-1} 0 L ${Sx*1} 0 M 0 0 L 0 ${Sy*1}`);
-			svgg.appendChild(pathG);
+			svgg.append(pathG);
 
 			// draw tuple start, peak, end data
 			if (tvt.peak[a] != 0) { // “When a delta is provided for a region defined by n-tuples that have a peak value of 0 for some axis, then that axis does not factor into scalar calculations.”
@@ -2485,23 +2460,23 @@ function updateTvts (glyph, iglyph) {
 				path.setAttributeNS(null, "fill", "black");
 				path.setAttributeNS(null, "stroke", "none");
 				path.setAttributeNS(null, "d", pathD);
-				svgg.appendChild(path);
+				svgg.append(path);
 
 				// draw current axis position
 				if (GLOBAL.tuple[a] != 0) {	
 					let needle = SVG("line");
 					let needleColor = ui.tupleNeedle.stroke;
 					needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: GLOBAL.tuple[a]*20, y1: 0, x2: GLOBAL.tuple[a]*20, y2: 20});
-					svgg.appendChild(needle);
+					svgg.append(needle);
 				}
 				tvtOrder++;
 			}
 
-			tvtGraph.appendChild(svgg);
-			tvtGraphEl.appendChild(tvtGraph);
+			tvtGraph.append(svgg);
+			tvtGraphEl.append(tvtGraph);
 			tvtGraphEl.style.display = "inline-block";
 			tvtGraphEl.style.width = "50px";
-			li.appendChild(tvtGraphEl);
+			li.append(tvtGraphEl);
 
 			axisGraphs.push(tvtGraphEl);
 		}
@@ -2511,7 +2486,7 @@ function updateTvts (glyph, iglyph) {
 		li.classList.add("tvt-item");
 		let row = `<div class="index" style="height: 2em;background-color: ${ui.tuple.colors[t % ui.tuple.colors.length]}">${t}</div><div class="toggle bold icon">&#xf04b;</div><div class="points">${numDeltas}</div><div class="scalar" style="text-align: center;">${Math.round(sValue *1000)/1000}</div><div class="order">${tvtOrder}</div><div class="axes"></div>`;
 		li.innerHTML = row;
-		panel.appendChild(li);
+		panel.append(li);
 
 		li.querySelector(".toggle").addEventListener("click", ev => {
 
@@ -2530,7 +2505,7 @@ function updateTvts (glyph, iglyph) {
 		axesDiv.style.width = `${50 * axisGraphs.length}px`;
 		axesDiv.style.textAlign = "left";
 		for (const axisGraph of axisGraphs)
-  			axesDiv.appendChild(axisGraph);
+  			axesDiv.append(axisGraph);
 
 		// add deltas: <ol> containing multiple <li>
 		let ol = EL("ol");
@@ -2547,10 +2522,10 @@ function updateTvts (glyph, iglyph) {
 			if (delta === null)
 				li.style.color = "grey";
 
-			ol.appendChild(li);
+			ol.append(li);
 
 		});
-		panel.appendChild(ol);
+		panel.append(ol);
 
 	});
 
@@ -2613,7 +2588,7 @@ function redrawFeatureVariationsBoxes(g) {
 				strokeWidth: 0,
 				opacity: 0.25,
 			});
-			svgFV.appendChild(svgBox);
+			svgFV.append(svgBox);
 		}
 	}	
 }
@@ -2648,9 +2623,9 @@ function setActiveGlyph (g, instance) {
 	for (const axis of font.axes)
 		axesHeader.innerHTML += `<div style="display:inline-block;width:50px;"><code>${axis.tag}</code></div>`;
 
-	lh.appendChild(axesHeader);
+	lh.append(axesHeader);
 
-	panelTvts.appendChild(lh);
+	panelTvts.append(lh);
 
 
 	// display the feature variations for this glyph on the designspace svg
@@ -2777,7 +2752,7 @@ function updateGlyphSVG (g, instance) {
 						"stroke-width": ui.cartesianAxes.strokeWidth * uiScale,
 						fill: "none",
 					});
-					svgg.appendChild(svgPath);
+					svgg.append(svgPath);
 				}
 
 				// draw advance width
@@ -2797,7 +2772,7 @@ function updateGlyphSVG (g, instance) {
 							"stroke-dasharray": dashStr,
 						});
 					}
-					svgg.appendChild(svgPath);
+					svgg.append(svgPath);
 				}
 
 				break;
@@ -2823,7 +2798,7 @@ function updateGlyphSVG (g, instance) {
 					"stroke-width": ui.glyphDefault.strokeWidth * uiScale,
 					fill: ui.glyphDefault.fill,
 				});
-				svgg.appendChild(svgPath);
+				svgg.append(svgPath);
 
 				break;
 
@@ -2853,7 +2828,7 @@ function updateGlyphSVG (g, instance) {
 					svgPath.attrsSVG({ "stroke-dasharray": dashes.trim() }); // IUP implicit movement
 				}
 
-				svgg.appendChild(svgPath);
+				svgg.append(svgPath);
 
 				break;
 
@@ -2898,10 +2873,10 @@ function updateGlyphSVG (g, instance) {
 							pt[2] ? style.shape : style.shapeOffCurve,
 							style.size * uiScale);
 						if (svgEl)
-							svgg2.appendChild(svgEl);
+							svgg2.append(svgEl);
 					});
 
-					svgg.appendChild(svgg2);
+					svgg.append(svgg2);
 				}
 				break;
 
@@ -2942,13 +2917,12 @@ function updateGlyphSVG (g, instance) {
 							svgLine.attrsSVG({ "stroke-dasharray": 4 * uiScale }); // IUP implicit movement
 						}
 
-						svgg2.appendChild(svgLine);
-						svgg2.appendChild(svgArrowHead);
+						svgg2.append(svgLine, svgArrowHead);
 
 					}
 				});										
 
-				svgg.appendChild(svgg2);
+				svgg.append(svgg2);
 				break;
 
 
@@ -3016,8 +2990,7 @@ function updateGlyphSVG (g, instance) {
 								stroke: "none",
 							});
 
-							svgg2.appendChild(svgLine);
-							svgg2.appendChild(svgArrowHead);
+							svgg2.append(svgLine, svgArrowHead);
 						}
 						// show "pinned" points with a circle (these are points with 0,0 deltas, that protect other unmoved points that also do not move because of IUP)
 						// - hmm, not sure it is a good idea to try to visualize "pinned" points
@@ -3043,7 +3016,7 @@ function updateGlyphSVG (g, instance) {
 					});
 				});
 
-				svgg.appendChild(svgg2);
+				svgg.append(svgg2);
 				break;
 
 
@@ -3122,7 +3095,7 @@ function updateGlyphSVG (g, instance) {
 							"stroke-width": ui.loci.strokeWidth * uiScale,
 							opacity: ui.loci.opacity,
 						});
-						svgg2.appendChild(svgPolyline);
+						svgg2.append(svgPolyline);
 
 						// if railway mode, draw extra lines
 						if (ui.loci.style == "railway") {
@@ -3133,7 +3106,7 @@ function updateGlyphSVG (g, instance) {
 								stroke: "white",
 								"stroke-width": ui.loci.strokeWidth / 1.5 * uiScale,
 							});
-							svgg2.appendChild(svgPolyline);
+							svgg2.append(svgPolyline);
 
 							svgPolyline = SVG("polyline");
 							svgPolyline.attrsSVG({
@@ -3142,14 +3115,14 @@ function updateGlyphSVG (g, instance) {
 								"stroke-width": ui.loci.strokeWidth * 1.5 * uiScale,
 								"stroke-dasharray": `${1*uiScale} ${5*uiScale}`,
 							});
-							svgg2.appendChild(svgPolyline);
+							svgg2.append(svgPolyline);
 						}
 
 					});
 
 				}
 
-				svgg.appendChild(svgg2);
+				svgg.append(svgg2);
 				break;
 
 
@@ -3191,18 +3164,18 @@ function updateGlyphSVG (g, instance) {
 							"text-anchor": "end",
 						});
 
-					svgg2.appendChild(svgText);
+					svgg2.append(svgText);
 				});
 
-				svgg.appendChild(svgg2);
+				svgg.append(svgg2);
 				break;
 		}
 
 	});
 
 
-	svgEl.appendChild(svgg);
-	drawingEl.appendChild(svgEl);
+	svgEl.append(svgg);
+	drawingEl.append(svgEl);
 
 }
 
@@ -3241,7 +3214,7 @@ document.onclick = function (event) {
 		fauxLink.download = GLOBAL.vf.filename;
 		fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
 
-		document.body.appendChild(fauxLink); // needed for Firefox, not Chrome or Safari
+		document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
 		fauxLink.click();
 		fauxLink.remove();
 
@@ -3354,20 +3327,20 @@ document.onclick = function (event) {
 			// - create the transparent overlay
 			const overlay = EL("div");
 			overlay.classList.add("popup-overlay");
-			document.body.appendChild(overlay);
+			document.body.append(overlay);
 
 			// - create the help window
 			const help = EL("div");
 			help.classList.add("popup-modal");
 			help.id = "help-overlay";
 			help.innerHTML = doc;
-			document.body.appendChild(help);
+			document.body.append(help);
 
 			// - create the "Close" button at top right
 			const closeButton = EL("button");
 			closeButton.classList.add("close");
 			closeButton.innerText = "Close";
-			help.appendChild(closeButton);
+			help.append(closeButton);
 			closeButton.addEventListener("click", removeOverlay);
 			overlay.addEventListener("click", removeOverlay);
 						
@@ -3491,8 +3464,8 @@ function loadingAnimationStart() {
 	fontInfo.style.minHeight = "6rem";
 	loadingIcon.classList.add("icon", "bold");
 	loading.classList.add("loading");
-	loading.appendChild(loadingIcon);
-	fontInfo.appendChild(loading);
+	loading.append(loadingIcon);
+	fontInfo.append(loading);
 }
 
 
@@ -3738,7 +3711,7 @@ window.onload = () => {
 	let option = EL("option");
 	option.value = -1;
 	option.innerText = "[no font selected]";
-	panelPart.appendChild(option);
+	panelPart.append(option);
 	for (let font of CONFIG.fontList) {
 
 		// work out a filename if it doesn’t have one
@@ -3757,7 +3730,7 @@ window.onload = () => {
 			name: font.name,
 		};
 
-		panelPart.appendChild(option);
+		panelPart.append(option);
 
 		// preload this font if it has preload property
 		if (font.preload && !preloaded) {
@@ -3782,7 +3755,7 @@ window.onload = () => {
 		if (panel = Q(`#${panelInfo.id}`)) { // = not ==
 			let container = panelInfo.side == "right" ? panelsRight : panelsLeft;
 			panel.classList.add(panelInfo.open == false ? "closed" : "open");
-			container.appendChild(panel);		
+			container.append(panel);		
 		}
 	}
 }
