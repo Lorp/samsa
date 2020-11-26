@@ -1064,9 +1064,15 @@ function SamsaFont (init, config) {
 				table.sTypoLineGap = data.getInt16(p), p+=2;
 				table.usWinAscent = data.getUint16(p), p+=2;
 				table.usWinDescent = data.getUint16(p), p+=2;
-				p+=8
+				table.ulCodePageRange1 = data.getUint32(p), p+=4
+				table.ulCodePageRange2 = data.getUint32(p), p+=4
 				table.sxHeight = data.getInt16(p), p+=2
 				table.sCapHeight = data.getInt16(p), p+=2
+				table.usDefaultChar = data.getUint16(p), p+=2
+				table.usBreakChar = data.getUint16(p), p+=2
+				table.usMaxContext = data.getUint16(p), p+=2
+				table.usLowerOpticalPointSize = data.getUint16(p), p+=2
+				table.usUpperOpticalPointSize = data.getUint16(p), p+=2
 				break; // OS/2 end
 
 
