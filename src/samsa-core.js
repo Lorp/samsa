@@ -1033,46 +1033,54 @@ function SamsaFont (init, config) {
 
 			case "OS/2":
 
-				table.version = data.getUint16(p), p+=2;
-				table.xAvgCharWidth = data.getInt16(p), p+=2;
-				table.usWeightClass = data.getUint16(p), p+=2;
-				table.usWidthClass = data.getUint16(p), p+=2;
-				table.fsType = data.getUint16(p), p+=2;
-				table.ySubscriptXSize = data.getInt16(p), p+=2;
-				table.ySubscriptYSize = data.getInt16(p), p+=2;
-				table.ySubscriptXOffset = data.getInt16(p), p+=2;
-				table.ySubscriptYOffset = data.getInt16(p), p+=2;
-				table.ySuperscriptXSize = data.getInt16(p), p+=2;
-				table.ySuperscriptYSize = data.getInt16(p), p+=2;
-				table.ySuperscriptXOffset = data.getInt16(p), p+=2;
-				table.ySuperscriptYOffset = data.getInt16(p), p+=2;
-				table.yStrikeoutSize = data.getInt16(p), p+=2;
-				table.yStrikeoutPosition = data.getInt16(p), p+=2;
-				table.sFamilyClass = data.getInt16(p), p+=2;
-				table.panose = [data.getUint8(p), data.getUint8(p+1), data.getUint8(p+2), data.getUint8(p+3), data.getUint8(p+4), data.getUint8(p+5), data.getUint8(p+6), data.getUint8(p+7), data.getUint8(p+8), data.getUint8(p+9)];
-				p+=10;
-				table.ulUnicodeRange1 = data.getUint32(p), p+=4;
-				table.ulUnicodeRange2 = data.getUint32(p), p+=4;
-				table.ulUnicodeRange3 = data.getUint32(p), p+=4;
-				table.ulUnicodeRange4 = data.getUint32(p), p+=4;
-				table.achVendID = getStringFromData (data, p, 4), p+=4;
-				table.fsSelection = data.getUint16(p), p+=2;
-				table.usFirstCharIndex = data.getUint16(p), p+=2;
-				table.usLastCharIndex = data.getUint16(p), p+=2;
-				table.sTypoAscender = data.getInt16(p), p+=2;
-				table.sTypoDescender = data.getInt16(p), p+=2;
-				table.sTypoLineGap = data.getInt16(p), p+=2;
-				table.usWinAscent = data.getUint16(p), p+=2;
-				table.usWinDescent = data.getUint16(p), p+=2;
-				table.ulCodePageRange1 = data.getUint32(p), p+=4
-				table.ulCodePageRange2 = data.getUint32(p), p+=4
-				table.sxHeight = data.getInt16(p), p+=2
-				table.sCapHeight = data.getInt16(p), p+=2
-				table.usDefaultChar = data.getUint16(p), p+=2
-				table.usBreakChar = data.getUint16(p), p+=2
-				table.usMaxContext = data.getUint16(p), p+=2
-				table.usLowerOpticalPointSize = data.getUint16(p), p+=2
-				table.usUpperOpticalPointSize = data.getUint16(p), p+=2
+				if (font.tables[tag].length >= 78) {
+					table.version = data.getUint16(p), p+=2;
+					table.xAvgCharWidth = data.getInt16(p), p+=2;
+					table.usWeightClass = data.getUint16(p), p+=2;
+					table.usWidthClass = data.getUint16(p), p+=2;
+					table.fsType = data.getUint16(p), p+=2;
+					table.ySubscriptXSize = data.getInt16(p), p+=2;
+					table.ySubscriptYSize = data.getInt16(p), p+=2;
+					table.ySubscriptXOffset = data.getInt16(p), p+=2;
+					table.ySubscriptYOffset = data.getInt16(p), p+=2;
+					table.ySuperscriptXSize = data.getInt16(p), p+=2;
+					table.ySuperscriptYSize = data.getInt16(p), p+=2;
+					table.ySuperscriptXOffset = data.getInt16(p), p+=2;
+					table.ySuperscriptYOffset = data.getInt16(p), p+=2;
+					table.yStrikeoutSize = data.getInt16(p), p+=2;
+					table.yStrikeoutPosition = data.getInt16(p), p+=2;
+					table.sFamilyClass = data.getInt16(p), p+=2;
+					table.panose = [data.getUint8(p), data.getUint8(p+1), data.getUint8(p+2), data.getUint8(p+3), data.getUint8(p+4), data.getUint8(p+5), data.getUint8(p+6), data.getUint8(p+7), data.getUint8(p+8), data.getUint8(p+9)];
+					p+=10;
+					table.ulUnicodeRange1 = data.getUint32(p), p+=4;
+					table.ulUnicodeRange2 = data.getUint32(p), p+=4;
+					table.ulUnicodeRange3 = data.getUint32(p), p+=4;
+					table.ulUnicodeRange4 = data.getUint32(p), p+=4;
+					table.achVendID = getStringFromData (data, p, 4), p+=4;
+					table.fsSelection = data.getUint16(p), p+=2;
+					table.usFirstCharIndex = data.getUint16(p), p+=2;
+					table.usLastCharIndex = data.getUint16(p), p+=2;
+					table.sTypoAscender = data.getInt16(p), p+=2;
+					table.sTypoDescender = data.getInt16(p), p+=2;
+					table.sTypoLineGap = data.getInt16(p), p+=2;
+					table.usWinAscent = data.getUint16(p), p+=2;
+					table.usWinDescent = data.getUint16(p), p+=2;
+					if (table.version >= 1 && font.tables[tag].length >= 86) {
+		 				table.ulCodePageRange1 = data.getUint32(p), p+=4
+		 				table.ulCodePageRange2 = data.getUint32(p), p+=4
+						if (table.version >= 2 && font.tables[tag].length >= 96) {
+							table.sxHeight = data.getInt16(p), p+=2
+			 				table.sCapHeight = data.getInt16(p), p+=2
+			 				table.usDefaultChar = data.getUint16(p), p+=2
+			 				table.usBreakChar = data.getUint16(p), p+=2
+			 				table.usMaxContext = data.getUint16(p), p+=2
+							if (table.version >= 5 && font.tables[tag].length >= 100) {
+				 				table.usLowerOpticalPointSize = data.getUint16(p), p+=2
+				 				table.usUpperOpticalPointSize = data.getUint16(p), p+=2
+							}
+						}
+					}
+				}
 				break; // OS/2 end
 
 
