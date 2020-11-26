@@ -1064,6 +1064,9 @@ function SamsaFont (init, config) {
 				table.sTypoLineGap = data.getInt16(p), p+=2;
 				table.usWinAscent = data.getUint16(p), p+=2;
 				table.usWinDescent = data.getUint16(p), p+=2;
+				p+=8
+				table.sxHeight = data.getInt16(p), p+=2
+				table.sCapHeight = data.getInt16(p), p+=2
 				break; // OS/2 end
 
 
