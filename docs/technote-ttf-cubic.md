@@ -16,15 +16,16 @@ Given the desire to test cubic glyphs while in development, I therefore wondered
 
 I realized that one could use normal TrueType-based tooling to build cubic fonts from cubic sources, if one simply agrees on a protocol such that cubic curves are represented by an _on-off-off-on_ sequence of points, where “on” means an on-curve point, and “off” means an off-curve point. Of course these point sequences represent valid TrueType curves as well (though visually different curves), so we would also need a flag to indicate that the curves must be parsed as cubic rather than quadratic. We’d only need to record the flag once per font, as the intention at this stage is to represent either quadratic fonts or cubic fonts, not fonts that contain both curve types.
 
-Two obvious candidates for the flag were:
+Three candidates for the flag were:
 
+* an unused flag bit in the `glyf` table
 * file extension, i.e. `ttf` vs. `ttf-cubic`
 * file fingerprint, i.e. the first 4 bytes of the file:
   * 0x00010000 for TrueType fonts
   * 0x4f54544f for CFF fonts
   * 0x43554245 (`CUBE`) for ttf-cubic fonts
 
-I used the latter, on the basis that, after loading a font into memory, its file extension may not be preserved; indeed some fonts may be memory objects in the first place, not manifested as files at all.
+I used the last option for two reasons. First, because after loading a font into memory, the file extension may not be preserved; indeed some fonts may be memory objects in the first place, not manifested as files at all. Second, it seems important to disable these fonts from being rendered in normal systems, because the curves will appear incorrectly (circles become squircles); these first four 4 bytes tend to be checked before processing, while an obscure flag may be ignored.
 
 
 ## Building ttf-cubic fonts
@@ -42,7 +43,7 @@ The solution turned out to be a lot easier than I had thought. The method is:
 
 Now the font is ready to try in Samsa.
 
-Here is the complete `.glif` file for the glyph `O` from `MutatorSansLightCondensed.ufo` after its cubic curves (`type="curve"`) have been replaced by pseudo-quadratic curve pairs (`type="qcurve"`).
+Here is the complete `.glif` file for the glyph `O` from @letterror’s `MutatorSansLightCondensed.ufo` after its cubic curves (`type="curve"`) have been replaced by pseudo-quadratic curve pairs (`type="qcurve"`).
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -118,4 +119,4 @@ For future font formats, there have been discussions about handling multiple cur
 
 These discussions seem to be limited to quadratic and cubic curves, rather than those of higher order, though spiral curves have also been explored seriously, notably @raphlinus’s [Spiro](https://levien.com/spiro/).
 
-Pinging the following users who may find curve format discussion interesting: @behdad @davelab6 @simoncozens @tiroj @svgeesus @twardoch @petercon @rsheeter @anthrotype @cjchapman @danrhatigan @frankrolf @miguelsousa
+Pinging the following users who may find curve format discussion interesting: @behdad @davelab6 @simoncozens @tiroj @svgeesus @twardoch @petercon @rsheeter @anthrotype @cjchapman @danrhatigan @frankrolf @miguelsousa @dberlow @justvanrossum @letterror
