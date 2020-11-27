@@ -88,7 +88,7 @@ Here is the complete `.glif` file for the glyph `O` from @letterror’s `Mutator
 
 ```
 
-Incidentally, Samsa’s JavaScript code for rendering cubic SVG is significantly simpler than TrueType, because it does not need to handle TrueType’s implied on-curve points. The parser does not need to handle curve sequences _on-off-on_ because all those `qcurve` elements are in fact cubic, therefore it knows that any off-curve point is one of a consecutive pair.
+Incidentally, Samsa’s JavaScript code for producing cubic SVG paths from ttf-cubic data is much simpler than the code for producing quadratic SVG paths from normal TrueType curves. Samsa can now assume that all off-curve points come in pairs, surrounded by on-curve points. By contrast, off-curve points in TrueType may come in sequences of any length. In other words, with ttf-cubic, _all_ curves are _on-off-off-on_ because all those pseudo-quadratic `qcurve` elements are in fact cubic, a predictability that means simpler code.
 
 ## Testing ttf-cubic fonts
 
