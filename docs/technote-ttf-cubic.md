@@ -14,7 +14,7 @@ Unfortunately for tool makers, CFF (as well as CFF2) is significantly different 
 
 Given the desire to test cubic glyphs, at the very least when a font is still in development, I therefore wondered if cubic curves could be incorporated easily to the TrueType format and hence incorporated in Samsa. Implementation of CFF2 parsing had been shelved due to it being a major investment for which funding had not emerged. Another option was to handle UFO sources directly, but that would involve adding an XML parser, and handling the numerous files within a UFO container could be tricky, especially by drag-drop.
 
-I realized that one could use normal TrueType-based tooling to build cubic fonts from cubic sources, if one simply agrees on a protocol such that cubic curves are represented by an _on-off-off-on_ sequence of points, where “on” means an on-curve point, and “off” means an off-curve point. Of course these point sequences represent valid TrueType curves as well (though visually different curves), so we would also need a flag to indicate that the curves must be parsed as cubic rather than quadratic. We’d only need to record the flag once per font, as the intention at this stage is to represent either quadratic fonts or cubic fonts, not fonts that contain both curve types.
+I realized that one could use normal TrueType-based tooling to build cubic fonts from cubic sources, if one simply agrees on a protocol such that cubic curves are represented in TrueType binaries by an _on-off-off-on_ sequence of points, where “on” means an on-curve point, and “off” means an off-curve point. Of course these point sequences represent valid TrueType curves as well (though visually different curves), so we would also need a flag to indicate that the curves must be parsed as cubic rather than quadratic. We’d only need to record the flag once per font, as the intention at this stage is to represent either quadratic fonts or cubic fonts, not fonts that contain both curve types.
 
 Three candidates for the flag were:
 
@@ -22,7 +22,7 @@ Three candidates for the flag were:
 * file extension, i.e. `ttf` vs. `ttf-cubic`
 * file fingerprint, i.e. the first 4 bytes of the file:
   * 0x00010000 for TrueType fonts
-  * 0x4f54544f for CFF fonts
+  * 0x4f54544f (`OTTO`) for CFF fonts
   * 0x43554245 (`CUBE`) for ttf-cubic fonts
 
 I used the last option for two reasons. First, because after loading a font into memory, the file extension may not be preserved; indeed some fonts may be memory objects in the first place, not manifested as files at all. Second, it seems important to disable these fonts from being rendered in normal systems, because the curves will appear incorrectly (circles become squircles); these first four 4 bytes tend to be checked before processing, while an obscure flag may be ignored.
