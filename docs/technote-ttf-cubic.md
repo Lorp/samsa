@@ -30,7 +30,7 @@ I used the last option for two reasons. First, because after loading a font into
 
 ## Building ttf-cubic fonts
 
-Google Fonts’ [`fontmake`](https://github.com/googlefonts/fontmake) tool builds variable fonts in both the TrueType and OpenType/CFF flavours. I needed a way to get it to build TrueType fonts with cubic curves, using the _on-off-off-on_ protocol described above. The flag could be handled later.
+Google Fonts’ [`fontmake`](https://github.com/googlefonts/fontmake) tool builds variable fonts in both the TrueType and OpenType/CFF flavours. I needed a way to get it to build TrueType fonts with cubic curves, using the _on-off-off-on_ protocol described above. The cubic/quadratic flag could be handled separately.
 
 The solution turned out to be a lot easier than I had thought. The method is:
 
