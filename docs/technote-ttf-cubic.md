@@ -1,10 +1,10 @@
 # ttf-cubic: an experimental format
 
-In September 2020 an experimental build of Samsa [was released](https://twitter.com/axis_praxis/status/1305955442842050561) that handles `ttf-cubic` fonts. On 25 November 2020 the feature was [merged into Samsa’s main branch](https://github.com/Lorp/samsa/commit/8d63269f755fd6fc83d2a8bf8247b06d09470b45). This article discusses what **ttf-cubic** fonts are, why they exist, and how to make them.
+In September 2020 an experimental build of Samsa [was published](https://twitter.com/axis_praxis/status/1305955442842050561) that handles **ttf-cubic** fonts. On 25 November 2020 the feature was [merged into Samsa’s main branch](https://github.com/Lorp/samsa/commit/8d63269f755fd6fc83d2a8bf8247b06d09470b45). This article discusses what ttf-cubic fonts are, why they exist, and how to make them.
 
 ## Background
 
-While the OpenType Variations section of the OpenType 1.8 specification was being written, back in 2015 and 2016, it was agreed that the data format should be based closely on that of TrueType GX Variations, which already had a public specification dating back to 1994 and there existed several fonts to experiment with. Being based on the TrueType specification, GX Variations curves are quadratic (2nd order). It was clear, though, that glyphs with cubic (3rd order) curves must be part of the new specification too: such curves faithfully preserve the actual curves drawn by type designers (almost all font sources are cubic). The question was how to incorporate cubic glyphs into an updated OpenType specification. 
+Back in 2015 and 2016, when the OpenType Variations section of the OpenType 1.8 specification was being developed, it was agreed that the data format should be based closely on that of Apple’s TrueType GX Variations. Not only was there a public specification dating back to 1994, but there also existed several fonts to experiment with. Being based on the TrueType specification, GX Variations curves are quadratic (2nd order). It was clear, though, that glyphs with cubic (3rd order) curves must be part of the new specification too: such curves faithfully preserve the actual curves drawn by type designers (almost all font sources are cubic). The question was how to incorporate cubic glyphs into an updated OpenType specification.
 
 Stakeholders from Adobe argued for an extension to the OpenType/CFF format, which would offer better compression than TrueType and would also allow PostScript declarative hints. Others argued that the TrueType ‘glyf’ table should be modified slightly in order to handle cubic curves, and that arguments in favour of CFF were not compelling. Adobe’s position won the day, and the CFF2 format is thus part of OpenType 1.8. Modern variable fonts exist as either TrueType-flavour .ttf files (with quadratic curves) or CFF2-flavour .otf files (with cubic curves).
 
@@ -118,4 +118,4 @@ For future font formats, there have been discussions about handling multiple cur
 
 These discussions seem to be limited to quadratic and cubic curves, rather than those of higher order, though spiral curves have also been explored seriously, notably @raphlinus’s [Spiro](https://levien.com/spiro/).
 
-Pinging the following users who may find curve format discussion interesting: @behdad @davelab6 @simoncozens @tiroj @svgeesus @twardoch @petercon @rsheeter @anthrotype
+Pinging the following users who may find curve format discussion interesting: @behdad @davelab6 @simoncozens @tiroj @svgeesus @twardoch @petercon @rsheeter @anthrotype @cjchapman @danrhatigan @frankrolf @miguelsousa
