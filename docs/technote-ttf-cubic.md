@@ -115,7 +115,7 @@ The following variable fonts were built with fontmake 2.2.0 from [Mutator Sans s
 
 ## Heterogeneous curve formats within a font
 
-For future font formats, there have been discussions about handling multiple curve formats within the same font, and even handling multiple curve formats within the same glyph. While the latter in particular may seem unnecessary, it is notable that SVG, with which font formats are sometimes compared, offers quadratic and cubic curves within the same [`path`](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths). For fonts that derive from SVG source data, therefore, it would be ideal to preserve the sources’ curves.
+For future font formats, there have been discussions about handling multiple curve formats within the same font, and even handling multiple curve formats within the same glyph. While the latter in particular may seem unnecessary, it is notable that SVG, with which font formats are sometimes compared, offers quadratic and cubic curves within the same [`path`](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths). For fonts that derive from SVG source data, therefore, it would be ideal to preserve the sources’ curves.*
 
 These discussions seem to be limited to quadratic and cubic curves, rather than those of higher order, though spiral curves have also been explored seriously, notably @raphlinus’s [Spiro](https://levien.com/spiro/).
 
