@@ -42,7 +42,7 @@ The solution turned out to be a lot easier than I had thought. The method is:
 
 Now the font is ready to try in Samsa.
 
-Here is the `O` glyph from `MutatorSansLightCondensed.ufo` after its cubic curves (`type="curve"`) have been replaced by false quadratic curve pairs (`type="qcurve"`).
+Here is the `O` glyph from `MutatorSansLightCondensed.ufo` after its cubic curves (`type="curve"`) have been replaced by pseudo-quadratic curve pairs (`type="qcurve"`).
 
 ```
 <?xml version="1.0" encoding="UTF-8"?>
