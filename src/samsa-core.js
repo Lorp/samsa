@@ -567,7 +567,7 @@ SamsaGlyph.prototype.featureVariationsGlyphId = function (tuple) {
 SamsaGlyph.prototype.svgPath = function () {
 
 	let contours = [];
-	let contour, pt, pt_, pt__, c, p, startPt;
+	let contour, contourLen, pt, pt_, pt__, c, p, startPt;
 	let path = "";
 
 	switch (this.curveOrder) {
@@ -578,13 +578,13 @@ SamsaGlyph.prototype.svgPath = function () {
 			// LOOP 1: convert the glyph contours into an SVG-compatible contours array
 			startPt = 0;
 			for (endPt of this.endPts) {
-				const numPoints = endPt-startPt+1; // number of points in this contour
+				contourLen = endPt-startPt+1; // number of points in this contour
 				contour = [];
 
 				// insert on-curve points between any two consecutive off-curve points
 				for (p=startPt; p<=endPt; p++) {
 					pt = this.points[p];
-					pt_ = this.points[(p-startPt+1)%numPoints+startPt];
+					pt_ = this.points[(p-startPt+1)%contourLen+startPt];
 					contour.push (pt);
 					if (pt[2] == 0 && pt_[2] == 0) // if we have 2 consecutive off-curve points...
 						contour.push ( [ (pt[0]+pt_[0])/2, (pt[1]+pt_[1])/2, 1 ] ); // ...we insert the implied on-curve point
@@ -626,23 +626,43 @@ SamsaGlyph.prototype.svgPath = function () {
 		// - for use with ttf-cubic format and cff (when we implement cff)
 		case 3:
 			startPt = 0;
+
+			// loop through each contour
 			for (endPt of this.endPts) {
-				for (p=0; p<endPt-startPt+1; p++) {
-					pt = this.points[startPt+p];
-					if (p==0)
-						path += `M${pt[0]} ${pt[1]}`;
-					else {
-						if (pt[2] == 0) { // off-curve point (consumes 3 points)
-							pt_ = this.points[startPt + ((++p) % (endPt-startPt+1))]; // increments loop variable p
-							pt__ = this.points[startPt + ((++p) % (endPt-startPt+1))]; // increments loop variable p
-							path += `C${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]} ${pt__[0]} ${pt__[1]}`;
+
+				let firstOnPt;
+				contourLen = endPt-startPt+1;
+
+				// find this contour’s first on-curve point: it is either startPt, startPt+1 or startPt+2 (else the contour is invalid)
+				if      (contourLen >= 1 && this.points[startPt][2] == 1)
+					firstOnPt = 0;
+				else if (contourLen >= 2 && this.points[startPt+1][2] == 1)
+					firstOnPt = 1;
+				else if (contourLen >= 3 && this.points[startPt+2][2] == 1)
+					firstOnPt = 2;
+
+				if (firstOnPt !== undefined) {
+					
+					// loop through all this contour’s points
+					for (p=0; p<contourLen; p++) {
+
+						pt = this.points[startPt + (p+firstOnPt) % contourLen];
+						if (p==0)
+							path += `M${pt[0]} ${pt[1]}`;
+						else {
+							if (pt[2] == 0) { // off-curve point (consumes 3 points)
+								pt_ = this.points[startPt + ((++p + firstOnPt) % contourLen)]; // increments loop variable p
+								pt__ = this.points[startPt + ((++p + firstOnPt) % contourLen)]; // increments loop variable p
+								path += `C${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]} ${pt__[0]} ${pt__[1]}`;
+							}
+							else // on-curve point
+								path += `L${pt[0]} ${pt[1]}`;
+							if (p == (contourLen+firstOnPt-1) % contourLen)
+								path += "Z";
 						}
-						else // on-curve point
-							path += `L${pt[0]} ${pt[1]}`;
-						if (p == (endPt-startPt+1)-1)
-							path += "Z";
 					}
 				}
+
 				startPt = endPt+1;
 			}
 			break;
@@ -1066,17 +1086,17 @@ function SamsaFont (init, config) {
 					table.usWinAscent = data.getUint16(p), p+=2;
 					table.usWinDescent = data.getUint16(p), p+=2;
 					if (table.version >= 1 && font.tables[tag].length >= 86) {
-		 				table.ulCodePageRange1 = data.getUint32(p), p+=4
-		 				table.ulCodePageRange2 = data.getUint32(p), p+=4
+						table.ulCodePageRange1 = data.getUint32(p), p+=4
+						table.ulCodePageRange2 = data.getUint32(p), p+=4
 						if (table.version >= 2 && font.tables[tag].length >= 96) {
 							table.sxHeight = data.getInt16(p), p+=2
-			 				table.sCapHeight = data.getInt16(p), p+=2
-			 				table.usDefaultChar = data.getUint16(p), p+=2
-			 				table.usBreakChar = data.getUint16(p), p+=2
-			 				table.usMaxContext = data.getUint16(p), p+=2
+							table.sCapHeight = data.getInt16(p), p+=2
+							table.usDefaultChar = data.getUint16(p), p+=2
+							table.usBreakChar = data.getUint16(p), p+=2
+							table.usMaxContext = data.getUint16(p), p+=2
 							if (table.version >= 5 && font.tables[tag].length >= 100) {
-				 				table.usLowerOpticalPointSize = data.getUint16(p), p+=2
-				 				table.usUpperOpticalPointSize = data.getUint16(p), p+=2
+								table.usLowerOpticalPointSize = data.getUint16(p), p+=2
+								table.usUpperOpticalPointSize = data.getUint16(p), p+=2
 							}
 						}
 					}
