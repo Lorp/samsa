@@ -78,7 +78,7 @@
 
 	<div id="panel-tvts" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> Delta sets</h2>
-		<div class="panel-content" style="overflow-x: scroll; display:grid: grid-template-columns: 1.5em 80px 45px 1fr"></div>
+		<div class="panel-content"></div>
 	</div>
 
 	<div id="panel-designspace" class="panel open">
@@ -119,7 +119,7 @@
 			<ul>
 			<li><a href="https://github.com/Lorp/samsa">GitHub repository</a></li>
 			<li><a href="https://www.axis-praxis.org/samsa/">Samsa</a> (hosted at Axis-Praxis)</li>
-			<li><a href="https://lorp.github.io/samsa/src/samsa-gui.html">Samsa</a> (hosted on GitHub)</li>
+			<li><a href="https://lorp.github.io/samsa/src/samsa-gui.html">Samsa</a> (hosted at GitHub)</li>
 			<li><a href="https://twitter.com/axis_praxis">@axis_praxis</a> updates via Twitter</li>
 			</ul>
 		</div>
@@ -646,7 +646,8 @@ function appendInstanceEl(instance, select) {
 
 	li.classList.add("instance");
 	li.style.display = "grid";
-	li.style.gridTemplateColumns = `30px 30px 100px 30px 30px repeat(${GLOBAL.vf.axisCount}, 70px)`;
+	li.style.gridTemplateColumns = font.axes.length > 0 ? `30px 30px 100px 30px 30px repeat(${GLOBAL.vf.axisCount}, 70px)`
+														: `30px 30px 100px 30px 30px`;
 
 	// instance type
 	switch (instance.type) {
@@ -1440,6 +1441,21 @@ function vfLoaded (font) {
 	});
 
 
+	if (font.axes.length == 0) {
+		panel.innerHTML = "This font does not contain variation axes.";
+	}
+
+
+	///////////////////////////////////////////////////////
+	// Delta sets panel
+	///////////////////////////////////////////////////////
+	panel = Q("#panel-tvts>div");
+	//panel.innerText = "";
+
+	panel.innerHTML = "This font does not contain delta sets.";
+
+
+
 	///////////////////////////////////////////////////////
 	// STAT panel
 	///////////////////////////////////////////////////////
@@ -2188,7 +2204,11 @@ function updateGlyphsPanel(instance) {
 			svgg.setAttributeNS(null, "transform", `translate(20,60) scale(${scale},-${scale})`);
 			
 			// decompose/instantiate this glyph
-			let iglyph = glyph.numContours < 0 ? glyph.decompose(instance.tuple) : glyph.instantiate(null, instance);
+			let iglyph;
+			if (glyph.numContours < 0)
+				iglyph = glyph.decompose(instance.tuple);
+			else
+				iglyph = glyph.instantiate(null, instance);
 			let svgPath = SVG("path");
 			svgPath.attrsSVG({
 				d: iglyph.svgPath(),
@@ -2380,18 +2400,9 @@ function updateTvts (glyph, iglyph) {
 	// display the tvts
 	glyph.tvts.forEach((tvt, t) => {
 
+		// show id, numPoints scalar, order, and an SVG graph for each axis
 		let li = EL("li");
-		//li.classList.add("tvt");
 		li.classList.add("tvt-item");
-
-		// we mention some stuff about tvt id, then numpoints moved or something, then (aligning with axes in instance panel) an SVG graph for each axis
-		//li.style.display = "grid";
-		//li.style.gridTemplateColumns = `1.5em 80px 45px repeat(${GLOBAL.vf.axisCount}, 45px)`
-		//li.style.height = "20px";
-
-
-
-
 		let tvtId = document.createElement("div");
 		let tvtOrder = 0; // the numbet of axes involved in this tuple (i.e. with peak != 0)
 
@@ -2419,7 +2430,6 @@ function updateTvts (glyph, iglyph) {
 			tvtS.setAttribute("style", `width: ${vizWidth}px; height: 20px; background-color: ${ui.tupleScalar.fill};`);
 			li.style.backgroundColor = "white";
 		}
-
 
 		li.append(tvtId, tvtDeltas, tvtS);
 
@@ -2608,22 +2618,22 @@ function setActiveGlyph (g, instance) {
 	});
 	Q(`#g-${g}`).classList.add("active");
 
-	// create the empty tvts panel
+	// empty the tvts panel and insert header row
 	let panelTvts = Q("#panel-tvts>div");
-	panelTvts.innerHTML = "";
+	if (font.axes.length == 0)
+		panelTvts.classList.add("static");
+	else {
+		panelTvts.classList.add("variations");
+		panelTvts.innerHTML = "";
+		const lh = EL("li"), axesHeader = EL("div");
+		lh.classList.add("tvt-item");
+		lh.innerHTML = `<div title="Delta set index">#</div><div>Points</div><div title="Points"></div><div title="Scalar">S</div><div title="Order">O</div>`;
+		for (let axis of font.axes)
+			axesHeader.innerHTML += `<div style="display:inline-block;width:50px;"><code>${axis.tag}</code></div>`;
 
-	// tvts header row
-	const lh = EL("li");
-	lh.classList.add("tvt-item");
-	lh.innerHTML = `<div title="Delta set index">#</div><div>Points</div><div title="Points"></div><div title="Scalar">S</div><div title="Order">O</div>`;
-
-	const axesHeader = EL("div");
-	for (const axis of font.axes)
-		axesHeader.innerHTML += `<div style="display:inline-block;width:50px;"><code>${axis.tag}</code></div>`;
-
-	lh.append(axesHeader);
-
-	panelTvts.append(lh);
+		lh.append(axesHeader);
+		panelTvts.append(lh);
+	}
 
 
 	// display the feature variations for this glyph on the designspace svg

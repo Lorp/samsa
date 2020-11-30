@@ -233,16 +233,13 @@ button.close {
 	opacity: 1;
 }
 
-#panels-left .panel-content {
-	overflow-y: scroll;
-}
-
 #panel-fonts .panel-content:not(:empty),
 #panel-ui .panel-content:not(:empty),
 #panel-axes .panel-content:not(:empty),
 #panel-stat .panel-content:not(:empty),
 #panel-media .media-grid:not(:empty),
 #panel-about .panel-content:not(:empty),
+#panel-tvts .panel-content.static,
 #panel-glyphs .panel-content .header {
 	padding: .5rem .6rem;
 }
@@ -280,7 +277,7 @@ button.close {
 	padding: 0 .5rem
 }
 
-#panel-tvts .tvt-item:nth-of-type(1) {
+#panel-tvts .tvt-item {
 	white-space: nowrap;
 }
 

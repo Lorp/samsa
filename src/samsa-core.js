@@ -78,9 +78,9 @@ if (CONFIG.isNode) {
 
 	// add new Buffer methods
 	Buffer.prototype.getTag = function (p) {
-		var tag = "";
-		var p_end = p + 4; // global
-		var ch;
+		let tag = "";
+		let  p_end = p + 4; // global
+		let  ch;
 		while (p < p_end) {
 			ch = this.readUInt8(p++);
 			if (ch >= 32 && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
@@ -98,8 +98,8 @@ if (CONFIG.isNode) {
 function getStringFromData (data, p0, length)
 {
 	// TODO: add a Pascal and C modes to use in parsing "post" table (use length = undefined for C, -1 for Pascal)
-	var str = "";
-	var p = p0;
+	let str = "";
+	let p = p0;
 	while (p - p0 < length) {
 		str += String.fromCharCode(data.getUint8(p++));	
 	}
@@ -108,9 +108,9 @@ function getStringFromData (data, p0, length)
 
 // TODO: get rid of this!
 function uint8ToBase64(buffer) {
-     var binary = '';
-     var len = buffer.byteLength;
-     for (var i = 0; i < len; i++) {
+     let binary = '';
+     let len = buffer.byteLength;
+     for (let i=0; i < len; i++) {
          binary += String.fromCharCode(buffer[i]);
      }
      return window.btoa( binary );
@@ -642,7 +642,7 @@ SamsaGlyph.prototype.svgPath = function () {
 					firstOnPt = 2;
 
 				if (firstOnPt !== undefined) {
-					
+
 					// loop through all this contour’s points
 					for (p=0; p<contourLen; p++) {
 
@@ -768,9 +768,18 @@ function SamsaFont (init, config) {
 	this.callback = init.callback;
 	this.data = undefined;
 	this.fontFamily = init.fontFamily;
-	this.instances = [];
 	this.axes = [];
-	this.instances = [];
+	this.axisTagToId = {};
+	this.instances = [{
+		id: 0,
+		font: this,
+		name: "Default",
+		type: "default",
+		glyphs: [],
+		tuple: [],
+		fvs: {},
+		static: null,
+	}];
 	this.errors = [];
 	this.glyphs = [];
 	this.glyphOffsets = [];
@@ -844,9 +853,9 @@ function SamsaFont (init, config) {
 		let font = this;
 		let data = this.data;
 		let config = this.config;
+		let node = this.config.isNode;
 		let table; 
 		let p=p_=0; // data pointers
-		let node = this.config.isNode;
 		let fd = this.fd;
 		let read, write;
 		if (node) {
@@ -900,8 +909,8 @@ function SamsaFont (init, config) {
 				else
 					p = 12;
 
-				for (var t=0; t<font.numTables; t++) {
-					var tag = data.getTag (p);
+				for (let t=0; t<font.numTables; t++) {
+					const tag = data.getTag (p);
 					if (!tag) {
 						font.errors.push ("Tag value is invalid");
 						break;
@@ -930,7 +939,7 @@ function SamsaFont (init, config) {
 				font.parseSmallTable(tag);
 
 		});
-		
+
 		// parse glyf table: all glyphs!
 		if (!node) {
 
@@ -1239,8 +1248,7 @@ function SamsaFont (init, config) {
 				table.instanceSize = data.getUint16(p), p+=2;
 
 				// build axes
-				font.axes = [];
-				font.axisTagToId = {}; // TODO: better as an object where each property has value as the axis array item? and add id as an axis property
+				// - font.axes == [] at this point
 				for (let a=0; a<table.axisCount; a++)
 				{
 					let axis = { id: a };
@@ -1255,26 +1263,30 @@ function SamsaFont (init, config) {
 					axis.name = font.names[axis.axisNameID];
 					if (axis.name === undefined)
 						axis.name = axis.tag; // for fonts without name table, e.g. optimized webfonts
-					font.axes.push(axis);
+					font.axes.push(axis); // append this axis
 					font.axisTagToId[axis.tag] = a;
 				}
 
 				// build instances
-				// - insert default instance as well as the instances in the fvar table
-				font.instances = [];
+				// - instances array already contains the default instance
+				// - here we add all the named instances
 				for (let i=0; i<table.instanceCount+1; i++) { // +1 allows for default instance
 
-					let instance = {
-						id: i,
-						glyphs: [],
-						tuple:[],
-						fvs: {},
-						static: null, // if this is instantiated as a static font, this can point to the data or url
-					};
+					let instance;
 
-					if (i>0) {
-						instance.subfamilyNameID = data.getUint16(p), p+=2;
-						p+=2; // skip over flags
+					if (i==0)
+						instance = font.instances[0];
+					else {
+						instance = {
+							id: i+1, // +1 because default instance id 0 is already present
+							glyphs: [],
+							tuple:[],
+							fvs: {},
+							static: null, // if this is instantiated as a static font, this can point to the data or url
+							subfamilyNameID: data.getUint16(p), // points into name table
+							flags: data.getUint16(p+2), // no flags have been specified so far
+						};
+						p+=4;
 					}
 
 					font.axes.forEach((axis, a) => {
@@ -1287,17 +1299,13 @@ function SamsaFont (init, config) {
 						instance.tuple[a] = font.axisNormalize(axis, instance.tuple[a]);
 					});
 
-					if (i==0) {
-						instance.name = "Default";
-						instance.type = "default"; // one of default, named, stat, custom
-					}
-					else {
+					if (i>0) {
 						if (table.instanceSize == table.axisCount * 4 + 6)
 							instance.postScriptNameID = data.getUint16(p), p+=2;
 						instance.name = font.names[instance.subfamilyNameID]; // name table must already be parsed! (TODO: fallback if no name table)
 						instance.type = "named"; // one of default, named, stat, custom
+						font.instances.push(instance);
 					}
-					font.instances.push(instance);
 				}
 
 				font.axisCount = table.axisCount;
@@ -1341,7 +1349,7 @@ function SamsaFont (init, config) {
 				let ps = tableOffset + table.offsetToSharedTuples;
 				for (let t=0; t < table.sharedTupleCount; t++) {
 					let tuple = [];
-					for (var a=0; a<table.axisCount; a++)
+					for (let a=0; a<table.axisCount; a++)
 						tuple.push(data.getF2DOT14(ps)), ps+=2;
 					table.sharedTuples.push (tuple);
 				}
@@ -1932,6 +1940,10 @@ function SamsaFont (init, config) {
 	this.parseTvts = g => {
 
 		// parse the tuple variation tables (tvts), also known as "delta sets with their tuples" for glyph g
+
+		// static font?
+		if (this.axes.length == 0)
+			return [];
 
 		let font = this;
 		let node = this.config.isNode;
