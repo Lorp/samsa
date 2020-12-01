@@ -625,12 +625,13 @@ function getCurrentFvs() {
 // - we can assign the ui object in the options argument
 function appendInstanceEl(instance, select) {
 
-	let font = GLOBAL.vf;
-	let panel = Q("#panel-instances>div");
+	const font = GLOBAL.vf;
+	const panel = Q("#panel-instances>div");
+	const cell0 = EL("div"), cell1 = EL("div"), cell2 = EL("div"), cell3 = EL("div"), cell4 = EL("div");
 	//panel.classList.add("tiles");
 
 	// create the instance DOM element
-	let li = document.createElement("div"); // not li?
+	let li = EL("div"); // not li?
 	let icon = "-", title;
 
 	// initialize instance if necessary
@@ -656,7 +657,7 @@ function appendInstanceEl(instance, select) {
 		case "custom": icon = "&#xf1de;"; title = "Custom instance"; break; // FontAwesome sliders
 		case "stat": icon = "&#xf03a;"; title = "STAT instance"; break; // FontAwesome list
 	}
-	let cell0 = document.createElement("div");
+
 	cell0.style.cursor = "pointer";
 	cell0.style.textAlign = "center";
 	cell0.style.fontFamily = "FontAwesome";
@@ -664,13 +665,10 @@ function appendInstanceEl(instance, select) {
 
 	// SVG of the A glyph
 	// - would current glyph be better? ... the image serves as a kind of visual label, but...
-	let cell1 = document.createElement("div");
 	cell1.classList.add("preview");
 	let svg = SVG("svg");
-
 	let glyph = font.glyphs[getDefaultGlyphId(font)];
 	let iglyph = glyph.numContours < 0 ? glyph.decompose(instance.tuple) : glyph.instantiate(null, instance);
-
 	if (iglyph && iglyph.numContours > 0) {
 
 		// simple glyph
@@ -684,16 +682,13 @@ function appendInstanceEl(instance, select) {
 		svgg.append(svgPath);
 		svg.append(svgg);
 	}
-
 	cell1.append(svg);
 
 	// instance name
-	let cell2 = document.createElement("div");
 	cell2.style.textAlign = "center";
 	cell2.innerHTML = `<input value="${instance.name}" ${instance.type == "default" ? "readonly " : ""}style="width: 85px">`;
 
 	// visibility
-	let cell3 = document.createElement("div");
 	cell3.setAttribute("title", "Visibility");
 	cell3.style.textAlign = "center";
 	cell3.style.fontFamily = "FontAwesome";
@@ -701,7 +696,6 @@ function appendInstanceEl(instance, select) {
 	cell3.innerHTML = "&#xf06e"; // eye open f070 eye closed
 
 	// instantiate button
-	let cell4 = document.createElement("div");
 	cell4.classList.add("instantiate");
 	cell4.setAttribute("title", "Download TTF");
 	cell4.style.textAlign = "center";
@@ -714,7 +708,7 @@ function appendInstanceEl(instance, select) {
 
 	// all the axis settings
 	GLOBAL.vf.axes.forEach((axis, a) => {
-		let axisCell = document.createElement("div");
+		let axisCell = EL("div");
 		axisCell.style.fontSize = "75%";
 		axisCell.style.textAlign = "right";
 		axisCell.innerText = instance.fvs[axis.tag];
@@ -752,7 +746,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 	svgCode = svgCode.replace(/ height="\d*"/, ` height="1000"`);
 
 	if (format == "svg") {
-		let fauxLink = document.createElement("a");
+		let fauxLink = EL("a");
 		fauxLink.download = filename + ".svg";
 		fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
 		document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
@@ -769,7 +763,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 		img.onload = function () {
 
 			// make a canvas to export the bitmap
-			let canvas = document.createElement("canvas");
+			let canvas = EL("canvas");
 			canvas.setAttribute("width", 1000);
 			canvas.setAttribute("height", 1000);
 			canvas.id = "samsa-drawing-canvas" + "-" + filename;
@@ -786,7 +780,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 			ctx.fillStyle = "white";
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			ctx.drawImage(img, 0, 0);
-			let fauxLink = document.createElement("a");
+			let fauxLink = EL("a");
 			fauxLink.download = filename;
 			fauxLink.href = canvas.toDataURL('image/png'); // get pixels from canvas
 			document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
@@ -828,7 +822,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 		svgCode = svgCode.replace(/ width="\d*"/, ` width="1000"`);
 		svgCode = svgCode.replace(/ height="\d*"/, ` height="1000"`);
 
-		let fauxLink = document.createElement("a");
+		let fauxLink = EL("a");
 		fauxLink.download = filename + ".svg";
 		fauxLink.href = "data:image/svg+xml;base64," + btoa(svgCode);
 		document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
@@ -1138,7 +1132,7 @@ function vfLoaded (font) {
 			// save shell script to invoke ffmpeg
 			let frameRate = 24;
 			let shellScript = `ffmpeg -r ${frameRate} -i samsa-frame%03d.png -vcodec libx264 -pix_fmt yuv420p samsa-movie.mp4`;
-			let scriptLink = document.createElement("a");
+			let scriptLink = EL("a");
 			scriptLink.download = "samsa-movie.sh";
 			scriptLink.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(shellScript));
 			document.body.append(scriptLink); // needed for Firefox, not Chrome or Safari
@@ -1156,7 +1150,7 @@ function vfLoaded (font) {
 	panel.innerText = "";
 
 
-	let liH = document.createElement("li");
+	let liH = EL("li");
 	liH.classList.add("header");
 	liH.style.display = "grid";
 	liH.style.gridTemplateColumns = `35px 20px 1fr 50px 50px 50px 50px 10px`;
@@ -1465,7 +1459,7 @@ function vfLoaded (font) {
 		const STAT = font.tables.STAT.data;
 
 		// create grid layout
-		let grid = document.createElement("div");
+		let grid = EL("div");
 		grid.style.display = "grid";
 		grid.classList.add("designAxes");
 		grid.style.gridTemplateColumns = "30% 35% 1fr";
@@ -1591,7 +1585,7 @@ function vfLoaded (font) {
 		label.innerText = "Composed name";
 
 		// "Add instance" button
-		let addInstanceEl = document.createElement("button");
+		let addInstanceEl = EL("button");
 		addInstanceEl.innerText = "Add instance";
 		addInstanceEl.class = "instance-add";
 
@@ -1639,7 +1633,7 @@ function vfLoaded (font) {
 	panel.style.backgroundColor = "white";
 
 	// build cartesian area
-	let cartesian = document.createElement("div");
+	let cartesian = EL("div");
 	cartesian.id = "ds-cartesian";
 	cartesian.setAttribute("style", "width: 100%; height: 360px;");
 	panel.append(cartesian);
@@ -1685,7 +1679,7 @@ function vfLoaded (font) {
 	// TODO: .designspace export - is this useful?
 	if (false) {
 
-		let exportEl = document.createElement("button");
+		let exportEl = EL("button");
 		exportEl.innerText = "Export as .designspace";
 		exportEl.id = "instance-add";
 		panel.append(exportEl);
@@ -1707,13 +1701,13 @@ function vfLoaded (font) {
 		</designspace>
 		*/
 
-		let designspace = document.createElement("designspace");
+		let designspace = EL("designspace");
 		designspace.setAttribute("format", 3);
-		let dsAxes = document.createElement("axes");
-		let dsSources = document.createElement("sources");
-		let dsInstances = document.createElement("instances");
+		let dsAxes = EL("axes");
+		let dsSources = EL("sources");
+		let dsInstances = EL("instances");
 		GLOBAL.vf.axes.forEach(axis => {
-			let dsAxis = document.createElement("axis");
+			let dsAxis = EL("axis");
 			dsAxis.setAttribute("name", axis.name);
 			dsAxis.setAttribute("tag", axis.tag);
 			dsAxis.setAttribute("minimum", axis.min);
@@ -1723,7 +1717,7 @@ function vfLoaded (font) {
 		})
 		// what to do about sources?
 		GLOBAL.vf.instances.forEach(instance => {
-			let dsInst = document.createElement("instance");
+			let dsInst = EL("instance");
 			//dsInstances.appendChild(dsInst);
 		})
 		designspace.append(dsAxes, dsSources, dsInstances);
@@ -2187,7 +2181,7 @@ function updateGlyphsPanel(instance) {
 
 		let glyph = font.glyphs[g];
 		let glyphName = font.glyphs[g].name || "undefined";
-		let glyphThumb = document.createElement("div");
+		let glyphThumb = EL("div");
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
 		glyphThumb.setAttribute("title", `${g}: ${glyphName}`);
@@ -2223,8 +2217,8 @@ function updateGlyphsPanel(instance) {
 		}
 
 		// set the label for the glyph thumb: glyph name and glyph id
-		let label = document.createElement("label");
-		let spanName = document.createElement("span"), spanId = document.createElement("span");
+		let label = EL("label");
+		let spanName = EL("span"), spanId = EL("span");
 		spanName.innerText = glyphName;
 		spanName.classList.add("name");
 		spanId.innerText = g;
@@ -2403,7 +2397,7 @@ function updateTvts (glyph, iglyph) {
 		// show id, numPoints scalar, order, and an SVG graph for each axis
 		let li = EL("li");
 		li.classList.add("tvt-item");
-		let tvtId = document.createElement("div");
+		let tvtId = EL("div");
 		let tvtOrder = 0; // the numbet of axes involved in this tuple (i.e. with peak != 0)
 
 		tvtId.innerText = t;
@@ -2412,7 +2406,7 @@ function updateTvts (glyph, iglyph) {
 		tvtId.style.fontWeight = "bold";
 		tvtId.style.textAlign = "center";
 
-		let tvtDeltas = document.createElement("div");
+		let tvtDeltas = EL("div");
 		let numDeltas = 0;
 		for (let p=0; p<tvt.deltas.length; p++) {
 			if (tvt.deltas[p] !== null)
@@ -2423,7 +2417,7 @@ function updateTvts (glyph, iglyph) {
 
 		// draw S value as bar graph
 		let sValue = iglyph.tvtsVisualization[t].S;
-		let tvtS = document.createElement("div");
+		let tvtS = EL("div");
 		let vizWidth = Math.max(0.25, 40 * sValue); // minimum of 0.25px
 		tvtS.setAttribute("title", sValue);
 		if (sValue > 0) {
@@ -3218,7 +3212,7 @@ document.onclick = function (event) {
 
 		GLOBAL.vf.makeInstance(instance); // creates instance.static
 
-		let fauxLink = document.createElement("a");
+		let fauxLink = EL("a");
 		fauxLink.download = GLOBAL.vf.filename;
 		fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
 
