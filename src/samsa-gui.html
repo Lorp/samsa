@@ -164,7 +164,7 @@ CONFIG.uiModes = {
 	light: {
 		name: "light",
 
-		layers: ["layer-grid","layer-default","layer-instance","layer-points","layer-instance-points","layer-arrows-total","layer-arrows-split","layer-pointnumbers"],
+		layers: ["layer-grid","layer-default","layer-instance","layer-points","layer-instance-points","layer-arrows-total","layer-arrows-split","layer-pointnumbers","layer-tangents"],
 
 		cartesianAxes: {
 			stroke: "#31b8e7",
@@ -182,6 +182,11 @@ CONFIG.uiModes = {
 			tipLength: 20,
 			tipWidth: 15,
 			color: "#0044ee",
+		},
+
+		tangent: {
+			color: "grey",
+			strokeWidth: 2,
 		},
 
 		designspace: {
@@ -281,6 +286,11 @@ CONFIG.uiModes = {
 			tipLength: 20,
 			tipWidth: 15,
 			color: "orange",
+		},
+
+		tangent: {
+			color: "grey",
+			strokeWidth: 2,
 		},
 
 		designspace: {
@@ -902,6 +912,8 @@ function vfLoaded (font) {
 		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">Total deltas</label>`;
 		panel.innerHTML += "&nbsp;";
 		panel.innerHTML += `<input id="point-numbers" class="ui-arrows" type="checkbox"><label for="point-numbers">Point numbers</label>`;
+		panel.innerHTML += "&nbsp;";
+		panel.innerHTML += `<input id="point-tangents" class="ui-arrows" type="checkbox"><label for="point-tangents">Tangents</label>`;
 
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
 		Q("#ui-mode").value = font.config.ui.name;
@@ -911,7 +923,6 @@ function vfLoaded (font) {
 			el.addEventListener("change", e => {
 				let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
 				let glyph = font.glyphs[GLOBAL.currentGlyphId];
-				//let iglyph = glyphApplyVariations(glyph, null, instance);
 				iglyph = glyph.instantiate(instance.tuple);
 				setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 				font.instances.pop();
@@ -2697,13 +2708,11 @@ function updateGlyphSVG (g, instance) {
 
 	// clear main window and tvts panel
 	let drawingEl = Q("#drawing");
-	//drawingEl.innerHTML = "";
-
-
 	let svgEl = Q("#samsa-svg");
 	if (svgEl)
 		svgEl.remove();
 
+	// set up parent SVG element (svg) and the scaled container (svgg)
 	let scale = 0.5 / uiScale;
 	svgEl = SVG("svg");
 	svgEl.id = "samsa-svg";
@@ -2716,18 +2725,25 @@ function updateGlyphSVG (g, instance) {
 	});
 	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
 
-	/*
-	// filters to use... not yet :)
-	// - https://developer.mozilla.org/en-US/docs/Web/SVG/Element/filter
-	let svgFilter = SVG("filter");
-	svgFilter.setAttributeNS(null, "id","blur");
-	let svgFilterBlur = SVG("feGaussianBlur");
-	svgFilterBlur.setAttributeNS(null, "stdDeviation","5");
-	svgFilter.appendChild(svgFilterBlur);
-	svgDefs.appendChild(svgFilter);
-	*/
-	//svg.appendChild(svgDefs);
+	// define radial gradient for quadratic tangents
+	const   svgDefs = SVG("defs"),
+			linear = SVG("linearGradient"),
+			stop0 = SVG("stop"),
+			stop1 = SVG("stop");
+	stop0.attrsSVG({ offset: "0%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 1;` });
+	stop1.attrsSVG({ offset: "100%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 0;` });
+	linear.attrsSVG({
+		id: "tangent-linear-fade",
+		x1: "0%",
+		y1: "0%",
+		x2: "100%",
+		y2: "0%",
+	});
+	linear.append(stop0, stop1);
 
+	//svgDefs.appendChild(radial);
+	svgDefs.appendChild(linear);
+	svgEl.append(svgDefs);
 
 	// draw each layer in the order it was specified in font.config.ui.layers
 	ui.layers.forEach(layer => {
@@ -2879,6 +2895,83 @@ function updateGlyphSVG (g, instance) {
 					});
 
 					svgg.append(svgg2);
+				}
+				break;
+
+
+			case "layer-tangents":
+
+				if (!(Q("#point-tangents").checked && ui.tangent && ui.tangent.color))
+					break;
+
+				// convert line to path (similar to getArrowParams())
+				function lineToPath(x1, y1, x2, y2, strokeWidth) {
+					let path = "";
+					const len = Math.sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+					if (len > 0) {
+						const ratio = 0.5*strokeWidth/len, dx = (y2-y1)*ratio, dy = (x2-x1)*ratio;
+						path = `M${x1+dx} ${y1-dy} L${x2+dx} ${y2-dy} L${x2-dx} ${y2+dy} L${x1-dx} ${y1+dy} Z`;
+					}
+					return path;
+				}
+
+				// loop through each contour
+				let startPt = 0, endPt, numCountourPoints;
+				for (let c=0; c<iglyph.endPts.length; c++) {
+					endPt = iglyph.endPts[c];
+					numCountourPoints = endPt-startPt+1;
+
+					// loop through all points in this contour
+					for (let p=0; p<numCountourPoints; p++) {
+						const pt = iglyph.points[startPt+p];
+
+						// if this point is off-curve
+						if (pt[2] == 0) {
+
+							const prev = p>0 ? p-1 : numCountourPoints-1;
+							const next = p<numCountourPoints-1 ? p+1 : 0;
+							const prevPt = iglyph.points[startPt+prev], nextPt = iglyph.points[startPt+next];
+							let tangents = [];
+							const strokeWidth = ui.tangent.strokeWidth * uiScale;
+
+							switch (iglyph.curveOrder) {
+
+								case 2:
+									[prevPt, nextPt].forEach(otherPt => {
+										const tangent = SVG("rect");
+										const angle = Math.atan2(otherPt[1]-pt[1], otherPt[0]-pt[0]) * 180 / Math.PI;
+										let len = Math.sqrt((otherPt[0]-pt[0])*(otherPt[0]-pt[0]) + (otherPt[1]-pt[1]) * (otherPt[1]-pt[1]));
+										if (otherPt[2] == 0)
+											len *= 0.5;
+										tangent.attrsSVG({
+											x: pt[0],
+											y: pt[1] - 0.5*strokeWidth*uiScale,
+											width: len,
+											height: strokeWidth*uiScale,
+											transform: `rotate(${angle} ${pt[0]} ${pt[1]})`,
+											fill: "url(#tangent-linear-fade)",
+										});
+										tangents.push(tangent);
+									});
+									break;
+
+								case 3:
+									tangents[0] = SVG("line");
+									const eitherPt = prevPt[2] ? prevPt : nextPt;
+									tangents[0].attrsSVG({
+										x1: pt[0],
+										y1: pt[1],
+										x2: eitherPt[0],
+										y2: eitherPt[1],
+										stroke: ui.tangent.color,
+										"stroke-width": strokeWidth,
+									});
+									break;
+							}
+							svgg.append(...tangents);
+						}
+					}
+					startPt = endPt+1;
 				}
 				break;
 
