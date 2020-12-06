@@ -2725,25 +2725,26 @@ function updateGlyphSVG (g, instance) {
 	});
 	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
 
-	// define radial gradient for quadratic tangents
-	const   svgDefs = SVG("defs"),
-			linear = SVG("linearGradient"),
-			stop0 = SVG("stop"),
-			stop1 = SVG("stop");
-	stop0.attrsSVG({ offset: "0%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 1;` });
-	stop1.attrsSVG({ offset: "100%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 0;` });
-	linear.attrsSVG({
-		id: "tangent-linear-fade",
-		x1: "0%",
-		y1: "0%",
-		x2: "100%",
-		y2: "0%",
-	});
-	linear.append(stop0, stop1);
+	// define radial gradient for quadratic tangents (only if tangents are active)
+	if (Q("#point-tangents").checked) {
+		const   svgDefs = SVG("defs"),
+				linear = SVG("linearGradient"),
+				stop0 = SVG("stop"),
+				stop1 = SVG("stop");
+		stop0.attrsSVG({ offset: "0%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 1;` });
+		stop1.attrsSVG({ offset: "100%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 0;` });
+		linear.attrsSVG({
+			id: "tangent-linear-fade",
+			x1: "0%",
+			y1: "0%",
+			x2: "100%",
+			y2: "0%",
+		});
+		linear.append(stop0, stop1);
+		svgDefs.appendChild(linear);
+		svgEl.append(svgDefs);
+	}
 
-	//svgDefs.appendChild(radial);
-	svgDefs.appendChild(linear);
-	svgEl.append(svgDefs);
 
 	// draw each layer in the order it was specified in font.config.ui.layers
 	ui.layers.forEach(layer => {
@@ -2915,6 +2916,10 @@ function updateGlyphSVG (g, instance) {
 					return path;
 				}
 
+				// create group for layer-tangents
+				svgg2 = SVG("g");
+				svgg2.id = layer;
+
 				// loop through each contour
 				let startPt = 0, endPt, numCountourPoints;
 				for (let c=0; c<iglyph.endPts.length; c++) {
@@ -2938,6 +2943,7 @@ function updateGlyphSVG (g, instance) {
 
 								case 2:
 									[prevPt, nextPt].forEach(otherPt => {
+
 										const tangent = SVG("rect");
 										const angle = Math.atan2(otherPt[1]-pt[1], otherPt[0]-pt[0]) * 180 / Math.PI;
 										let len = Math.sqrt((otherPt[0]-pt[0])*(otherPt[0]-pt[0]) + (otherPt[1]-pt[1]) * (otherPt[1]-pt[1]));
@@ -2968,11 +2974,13 @@ function updateGlyphSVG (g, instance) {
 									});
 									break;
 							}
-							svgg.append(...tangents);
+							svgg2.append(...tangents);
 						}
 					}
 					startPt = endPt+1;
 				}
+
+				svgg.append(svgg2);
 				break;
 
 
