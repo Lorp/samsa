@@ -1,6 +1,8 @@
 # ttf-cubic: an experimental variable font format with cubic curves
 
-In September 2020 an experimental build of Samsa [was published](https://twitter.com/axis_praxis/status/1305955442842050561) that handles **ttf-cubic** fonts. On 25 November 2020 the feature was [merged into Samsa’s main branch](https://github.com/Lorp/samsa/commit/8d63269f755fd6fc83d2a8bf8247b06d09470b45). This article discusses what ttf-cubic fonts are, why they exist, and how to make them.
+Author: Laurence Penney
+
+In September 2020 [I published](https://twitter.com/axis_praxis/status/1305955442842050561) an experimental build of Samsa that handles **ttf-cubic** fonts. On 25 November 2020 the feature was [merged into Samsa’s main branch](https://github.com/Lorp/samsa/commit/8d63269f755fd6fc83d2a8bf8247b06d09470b45). This article discusses what ttf-cubic fonts are, why they exist, and how to make them.
 
 ## Background
 
@@ -27,6 +29,11 @@ Three candidates for the flag were:
 
 I used the last option for two reasons. First, because after loading a font into memory, the file extension may not be preserved; indeed some fonts may be memory objects in the first place, not manifested as files at all. Second, it seems important to disable these fonts from being rendered in normal systems, because the curves will appear incorrectly (circles become squircles); these first four 4 bytes tend to be checked before processing, while an obscure flag may be ignored.
 
+### Alternative cubic representation methods
+
+The `head.glyphDataFormat` field could be incremented. However it seems dangerous to assume that this field is reliably checked by font systems, given that there has only been a single way to interpret the `glyf` table hitherto.
+
+[Karsten Lücke](https://www.kltf.de/) has proposed representing cubic curves in the existing `glyf` format, as describe above except renaming the `glyf` and `loca` tables to `glyc` and `locc` to ensure they are never parsed as quadratic.
 
 ## Building ttf-cubic fonts
 
@@ -34,7 +41,7 @@ Google Fonts’ [`fontmake`](https://github.com/googlefonts/fontmake) tool build
 
 The solution turned out to be a lot easier than I had thought. The method is:
 
-1. Prepare your `.designspace` file and `.ufo` sources as normal.
+1. Prepare your `.designspace` file and `.ufo` sources with cubic glyphs as normal.
 2. In all `.glif` files, search & replace all `"curve"` with `"qcurve"`.
 3. Use `fontmake` to create a TrueType font from the sources:  
 `$ fontmake -o variable -m <yourfont.designspace>`
@@ -42,6 +49,16 @@ The solution turned out to be a lot easier than I had thought. The method is:
 5. Make the file extension `ttf-cubic`.
 
 Now the font is ready to try in Samsa.
+
+Steps 2–5 can be performed from the \*nix shell (use with care!):
+
+```
+$ cd <copy-of-directory-with-yourfont-ufos-and-designspace>
+$ find . -name "*.glif" -type f -exec sed -i '' -e 's/type="curve"/type="qcurve"/g' {} +
+$ fontmake -o variable -m yourfont.designspace
+$ printf 'CUBE' | dd of=yourfont.ttf bs=1 seek=0 count=4 conv=notrunc
+$ mv yourfont.ttf yourfont.ttf-cubic
+```
 
 Here is the complete `.glif` file for the glyph `O` from @letterror’s `MutatorSansLightCondensed.ufo` after its cubic curves (`type="curve"`) have been replaced by pseudo-quadratic curve pairs (`type="qcurve"`).
 
@@ -92,30 +109,32 @@ Incidentally, Samsa’s JavaScript code for producing cubic SVG paths from ttf-c
 
 ## Testing ttf-cubic fonts
 
-To test a `ttf-cubic` font, simply drag and drop it onto the Samsa app as usual. You can also add it to `samsa-config.js` in your own hosted installations.
+### Samsa
+To test a `ttf-cubic` font, drag and drop it onto the Samsa app as usual. You can also add it to `samsa-config.js` in your own hosted installations.
 
-### Notes
+* Samsa uses the first 4 bytes to determine how to handle curves in the `glyf` table, setting an internal `curveOrder` property of the `SamsaFont` and `SamsaGlyph` objects to either 2 (quadratic) or 3 (cubic).
 
-* Samsa’s Webfont panel does not function correctly. The `ttf-cubic` format is not standards-compliant, therefore is rejected by browsers and operating systems.
+* Samsa’s Webfont panel (which uses standard techniques for display) does not function correctly. The `ttf-cubic` format is not standards-compliant, therefore such fonts are rejected by browsers and operating systems.
 
-* Samsa uses the first 4 bytes to decide how to handle curves in the `glyf` table, setting an internal `curveOrder` property of the `SamsaFont` and `SamsaGlyph` objects to either 2 (quadratic) or 3 (cubic).
+### FontLab 7.2
 
-* Samsa is currently the only system that handles `ttf-cubic` fonts.
+FontLab 7.2, as of 2020-12-02, also [supports import and export of ttf-cubic fonts](https://twitter.com/Fontlab/status/1333956675959742464).
 
 ## Font binary size comparison
 
-The following variable fonts were built with fontmake 2.2.0 from [Mutator Sans sources](https://github.com/LettError/mutatorSans).
+The following variable fonts were built with fontmake 2.2.0 from [Mutator Sans sources](https://github.com/LettError/mutatorSans). Sizes are in bytes.
 
-| File | Format | Curves | Size  (bytes) | Relative size |
-| :--- | :--- | :--- | ---: | ---: |
-| MutatorSans.ttf | ttf | quadratic | 11976 | 100% |
-| MutatorSans.ttf-cubic | ttf-cubic | cubic | 11044  | 92% |
-| MutatorSans.otf | otf/CFF2 | cubic | 7920  | 66% |
+| File | Format | Curves | Size  | Size % | WOFF2 size |
+| :--- | :--- | :--- | ---: | ---: | ---: |
+| MutatorSans.ttf | ttf | quadratic | 11976 | 100% | 6540 |
+| MutatorSans.ttf-cubic | ttf-cubic | cubic | 11044  | 92% | 5908* |
+| MutatorSans.otf | otf/CFF2 | cubic | 7920  | 66% | 4932 |
 
+\* The size is from a test font using the standard 0x00010000 fingerprint, because WOFF2 compression does not work otherwise.
 
 ## Heterogeneous curve formats within a font
 
-For future font formats, there have been discussions about handling multiple curve formats within the same font, and even handling multiple curve formats within the same glyph. While the latter in particular may seem unnecessary, it is notable that SVG, with which font formats are sometimes compared, offers quadratic and cubic curves within the same [`path`](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths). For fonts that derive from SVG source data, therefore, it would be ideal to preserve the sources’ curves.
+For future font formats, there have been discussions about handling multiple curve formats within the same font, and handling multiple curve formats within the same glyph. Note that SVG offers quadratic and cubic curves within the same [`path`](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths), so glyphs that derive from SVG source data would benefit from mixed curve representations. FontLab also handles mixed curves within a glyph. Rounded corners are more conveniently represented and adjusted in quadratic. Thus there are multiple reasons one might want to mix curve types within a glyph. As mentioned above, the existing `glyf` table format, in its specification of simple glyphs, has an unused bit in the `flags` field (bit 7). This could be used to represent curve type, and thus major retooling could be avoided. Whether these use cases are sufficiently compelling to move on from the idea that a font is either cubic or quadratic remains to be seen.
 
 These discussions seem to be limited to quadratic and cubic curves, rather than those of higher order, though spiral curves have also been explored seriously, notably @raphlinus’s [Spiro](https://levien.com/spiro/).
 
