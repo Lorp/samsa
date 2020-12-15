@@ -2438,6 +2438,22 @@ function updateTvts (glyph, iglyph) {
 
 		li.append(tvtId, tvtDeltas, tvtS);
 
+		// highlight active regions and peaks in the designspace panel
+		let region = Q(`#svg-designspace-tvt-${t}-region`);
+		if (region) {
+			if (sValue > 0)
+				region.attrsSVG({fill: ui.tuple.colors[t % ui.tuple.colors.length]});
+			else
+				region.attrsSVG({fill: "none"});
+		}
+		let peak = Q(`#svg-designspace-tvt-${t}-peak`);
+		if (peak) {
+			if (sValue > 0)
+				peak.attrsSVG({r: 0.0175, opacity: 0.5});
+			else
+				peak.attrsSVG({r: 0.0125, opacity: 0.25});
+		}
+
 		// add a graph for each axis
 		// - each graph is a single SVG element with descendants
 		// - each tuple contains <font.numAxes> graphs representing how this tuple responds to each axis
@@ -2553,25 +2569,24 @@ function redrawFeatureVariationsBoxes(g) {
 		while(svgFV.childNodes.length) // empty the node
 			svgFV.removeChild(svgFV.firstChild);
 	}
-       
+
+	// show the cartesian x axis var axis using x and width
+	// show the cartesian y axis var axis using y and height
+	// abort if the designspace uses multiple var axes on a single cartesian axis
+
+	let xSelects = Qall("#xSelect input[type='checkbox']:checked");
+	let ySelects = Qall("#ySelect input[type='checkbox']:checked");
+	let xAxisId, yAxisId;
+
+	if (xSelects.length == 1)
+		xAxisId = xSelects[0].value * 1;
+
+	if (ySelects.length == 1)
+		yAxisId = ySelects[0].value * 1;
+
 	let featureVarBoxes = font.featureVariationsBoxes(g);
 	for (fvBox of featureVarBoxes) {
-
-		// show the cartesian x axis var axis using x and width
-		// show the cartesian y axis var axis using y and height
-		// abort if the designspace uses multiple var axes on a single cartesian axis
-
-		let xSelects = Qall("#xSelect input[type='checkbox']:checked");
-		let ySelects = Qall("#ySelect input[type='checkbox']:checked");
-		let x, y, width, height;
-		let xAxisId, yAxisId;
-
-		if (xSelects.length == 1)
-			xAxisId = xSelects[0].value * 1;
-
-		if (ySelects.length == 1)
-			yAxisId = ySelects[0].value * 1;
-
+		let x, width;
 		if (xAxisId === undefined || fvBox[xAxisId] === undefined) {
 			x = -1;
 			width = 2;
@@ -2581,6 +2596,7 @@ function redrawFeatureVariationsBoxes(g) {
 			width = fvBox[xAxisId][1] - fvBox[xAxisId][0];
 		}
 
+		let y, height;
 		if (yAxisId === undefined || fvBox[yAxisId] === undefined) {
 			y = -1;
 			height = 2;
@@ -2603,7 +2619,62 @@ function redrawFeatureVariationsBoxes(g) {
 			});
 			svgFV.append(svgBox);
 		}
-	}	
+	}
+
+	let ui = font.config.ui;
+	let glyph = font.glyphs[g];
+	glyph.tvts.forEach((tvt, t) => {
+		let x, width, xPeak;
+		if (xAxisId === undefined || tvt.peak[xAxisId] == 0) {
+			x = -1;
+			xPeak = 0
+			width = 2;
+		}
+		else {
+			x = tvt.start[xAxisId];
+			xPeak = tvt.peak[xAxisId];
+			width = tvt.end[xAxisId] - x;
+		}
+
+		let y, height, yPeak;
+		if (yAxisId === undefined || tvt.peak[yAxisId] == 0) {
+			y = -1;
+			yPeak = 0
+			height = 2;
+		}
+		else {
+			y = tvt.start[yAxisId];
+			yPeak = tvt.peak[yAxisId];
+			height = tvt.end[yAxisId] - y;
+		}
+
+		if (!(x == -1 && width == 2 && y == -1 && height == 2)) {
+			let svgBox = SVG("rect");
+			svgBox.attrsSVG({
+				id: `svg-designspace-tvt-${t}-region`,
+				width: width,
+				height: height,
+				x: x,
+				y: y,
+				fill: "none",
+				"fill-opacity": 0.025,
+				stroke: ui.tuple.colors[t % ui.tuple.colors.length],
+				"stroke-width": 0.005,
+				"stroke-opacity": 0.25,
+			});
+			let svgPeak = SVG("circle");
+			svgPeak.attrsSVG({
+				id: `svg-designspace-tvt-${t}-peak`,
+				cx: xPeak,
+				cy: yPeak,
+				r: 0.0125,
+				fill: ui.tuple.colors[t % ui.tuple.colors.length],
+				stroke: "none",
+				opacity: 0.25,
+			});
+			svgFV.append(svgBox, svgPeak);
+		}
+	});
 }
 
 function setActiveGlyph (g, instance) {
