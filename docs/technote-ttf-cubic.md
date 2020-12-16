@@ -20,7 +20,7 @@ I realized that one could use normal TrueType-based tooling to build cubic fonts
 
 Three candidates for the flag were:
 
-* an unused flag bit in the `glyf` table
+* an unused flag bit in the `glyf` table (see below)
 * file extension, i.e. `ttf` vs. `ttf-cubic`
 * file fingerprint, i.e. the first 4 bytes of the file:
   * 0x00010000 for TrueType fonts
@@ -28,12 +28,6 @@ Three candidates for the flag were:
   * 0x43554245 (`CUBE`) for ttf-cubic fonts
 
 I used the last option for two reasons. First, because after loading a font into memory, the file extension may not be preserved; indeed some fonts may be memory objects in the first place, not manifested as files at all. Second, it seems important to disable these fonts from being rendered in normal systems, because the curves will appear incorrectly (circles become squircles); these first four 4 bytes tend to be checked before processing, while an obscure flag may be ignored.
-
-### Alternative cubic representation methods
-
-The `head.glyphDataFormat` field could be incremented. However it seems dangerous to assume that this field is reliably checked by font systems, given that there has only been a single way to interpret the `glyf` table hitherto.
-
-[Karsten Lücke](https://www.kltf.de/) has proposed representing cubic curves in the existing `glyf` format, as describe above except renaming the `glyf` and `loca` tables to `glyc` and `locc` to ensure they are never parsed as quadratic.
 
 ## Building ttf-cubic fonts
 
@@ -132,9 +126,15 @@ The following variable fonts were built with fontmake 2.2.0 from [Mutator Sans s
 
 \* The size is from a test font using the standard 0x00010000 fingerprint, because WOFF2 compression does not work otherwise.
 
-## Heterogeneous curve formats within a font
+## Alternative cubic representation methods in TrueTypeish fonts
 
-For future font formats, there have been discussions about handling multiple curve formats within the same font, and handling multiple curve formats within the same glyph. Note that SVG offers quadratic and cubic curves within the same [`path`](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths), so glyphs that derive from SVG source data would benefit from mixed curve representations. FontLab also handles mixed curves within a glyph. Rounded corners are more conveniently represented and adjusted in quadratic. Thus there are multiple reasons one might want to mix curve types within a glyph. As mentioned above, the existing `glyf` table format, in its specification of simple glyphs, has an unused bit in the `flags` field (bit 7). This could be used to represent curve type, and thus major retooling could be avoided. Whether these use cases are sufficiently compelling to move on from the idea that a font is either cubic or quadratic remains to be seen.
+* In the `glyf` table, bit 7 in the flags for each point is currently (OpenType 1.8.4) reserved. Using this bit would allow cubic curves to be identified, either once per glyph (if set in the very first flag) or for every curve. Some [Twitter discussion](https://twitter.com/simoncozens/status/1305921854213885960) took place regarding bit 7 and cubic curves. More discussion at [commontype/Cubic Beziers in glyf table](https://github.com/commontype-standard/commontype/issues/38).
+
+* The `head.glyphDataFormat` field could be incremented. However it seems dangerous to assume that this field is reliably checked by font systems, given that there has only been a single way to interpret the `glyf` table hitherto.
+
+* [Karsten Lücke](https://www.kltf.de/) has proposed representing cubic curves in the existing `glyf` format, as described above, except renaming the `glyf` and `loca` tables to `glyc` and `locc` to ensure they are never parsed as quadratic.
+
+Regarding fonts with heterogenous curves (i.e. containing both cubic and quadratic) we note that SVG offers quadratic and cubic curves within contours of a [`path`](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths). FontLab also natively handles mixed curves within a glyph. Rounded corners, at least small ones, are arguably better represented and adjusted in quadratic. Thus there exist reasons one might want to mix curve types within a glyph. Whether these use cases are sufficiently compelling to move on from the longstanding idea that a font is either cubic or quadratic remains to be seen.
 
 These discussions seem to be limited to quadratic and cubic curves, rather than those of higher order, though spiral curves have also been explored seriously, notably @raphlinus’s [Spiro](https://levien.com/spiro/).
 
