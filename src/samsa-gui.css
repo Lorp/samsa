@@ -642,7 +642,7 @@ h4 {
 .tvt-item {
 	display: grid;
 	grid-template-columns: 25px 15px 45px 45px 45px auto;
-	grid-template-rows: 2em;
+	grid-template-rows: auto;
 	font-size: 75%;
 }
 
