@@ -114,6 +114,10 @@ To test a `ttf-cubic` font, drag and drop it onto the Samsa app as usual. You ca
 
 FontLab 7.2, as of 2020-12-02, also [supports import and export of ttf-cubic fonts](https://twitter.com/Fontlab/status/1333956675959742464).
 
+### Glyphs 3
+
+Glyphs 3 (from version Glyphs3.0.2-3040, released 2020-12-01) can export static ttf-cubic fonts. In *Font Info / Exports*, add a custom parameter “Save as ttf-cubic” and enable it. TrueType fonts subsequently exported are ttf-cubic.
+
 ## A note on outline direction
 
 Cubic sources are designed with *anticlockwise* solid outlines, and this outline direction is preserved in fonts converted to ttf-cubic using the above method. In other words, point numbers remain consistent between compiled fonts and font sources. This is opposite to the TrueType convention where solid outlines have clockwise outlines. For a real specification, direction should probably be specified, and keeping to the TrueType convention may be the better choice. Note, though, that SVG gets by being agnostic about curve direction; by default it uses a [non-zero fill rule](https://developer.mozilla.org/en-US/docs/Web/SVG/Attribute/fill-rule) which works for both clockwise and anticlockwise solid outlines. Thanks for the [note](https://github.com/Lorp/samsa/pull/57) on this, @dberlow.
