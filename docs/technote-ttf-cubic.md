@@ -116,7 +116,7 @@ FontLab 7.2, as of 2020-12-02, also [supports import and export of ttf-cubic fon
 
 ### Glyphs 3
 
-Glyphs 3 (from version Glyphs3.0.2-3040, released 2020-12-01) can export static ttf-cubic fonts. In *Font Info / Exports*, add a custom parameter “Save as ttf-cubic” and enable it. TrueType fonts subsequently exported are ttf-cubic.
+Glyphs 3 (from version Glyphs3.0.2-3040, released 2020-12-01) can export static ttf-cubic fonts. In *Font Info / Exports*, add a custom parameter “Save as ttf-cubic” and enable it. Exports with “TrueType outline flavour” will subsequently be in ttf-cubic format.
 
 ## A note on outline direction
 
