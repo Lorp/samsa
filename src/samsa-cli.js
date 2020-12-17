@@ -135,7 +135,7 @@ Arguments:
   Outfile filename, overrides "samsa-instance".
 
   --optimize, -O <memory|speed|size>
-  Optimize for low memory, high speed, instance size (default = speed), comma-separated.
+  Optimize for low memory, high speed, instance size (default = speed), comma-separated. Note that very large fonts may require the 'memory' optimization.
 
   --quiet, -q
   Quiet mode, no console output.

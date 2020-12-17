@@ -23,6 +23,9 @@ Synonyms for `--instances`.
 **`--output, -o <filename>`**  
 Outfile filename, overrides default "samsa-instance".
 
+**`--optimize, -O <memory|speed|size>`**  
+Optimize for low memory, high speed, instance size (default = speed), comma-separated. Note that very large fonts may require the “memory” optimization.
+
 **`--quiet, -q`**  
 Quiet mode, no console output.
 
@@ -39,6 +42,9 @@ Make static fonts for all named instances:
 
 Make static fonts for all named instances (switching to short -i syntax):  
 `% node samsa-cli.js Gingham.ttf -i named`
+
+Make static fonts for all named instances optimized for smaller output size and low memory usage:  
+`% node samsa-cli.js Gingham.ttf -i named -O size,memory`
 
 Make static fonts for all stat instances:  
 `% node samsa-cli.js SourceSans.ttf -i stat`
