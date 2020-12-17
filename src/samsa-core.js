@@ -44,7 +44,7 @@ let CONFIG = {
 	glyf: {
 		overlapSimple: true,
 		bufferSize: 500000, // max data to accumulate before a write (ignored for in-memory instantiation)
-		compression: true, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
+		compression: false, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
 	},
 
 	name: {
@@ -348,9 +348,11 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 	}
 
 	// newGlyph starts off as a duplicate of the default glyph (at least, all of its points)
-	this.points.forEach((point, p) => {
+	let p=this.points.length;
+	while (--p >= 0) {
+		const point = this.points[p];
 		newGlyph.points[p] = [point[0], point[1], point[2]];
-	});
+	}
 
 	// go through each tuple variation table for this glyph
 	newGlyph.sValues = [];
@@ -366,18 +368,21 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 
 		// go thru each axis, multiply a scalar S from individual scalars AS
 		// based on pseudocode from https://www.microsoft.com/typography/otspec/otvaroverview.htm
-		font.axes.forEach((axis, a) => {
+		for (let a=0; a<font.axes.length; a++) {
 			const ua = userTuple[a], peak = tvt.peak[a], start = tvt.start[a], end = tvt.end[a];
-			let AS;
 
-	        if (start > peak || peak > end)
-	            AS = 1;
-	        else if (start < 0 && end > 0 && peak != 0)
-	            AS = 1;
-	        else if (peak == 0)
-	            AS = 1;
-	        else if (ua < start || ua > end)
-	            AS = 0;
+			/*
+			let AS;
+			if (start > peak || peak > end)
+				AS = 1;
+			else if (start < 0 && end > 0 && peak != 0)
+				AS = 1;
+			else if (peak == 0)
+				AS = 1;
+			else if (ua < start || ua > end) {
+				S = 0;
+				break; // we have a zero so set S=0 and quit
+	        }
 	        else {
 	            if (ua == peak)
 	                AS = 1;
@@ -386,22 +391,37 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 	            else
 	                AS = (end - ua) / (end - peak);
 	        }
-	        S *= AS;
+			S *= AS;
+			*/
 
-	        // TODO: optimize so that we quit the loop if AS == 0
-	        // TODO: get rid of AS and use "S *= " in each of the branches (altho not ideal if we want to record each AS for visualization)
-		});
+			if (   (peak == 0)                         // common, so first
+				|| (start < 0 && end > 0 && peak != 0) // validity check, should be handled when parsing
+				|| (start > peak || peak > end) )      // validity check, should be handled when parsing
+				continue;
+			else if (ua < start || ua > end) {
+				S = 0;
+				break; // we have a zero so set S=0 and quit
+	        }
+	        else {
+	            if (ua < peak)
+	                S *= (ua - start) / (peak - start);
+	            else if (ua > peak)
+	                S *= (end - ua) / (end - peak);
+	            // else ua == peak, and our axis scalar is 1 (so nothing to do)
+	        }
+		}
 
 		// now we can move the points by S * delta
 		if (S != 0) {
-
-			tvt.deltas.forEach((delta, pt) => {
+			let pt = tvt.deltas.length;
+			while (--pt >= 0) {
+				const delta = tvt.deltas[pt];
 				if (delta !== null) {
 					newGlyph.touched[pt] = touched[pt] = true; // touched[] is just for this tvt; newGlyph.touched[] is for all tvts (in case we want to show in UI) 
 					// btw, we don’t need to store touched array for composite or non-printing glyphs - probably a negligible optimization
 					scaledDeltas[pt] = [S * delta[0], S * delta[1]];
 				}
-			});
+			}
 
 			// IUP
 			// - TODO: ignore this step for composites (even though it is safe because numContours<0)
@@ -417,17 +437,18 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 					for (let p=startPt; p!=firstPrecPt; ) {
 						let pNext = (p-startPt+1)%numPointsInContour+startPt;
 						if (touched[p] && !touched[pNext]) { // found a precPt
+							// get precPt and follPt
 							precPt = p;
 							follPt = pNext;
 							if (firstPrecPt == -1)
 								firstPrecPt = precPt;
 							do {
 								follPt = (follPt-startPt+1)%numPointsInContour+startPt;
-								} while (!touched[follPt]) // found the follPt
+							} while (!touched[follPt]) // found the follPt
 
-							// now we have a good precPt and follPt
 							// perform IUP for x(0), then for y(1)
-							[0,1].forEach(xy => {
+							for (let xy=0; xy<=1; xy++) {
+
 								// IUP spec: https://www.microsoft.com/typography/otspec/gvar.htm#IDUP
 								const pA = this.points[precPt][xy];
 								const pB = this.points[follPt][xy];
@@ -450,7 +471,7 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 									}
 									scaledDeltas[q][xy] += D;
 								}
-							});
+							}
 							p = follPt;
 						}
 						else if (pNext == startPt && firstPrecPt == -1) // failed to find a precPt, so abandon this contour
