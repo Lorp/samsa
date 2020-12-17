@@ -44,7 +44,7 @@ let CONFIG = {
 	glyf: {
 		overlapSimple: true,
 		bufferSize: 500000, // max data to accumulate in binary glyf table before a write (ignored for in-memory instantiation)
-		compression: true, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
+		compression: false, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
 	},
 
 	name: {
@@ -54,6 +54,8 @@ let CONFIG = {
 	deltas: {
 		round: true,
 	},
+
+	purgeGlyphs: false, // release memory for glyphs when possible, but slower when doing multiple things with the font (only use for very large fonts)
 
 	postscriptNames: [".notdef",".null","nonmarkingreturn","space","exclam","quotedbl","numbersign","dollar","percent","ampersand","quotesingle","parenleft","parenright","asterisk","plus","comma","hyphen","period","slash","zero","one","two","three","four","five","six","seven","eight","nine","colon","semicolon","less","equal","greater","question","at","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","bracketleft","backslash","bracketright","asciicircum","underscore","grave","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","braceleft","bar","braceright","asciitilde","Adieresis","Aring","Ccedilla","Eacute","Ntilde","Odieresis","Udieresis","aacute","agrave","acircumflex","adieresis","atilde","aring","ccedilla","eacute","egrave","ecircumflex","edieresis","iacute","igrave","icircumflex","idieresis","ntilde","oacute","ograve","ocircumflex","odieresis","otilde","uacute","ugrave","ucircumflex","udieresis","dagger","degree","cent","sterling","section","bullet","paragraph","germandbls","registered","copyright","trademark","acute","dieresis","notequal","AE","Oslash","infinity","plusminus","lessequal","greaterequal","yen","mu","partialdiff","summation","product","pi","integral","ordfeminine","ordmasculine","Omega","ae","oslash","questiondown","exclamdown","logicalnot","radical","florin","approxequal","Delta","guillemotleft","guillemotright","ellipsis","nonbreakingspace","Agrave","Atilde","Otilde","OE","oe","endash","emdash","quotedblleft","quotedblright","quoteleft","quoteright","divide","lozenge","ydieresis","Ydieresis","fraction","currency","guilsinglleft","guilsinglright","fi","fl","daggerdbl","periodcentered","quotesinglbase","quotedblbase","perthousand","Acircumflex","Ecircumflex","Aacute","Edieresis","Egrave","Iacute","Icircumflex","Idieresis","Igrave","Oacute","Ocircumflex","apple","Ograve","Uacute","Ucircumflex","Ugrave","dotlessi","circumflex","tilde","macron","breve","dotaccent","ring","cedilla","hungarumlaut","ogonek","caron","Lslash","lslash","Scaron","scaron","Zcaron","zcaron","brokenbar","Eth","eth","Yacute","yacute","Thorn","thorn","minus","multiply","onesuperior","twosuperior","threesuperior","onehalf","onequarter","threequarters","franc","Gbreve","gbreve","Idotaccent","Scedilla","scedilla","Cacute","cacute","Ccaron","ccaron","dcroat"],
 
@@ -780,6 +782,22 @@ function SamsaFont (init, config) {
 	this.config = CONFIG;
 	if (config) {
 		Object.keys(config).forEach(k => this.config[k] = config[k] );
+	}
+
+	// high-level optimization to low-level
+	if (this.config.optimize) {
+
+		this.config.optimize = this.config.optimize.split(","); // convert string into array: "memory,size" => ["memory","size"]
+		if (this.config.optimize.includes("speed")) {
+			this.config.glyf.compression = false;
+			this.config.purgeGlyphs = false;
+		}
+		if (this.config.optimize.includes("memory")) {			
+			this.config.purgeGlyphs = true; // may override speed optimization
+		}
+		if (this.config.optimize.includes("size")) {
+			this.config.glyf.compression = true; // may override speed optimization
+		}
 	}
 
 	// general properties
@@ -2321,13 +2339,16 @@ function SamsaFont (init, config) {
 
 					for (let g=0; g<font.numGlyphs; g++) {
 
-						// remember to delete these later!
-						if (!font.glyphs[g])
-							font.glyphs[g] = font.parseGlyph(g); // glyf data
-						let glyph = font.glyphs[g];
-						
-						if (node)
-							glyph.tvts = font.parseTvts(g); // gvar data, one glyph at a time for memory efficiency with very large fonts
+						// fetch/parse our glyph object
+						// - we will release this glyph later, if CONFIG.purgeGlyphs
+						let glyph;
+						if (font.glyphs[g]) {
+							glyph = font.glyphs[g];
+						}
+						else {
+							glyph = font.glyphs[g] = font.parseGlyph(g); // glyf data
+							glyph.tvts = font.parseTvts(g); // gvar delta sets, one glyph at a time (discarded after this iteration if CONFIG.purgeGlyphs is true)
+						}
 
 						// apply variations to the glyph
 						// - same function for all glyphs: simple, composite, zero-contour
@@ -2544,7 +2565,7 @@ function SamsaFont (init, config) {
 
 
 						// release memory explicitly (might be more efficient to leave this to the garbage collector)
-						if (node) {
+						if (node && CONFIG.purgeGlyphs) {
 							font.glyphs[g].tvts = undefined;
 							font.glyphs[g] = undefined;
 							iglyph = undefined;

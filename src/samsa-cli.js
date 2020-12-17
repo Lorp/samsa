@@ -20,7 +20,6 @@
 // chmod +x samsa-cli.js
 
 
-
 // global config
 let config = {
 	path: ".",
@@ -83,6 +82,13 @@ while (!((thisArg = process.argv[++i]) === undefined)) {
 			}
 			break;
 
+		case "--optimize":
+		case "-O":
+			if (!((thisParam = process.argv[++i]) === undefined)) {
+				config.optimize = thisParam;
+			}
+			break;
+
 		// an argument without a flag must be the font file
 		default:
 			init.inFile = process.argv[i];
@@ -128,6 +134,9 @@ Arguments:
   --output, -o
   Outfile filename, overrides "samsa-instance".
 
+  --optimize, -O <memory|speed|size>
+  Optimize for low memory, high speed, instance size (default = speed), comma-separated.
+
   --quiet, -q
   Quiet mode, no console output.
 
@@ -144,6 +153,9 @@ Examples:
 
   Make static fonts for all named instances (switching to short -i syntax)
   % node samsa-cli.js Gingham.ttf -i named
+
+  Make static fonts for all named instances optimized for smaller output size and low memory usage
+  % node samsa-cli.js Gingham.ttf -i named -O size,memory
 
   Make static fonts for all stat instances
   % node samsa-cli.js SourceSans.ttf -i stat
