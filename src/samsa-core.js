@@ -43,7 +43,7 @@ let CONFIG = {
 
 	glyf: {
 		overlapSimple: true,
-		bufferSize: 500000, // max data to accumulate before a write (ignored for in-memory instantiation)
+		bufferSize: 500000, // max data to accumulate in binary glyf table before a write (ignored for in-memory instantiation)
 		compression: true, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
 	},
 
@@ -80,9 +80,8 @@ if (CONFIG.isNode) {
 	Buffer.prototype.getTag = function (p) {
 		let tag = "";
 		let  p_end = p + 4; // global
-		let  ch;
 		while (p < p_end) {
-			ch = this.readUInt8(p++);
+			let ch = this.readUInt8(p++);
 			if (ch >= 32 && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
 				tag += String.fromCharCode(ch);	
 		}
@@ -394,26 +393,28 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 			S *= AS;
 			*/
 
-			if (   (peak == 0)                         // common, so first
-				|| (start < 0 && end > 0 && peak != 0) // validity check, should be handled when parsing
-				|| (start > peak || peak > end) )      // validity check, should be handled when parsing
+			// validity checks noted in the pseudocode are now performed while parsing
+			if (peak == 0) // common, so first
 				continue;
 			else if (ua < start || ua > end) {
 				S = 0;
-				break; // we have a zero so set S=0 and quit
+				break; // zero scalar, which makes S=0 and quit
 	        }
 	        else {
 	            if (ua < peak)
 	                S *= (ua - start) / (peak - start);
 	            else if (ua > peak)
 	                S *= (end - ua) / (end - peak);
-	            // else ua == peak, and our axis scalar is 1 (so nothing to do)
+	            //else if (ua == peak)
+	            	// nothing to do
 	        }
 		}
 
 		// now we can move the points by S * delta
 		if (S != 0) {
 			let pt = tvt.deltas.length;
+
+			// OPTIMIZE: it must be possible to optimize for the S==1 case, but attempts reduce speed...
 			while (--pt >= 0) {
 				const delta = tvt.deltas[pt];
 				if (delta !== null) {
@@ -425,6 +426,7 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 
 			// IUP
 			// - TODO: ignore this step for composites (even though it is safe because numContours<0)
+			// - OPTIMIZE: calculate IUP deltas when parsing, then a "deltas" variable can point either to the original deltas array or to a new scaled deltas array (hmm, rounding will be a bit different if IUP scaled deltas are always based on the 100% deltas)
 			if (touched.length > 0 && !config.instantiation.ignoreIUP) { // it would be nice to check "touched.length < glyph.points.length" but that won’t work with sparse arrays, and must also think about phantom points
 
 				// for each contour
@@ -2079,12 +2081,16 @@ function SamsaFont (init, config) {
 
 				if (tupleIntermediate) { // this should never happen if !tupleEmbedded
 					for (a=0; a<font.axisCount; a++) {
-						tvt.start[a] = data.getF2DOT14(p), p+=2;
-					}
 
-					for (a=0; a<font.axisCount; a++) {
-						tvt.end[a]   = data.getF2DOT14(p), p+=2;
+						// get start and end values for this region
+						tvt.start[a] = data.getF2DOT14(p + a*2);
+						tvt.end[a]   = data.getF2DOT14(p + a*2 + font.axisCount*2);
+
+						// if region is invalid, force a null region
+						if ((tvt.start[a] > tvt.end[a]) || (tvt.start[a] < 0 && tvt.end[a] > 0))
+							tvt.start[a] = tvt.end[a] = tvt.peak[a] = 0;
 					}
+					p += font.axisCount*4;
 				}
 				else {
 					for (a=0; a<font.axisCount; a++) {
@@ -3166,7 +3172,7 @@ function SamsaFont (init, config) {
 
 	if (init.arrayBuffer) {
 
-		console.log ("arraybuffer method!")
+		//console.log ("arraybuffer method!")
 		this.data = new DataView(this.arrayBuffer);
 		this.parse();
 	}
