@@ -44,7 +44,7 @@ let CONFIG = {
 	glyf: {
 		overlapSimple: true,
 		bufferSize: 500000, // max data to accumulate before a write (ignored for in-memory instantiation)
-		compression: false, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
+		compression: true, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
 	},
 
 	name: {
