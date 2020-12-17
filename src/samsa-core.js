@@ -109,12 +109,12 @@ function getStringFromData (data, p0, length)
 
 // TODO: get rid of this!
 function uint8ToBase64(buffer) {
-     let binary = '';
-     let len = buffer.byteLength;
-     for (let i=0; i < len; i++) {
-         binary += String.fromCharCode(buffer[i]);
-     }
-     return window.btoa( binary );
+	let binary = '';
+	let len = buffer.byteLength;
+	for (let i=0; i < len; i++) {
+		binary += String.fromCharCode(buffer[i]);
+	}
+	return window.btoa( binary );
 }
 
 //////////////////////////////////
@@ -383,15 +383,15 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 			else if (ua < start || ua > end) {
 				S = 0;
 				break; // we have a zero so set S=0 and quit
-	        }
-	        else {
-	            if (ua == peak)
-	                AS = 1;
-	            else if (ua < peak)
-	                AS = (ua - start) / (peak - start);
-	            else
-	                AS = (end - ua) / (end - peak);
-	        }
+			}
+			else {
+				if (ua == peak)
+				AS = 1;
+			else if (ua < peak)
+				AS = (ua - start) / (peak - start);
+			else
+				AS = (end - ua) / (end - peak);
+			}
 			S *= AS;
 			*/
 
@@ -401,15 +401,15 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 			else if (ua < start || ua > end) {
 				S = 0;
 				break; // zero scalar, which makes S=0 and quit
-	        }
-	        else {
-	            if (ua < peak)
-	                S *= (ua - start) / (peak - start);
-	            else if (ua > peak)
-	                S *= (end - ua) / (end - peak);
-	            //else if (ua == peak)
-	            	// nothing to do
-	        }
+			}
+			else {
+				if (ua < peak)
+				S *= (ua - start) / (peak - start);
+			else if (ua > peak)
+				S *= (end - ua) / (end - peak);
+			//else if (ua == peak)
+				// nothing to do
+			}
 		}
 
 		// now we can move the points by S * delta
@@ -2564,11 +2564,10 @@ function SamsaFont (init, config) {
 						} // empty glyph end
 
 
-						// release memory explicitly (might be more efficient to leave this to the garbage collector)
+						// release memory explicitly
 						if (node && CONFIG.purgeGlyphs) {
 							font.glyphs[g].tvts = undefined;
 							font.glyphs[g] = undefined;
-							iglyph = undefined;
 						}
 
 						// store location of *next* loca
