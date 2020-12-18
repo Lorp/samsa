@@ -612,6 +612,14 @@ function SVG (tag) {
     return document.createElementNS("http://www.w3.org/2000/svg", tag);
 }
 
+SVGElement.prototype.attrsSVG = function (attrs) {
+// attach multiple SVG attributes
+// - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
+	for (const prop in attrs) {
+		this.setAttributeNS(null, prop, attrs[prop]);
+	}
+};
+
 function htmlEntities(str) {
 	// https://css-tricks.com/snippets/javascript/htmlentities-for-javascript/
 	return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -913,7 +921,7 @@ function vfLoaded (font) {
 		panel.innerHTML += "&nbsp;";
 		panel.innerHTML += `<input id="point-numbers" class="ui-arrows" type="checkbox"><label for="point-numbers">Point numbers</label>`;
 		panel.innerHTML += "&nbsp;";
-		panel.innerHTML += `<input id="point-tangents" class="ui-arrows" type="checkbox"><label for="point-tangents">Tangents</label>`;
+		panel.innerHTML += `<input id="point-tangents" class="ui-arrows" type="checkbox" checked><label for="point-tangents">Tangents</label>`;
 
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
 		Q("#ui-mode").value = font.config.ui.name;
@@ -3625,15 +3633,6 @@ function removeOverlay () {
 		el.remove();
 	});
 }
-
-
-// method to attach multiple SVG attributes at once
-// - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
-SVGElement.prototype.attrsSVG = function (attrs) {
-	for (const prop in attrs) {
-		this.setAttributeNS(null, prop, attrs[prop]);
-	}
-};
 
 
 document.onkeydown = e => {
