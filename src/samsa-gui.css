@@ -136,7 +136,7 @@ button.close {
 	width: 100vw;
 	height: 100vh;
 	display: grid;
-	grid-template-columns: 360px 1fr;
+	grid-template-columns: 0fr 1fr;
 	grid-template-rows: 80px 1fr;
 	background-color: beige;
 	/* on font load becomes transparent */
@@ -203,7 +203,11 @@ button.close {
 .panel-container {
 	position: relative;
 	background-color: beige;
+	overflow-x: auto;
 	overflow-y: scroll;
+	resize: horizontal;
+	min-width: 360px;
+	max-width: 50vw;
 }
 
 
