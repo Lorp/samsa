@@ -203,9 +203,9 @@ button.close {
 .panel-container {
 	position: relative;
 	background-color: beige;
+	overflow-x: hidden;
 	overflow-y: scroll;
 }
-
 
 .panel-container h2 {
 	position: relative;
@@ -275,6 +275,10 @@ button.close {
 
 #panel-webfont .panel-content {
 	padding: 0 .5rem
+}
+
+#panel-tvts .panel-content {
+	overflow-x: scroll;
 }
 
 #panel-tvts .tvt-item {
