@@ -2417,7 +2417,7 @@ function updateTvts (glyph, iglyph) {
 		let li = EL("li");
 		li.classList.add("tvt-item");
 		let tvtId = EL("div");
-		let tvtOrder = 0; // the numbet of axes involved in this tuple (i.e. with peak != 0)
+		let tvtOrder = 0; // the number of axes involved in this tuple (i.e. with peak != 0); tvtOrder=1 (linear), tvtOrder=2 (quadratic), tvtOrder=3 (cubic), etc.
 
 		tvtId.innerText = t;
 		tvtId.style.backgroundColor = ui.tuple.colors[t % ui.tuple.colors.length];
@@ -2505,7 +2505,7 @@ function updateTvts (glyph, iglyph) {
 		// add main row: <li>
 		li = EL("li");
 		li.classList.add("tvt-item");
-		let row = `<div class="index" style="height: 2em;background-color: ${ui.tuple.colors[t % ui.tuple.colors.length]}">${t}</div><div class="toggle bold icon">&#xf04b;</div><div class="points">${numDeltas}</div><div class="scalar" style="text-align: center;">${Math.round(sValue *1000)/1000}</div><div class="order">${tvtOrder}</div><div class="axes"></div>`;
+		let row = `<div class="index" style="background-color: ${ui.tuple.colors[t % ui.tuple.colors.length]};">${t}</div><div class="toggle bold icon">&#xf04b;</div><div class="points">${numDeltas}</div><div class="scalar" style="text-align: center;">${Math.round(sValue*1000)/1000}</div><div class="order">${tvtOrder}</div><div class="axes"></div>`;
 		li.innerHTML = row;
 		panel.append(li);
 
