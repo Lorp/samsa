@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+	<meta charset="utf-8">
+	<title>Samsa speed test</title>
+	<script src="samsa-core.js"></script>
+
+</head>
+
+<script>
+/*
+
+	Samsa Speed Test
+
+	Given a variable font, Samsa Speed Test generates static instance binaries in memory and reports timings.
+
+	Usage:
+
+	With Samsa installed on a web server (i.e. with the http/https protocol, not the file prototcol), 
+	go to <samsa-speedtest.html> in a browser. This will load the default font (IBMPlexSansVar-Roman.ttf) 
+	and create the default number of instances (100) at random designspace locations.
+
+	To change the font, use the font parameter: e.g. samsa-speedtest.html?font=Gingham.ttf
+
+	To change the number of iterations, use the iterations parameter: e.g. samsa-speedtest.html?iterations=2000
+
+	You can change both, e.g. samsa-speedtest.html?font=MutatorSans.ttf&iterations=123
+
+*/
+
+
+
+// on font load
+function vfLoaded () {
+	
+	let numIterations = 100;
+	let timings = [], sizes = [];
+	let minTiming, maxTiming, medianTiming, meanTiming, sumTiming=0;
+
+	if (urlParams.get("iterations")) {
+		numIterations = parseInt(urlParams.get("iterations"));
+	}
+
+	// for each iteration...
+	for (let i=0; i<numIterations; i++) {
+
+		let fvs = {};
+
+		// generate an fvs string for a random location in the font’s designspace
+		for (let a=0; a<vf.axisCount; a++) {
+			fvs[vf.axes[a].tag] = vf.axes[a].min + Math.random() * (vf.axes[a].max - vf.axes[a].min);
+		}
+
+		// create the instance
+		let instance = vf.addInstance (fvs, "");
+
+		// build static font for this instance and record elapsed time in timings array
+		vf.makeInstance(instance);
+		if (instance.static) {
+			timings.push(instance.timer);
+			sizes.push(instance.static.byteLength);
+		}
+
+		// destroy the instance (faster than garbage collection)
+		delete instance.static;
+		delete instance;
+	}
+
+	// process the timings array
+	if (timings.length) {
+		minTiming = maxTiming = timings[0];
+		for (let t=1; t<timings.length; t++) {
+			if (timings[t] < minTiming)
+				minTiming = timings[t];
+			else if (timings[t] > maxTiming)
+				maxTiming = timings[t];
+			sumTiming += timings[t];
+		}
+		timings.sort();
+		sizes.sort();
+		medianTiming = timings[Math.floor(timings.length / 2)];
+		meanTiming = sumTiming / numIterations;
+	}
+
+
+	document.body.innerHTML += (`Font file: ${fontFilename} (${vf.filesize} bytes, ${vf.numGlyphs} glyphs)<br>`)
+	document.body.innerHTML += (`Iterations: ${numIterations}<br>`)
+	document.body.innerHTML += (`Minimum time (ms): ${minTiming}<br>`)
+	document.body.innerHTML += (`Maximum time (ms): ${maxTiming}<br>`)
+	document.body.innerHTML += (`Median time (ms): ${medianTiming}<br>`)
+	document.body.innerHTML += (`Mean time (ms): ${meanTiming.toFixed(2)}<br>`)
+	document.body.innerHTML += (`Median instance size (bytes): ${sizes[Math.floor(sizes.length / 2)]}<br>`)
+	document.body.innerHTML += (`Instances/second: ${(1000/medianTiming).toFixed(2)}<br>`)
+
+
+}
+
+let fontFilename = "IBMPlexSansVar-Roman.ttf";
+const urlParams = new URLSearchParams(window.location.search);
+
+if (urlParams.get("font")) {
+	fontFilename = urlParams.get("font");
+}
+
+let vf = new SamsaFont({
+
+	fontFamily: fontFilename,
+	url: `fonts/${fontFilename}`,
+	callback: vfLoaded,
+	
+});
+
+
+</script>
+
+<body>
+<h2>Samsa Speed Test</h2>
+</body>
+</html>
