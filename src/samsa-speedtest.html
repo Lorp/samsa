@@ -94,6 +94,8 @@ function vfLoaded () {
 	document.body.innerHTML += (`Instances/second: ${(1000/medianTiming).toFixed(2)}<br>`)
 
 
+	document.body.innerHTML += (`<br>Usage: <li><i>font</i> parameter selects font to load (must be in the fonts folder in your Samsa installation)</li><li><i>iterations</i> parameter controls number of iterations</li> Example: samsa-speedtest.html?font=Skia.ttf&iterations=1000<br>Only works from http/https protocol, not file.`)
+
 }
 
 let fontFilename = "IBMPlexSansVar-Roman.ttf";
