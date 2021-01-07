@@ -91,7 +91,7 @@ function vfLoaded () {
 	document.body.innerHTML += (`Median time (ms): ${medianTiming}<br>`)
 	document.body.innerHTML += (`Mean time (ms): ${meanTiming.toFixed(2)}<br>`)
 	document.body.innerHTML += (`Median instance size (bytes): ${sizes[Math.floor(sizes.length / 2)]}<br>`)
-	document.body.innerHTML += (`Instances/second: ${(1000/medianTiming).toFixed(2)}<br>`)
+	document.body.innerHTML += (`Instances/second: ${(1000/meanTiming).toFixed(2)}<br>`)
 
 
 	document.body.innerHTML += (`<br>Usage: <li><i>font</i> parameter selects font to load (must be in the fonts folder in your Samsa installation)</li><li><i>iterations</i> parameter controls number of iterations</li> Example: samsa-speedtest.html?font=Skia.ttf&iterations=1000<br>Only works from http/https protocol, not file.`)
