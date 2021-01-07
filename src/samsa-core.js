@@ -18,7 +18,6 @@ Minification:
 */
 
 
-
 // TODO:
 // - rename it SamsaCONFIG
 // - pass the actual config object along with the font
@@ -81,7 +80,7 @@ if (CONFIG.isNode) {
 	// add new Buffer methods
 	Buffer.prototype.getTag = function (p) {
 		let tag = "";
-		let  p_end = p + 4; // global
+		let p_end = p + 4;
 		while (p < p_end) {
 			let ch = this.readUInt8(p++);
 			if (ch >= 32 && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
@@ -91,7 +90,7 @@ if (CONFIG.isNode) {
 	}
 
 	Buffer.prototype.getF2DOT14 = function (p) {
-		return this.getInt16(p) / 16384.0; /* signed */
+		return this.getInt16(p) / 16384.0; // signed
 	}
 }
 
@@ -214,7 +213,7 @@ SamsaGlyph.prototype.decompose = function (tuple, params) {
 		if (!params && !tuple) // optimization for case when there’s no offset and no transform (we can make this return "this" itself: the decomposition of a simple glyph is itself)
 			return this;
 
-		// add the points
+		// add the points (ignore phantom points)
 		for (let pt=0; pt<iglyph.numPoints; pt++) {
 
 			// spec: https://docs.microsoft.com/en-us/typography/opentype/spec/glyf
@@ -256,8 +255,9 @@ SamsaGlyph.prototype.decompose = function (tuple, params) {
 		// step thru components, adding points to simpleGlyph
 		iglyph.components.forEach((component, c) => {
 
-			let gc = this.font.glyphs[component.glyphId];
-			let gci = gc.instantiate(tuple);
+			const gc = this.font.glyphs[component.glyphId],
+				  gci = gc.instantiate(tuple),
+				  matched = component.matchedPoints;
 
 			let newTransform = component.transform;
 			let newOffset = [ iglyph.points[c][0], iglyph.points[c][1] ];
@@ -272,11 +272,22 @@ SamsaGlyph.prototype.decompose = function (tuple, params) {
 				offset: newOffset,
 				transform: newTransform,
 				flags: component.flags,
+				matched: matched,
 			});
 
-			// we now have the simple glyph "decomp": no offset or transform is needed
+			let dx=dy=0;
+			if (matched) {
+				dx = simpleGlyph.points[matched[0]][0] - decomp.points[matched[1]][0];
+				dy = simpleGlyph.points[matched[0]][1] - decomp.points[matched[1]][1];
+			}
+
+			// we now have the simple glyph "decomp": no offset or transform is needed (but we may need to match points using dx,dy)
 			for (let p=0; p<decomp.numPoints; p++) {
-				simpleGlyph.points.push( [ decomp.points[p][0], decomp.points[p][1], decomp.points[p][2] ] );
+				simpleGlyph.points.push([
+					decomp.points[p][0] + dx,
+					decomp.points[p][1] + dy,
+					decomp.points[p][2]
+				]);
 			}
 
 			// fix up simpleGlyph
@@ -299,7 +310,7 @@ SamsaGlyph.prototype.decompose = function (tuple, params) {
 
 
 // instantiate()
-// - take a default glyph and return the instantiation produced using the userTuple or instance settings
+// - take a default glyph and return the instantiated glyph produced applying the userTuple or instance settings
 SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 
 	// create newGlyph, a new glyph object which is the supplied glyph with the variations applied, as specified in instance (or if blank, userTuple)
@@ -310,13 +321,11 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 		console.log ("Samsaglyph.instantiate(): glyph is undefined");
 	}
 
-	//console.log("Instantiating using this.instantiate()");
 	const config = this.font.config;
 	const font = this.font;
 	let newGlyph = new SamsaGlyph({id:this.id, name:this.name, font:this.font});
 
 	newGlyph.default = this;
-
 	newGlyph.instance = instance; // this is still safe for tests that check for (!glyph.instance)
 	newGlyph.type = "instance";
 	newGlyph.points = [];
@@ -331,7 +340,6 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 	newGlyph.xMax = this.xMax;
 	newGlyph.yMax = this.yMax;
 	newGlyph.flags = this.flags; // do we need this?
-
 
 	let round = CONFIG.deltas.round;
 	if (extra && extra.roundDeltas === false)
@@ -359,16 +367,15 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 	newGlyph.sValues = [];
 	this.tvts.forEach((tvt, t) => {
 
-		let scaledDeltas = [];
-		let touched = [];
-		let S = 1;
-
-		this.points.forEach((point, p) => {
-			scaledDeltas[p] = [0,0];
-		});
+		let S = 1, scaledDeltas = [], touched = [];
+		let pt = this.points.length;
+		while (--pt >= 0) {
+			scaledDeltas[pt] = [0,0];
+		}
 
 		// go thru each axis, multiply a scalar S from individual scalars AS
-		// based on pseudocode from https://www.microsoft.com/typography/otspec/otvaroverview.htm
+		// - if the current designspace location is outside of this tvt’s tuple, we get S = 0 and nothing is done
+		// - based on pseudocode from https://www.microsoft.com/typography/otspec/otvaroverview.htm
 		for (let a=0; a<font.axes.length; a++) {
 			const ua = userTuple[a], peak = tvt.peak[a], start = tvt.start[a], end = tvt.end[a];
 
@@ -396,27 +403,26 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 			*/
 
 			// validity checks noted in the pseudocode are now performed while parsing
-			if (peak == 0) // common, so first
-				continue;
-			else if (ua < start || ua > end) {
-				S = 0;
-				break; // zero scalar, which makes S=0 and quit
-			}
-			else {
-				if (ua < peak)
-				S *= (ua - start) / (peak - start);
-			else if (ua > peak)
-				S *= (end - ua) / (end - peak);
-			//else if (ua == peak)
-				// nothing to do
+			if (peak != 0) {
+				
+				if (ua < start || ua > end) {
+					S = 0;
+					break; // zero scalar, which makes S=0, therefore quit loop
+				}
+				else if (ua < peak)
+					S *= (ua - start) / (peak - start);
+				else if (ua > peak)
+					S *= (end - ua) / (end - peak);
+				//else if (ua == peak)
+					// nothing to do because this is S*=1
 			}
 		}
 
 		// now we can move the points by S * delta
+		// OPTIMIZE: it must be possible to optimize for the S==1 case, but attempts reduce speed...
 		if (S != 0) {
-			let pt = tvt.deltas.length;
 
-			// OPTIMIZE: it must be possible to optimize for the S==1 case, but attempts reduce speed...
+			pt = this.points.length;
 			while (--pt >= 0) {
 				const delta = tvt.deltas[pt];
 				if (delta !== null) {
@@ -429,7 +435,7 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 			// IUP
 			// - TODO: ignore this step for composites (even though it is safe because numContours<0)
 			// - OPTIMIZE: calculate IUP deltas when parsing, then a "deltas" variable can point either to the original deltas array or to a new scaled deltas array (hmm, rounding will be a bit different if IUP scaled deltas are always based on the 100% deltas)
-			if (touched.length > 0 && !config.instantiation.ignoreIUP) { // it would be nice to check "touched.length < glyph.points.length" but that won’t work with sparse arrays, and must also think about phantom points
+			if (tvt.iup && this.numContours > 0 && touched.length > 0 && !config.instantiation.ignoreIUP) { // it would be nice to check "touched.length < glyph.points.length" but that won’t work with sparse arrays, and must also think about phantom points
 
 				// for each contour
 				for (let c=0, startPt=0; c<this.numContours; c++) {
@@ -491,18 +497,17 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 			// TODO: Try to avoid this step for points that were not moved
 			// TODO: Verify that we are rounding correctly. The spec implies we should maybe NOT round here, only at the end
 			// - https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
-			let p;
-			const len = newGlyph.points.length; // includes phantoms
+			pt = newGlyph.points.length;
 			if (round) {
-				for (p=0; p<len; p++) {
-					newGlyph.points[p][0] += Math.round(scaledDeltas[p][0]);
-					newGlyph.points[p][1] += Math.round(scaledDeltas[p][1]);
+				while (--pt >= 0) {
+					newGlyph.points[pt][0] += Math.round(scaledDeltas[pt][0]);
+					newGlyph.points[pt][1] += Math.round(scaledDeltas[pt][1]);
 				}
 			}
 			else {
-				for (p=0; p<len; p++) {
-					newGlyph.points[p][0] += scaledDeltas[p][0];
-					newGlyph.points[p][1] += scaledDeltas[p][1];
+				while (--pt >= 0) {
+					newGlyph.points[pt][0] += scaledDeltas[pt][0];
+					newGlyph.points[pt][1] += scaledDeltas[pt][1];
 				}
 			}
 		} // if (S != 0)
@@ -521,22 +526,6 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 
 	// new bbox extremes
 	// - TODO: fix for composites and non-printing glyphs (even though the latter don’t record a bbox)
-	/*
-	if (this.tvts.length) {
-		newGlyph.xMin = newGlyph.yMin = 32767;
-		newGlyph.xMax = newGlyph.yMax = -32768;
-		for (let pt=0; pt<newGlyph.numPoints; pt++) { // exclude the phantom points
-			let point = newGlyph.points[pt];
-			if (newGlyph.xMin > point[0])
-				newGlyph.xMin = point[0];
-			else if (newGlyph.xMax < point[0])
-				newGlyph.xMax = point[0];
-			if (newGlyph.yMin > point[1])
-				newGlyph.yMin = point[1];
-			else if (newGlyph.yMax < point[1])
-				newGlyph.yMax = point[1];
-		}
-	}*/
 	newGlyph.recalculateBounds();
 	
 	return newGlyph;
@@ -1924,7 +1913,6 @@ function SamsaFont (init, config) {
 					}
 
 					// record matched points
-					// - TODO: decide how to handle these (it’s possible they are never used in VFs)
 					else {
 						if (flag & 0x0001) { // ARG_1_AND_2_ARE_WORDS
 							component.matchedPoints = [data.getUint16(p), data.getUint16(p+2)], p+=4;
@@ -1932,7 +1920,6 @@ function SamsaFont (init, config) {
 						else {
 							component.matchedPoints = [data.getUint8(p), data.getUint8(p+1)], p+=2;
 						}
-						console.log(`ERROR: glyf: Glyph #${g} uses unsupported matchedPoints method for positioning components.`);
 					}
 
 					// transformation matrix
@@ -2023,9 +2010,7 @@ function SamsaFont (init, config) {
 			offsetToSerializedData = data.getUint16(p), p+=2;
 			let sharedPointIds = [];
 			let sharedTupleNumPoints = 0;
-
-			// set up data pointer ps
-			let ps = tvtsStart + offsetToSerializedData;
+			let ps = tvtsStart + offsetToSerializedData; // set up data pointer ps
 
 
 			// [[ 1b ]] get shared points - this is the first part of the serialized data (ps points to it)
@@ -2068,11 +2053,12 @@ function SamsaFont (init, config) {
 			// [[ 2 ]] get each tvt
 			for (let t=0; t < tupleCount; t++) {
 
-				let tupleSize, tupleIndex, tupleIntermediate, tuplePrivatePointNumbers, tupleNumPoints, impliedAllPoints;
+				let a, tupleSize, tupleIndex, tupleIntermediate, tuplePrivatePointNumbers, tupleNumPoints, impliedAllPoints;
 				let tvt = {
 					peak: [],
 					start: [],
 					end: [],
+					iup: true, // will override to false if this is an "all points" tvt
 					deltas: [],
 				};
 
@@ -2083,8 +2069,6 @@ function SamsaFont (init, config) {
 				tupleIntermediate = (tupleIndex & 0x4000) ? true : false;
 				tuplePrivatePointNumbers = (tupleIndex & 0x2000) ? true : false;
 				tupleIndex &= 0x0fff;
-
-				let a, c;
 
 				// [[ 2b ]] get tvt peaks, starts, ends that define the subset of design space
 				// populate peak, start and end arrays for this tvt
@@ -2121,12 +2105,10 @@ function SamsaFont (init, config) {
 							tvt.end[a] = 0;
 						}
 					}
-				}
-				// TODO? Don’t set start and end for non-intermediate tuples
+				} // TODO? Don’t set start and end for non-intermediate tuples
 
-				// get the packed data FOR THIS TUPLE!
-				// ps is the pointer inside the serialized data
-				// POINT IDS
+				// [3] get the packed point ids for this tuple
+				// - ps is the pointer inside the serialized data
 				let pointIds = [];
 				tupleNumPoints = 0;
 
@@ -2144,8 +2126,9 @@ function SamsaFont (init, config) {
 					else
 						tupleNumPoints &= 0x7F;
 
-					if (tupleNumPoints == 0) { // we have an 'all points' situation
+					if (tupleNumPoints == 0) { // this is an "all points" tvt
 						impliedAllPoints = true;
+						tvt.iup = false;
 						tupleNumPoints = font.glyphs[g].points.length; // remember that 0 meant "all points" - we just don't bother storing their IDs
 					}
 					else {
@@ -2162,7 +2145,7 @@ function SamsaFont (init, config) {
 
 								let pointData;
 								if (pointsAreWords)
-									pointData = data.getUint16(ps), ps+=2; // TODO: THIS IS GOING WRONG!!!!!!
+									pointData = data.getUint16(ps), ps+=2;
 								else
 									pointData = data.getUint8(ps), ps++;
 
@@ -2824,7 +2807,7 @@ function SamsaFont (init, config) {
 			write (fdw, fileHeaderBuf, 0, fileHeaderSize, 0);
 
 
-		// [4f] Fix checksums, timestamp
+		// [4f] Fix checksums
 		/*
 
 		TODO!
@@ -2836,8 +2819,6 @@ function SamsaFont (init, config) {
 		const timerEnd = new Date();
 		instance.timer = timerEnd-timerStart;
 		instance.size = position;
-		//console.log (`Instantiation time: ${instance.timer} ms`);
-		//console.log (`New instance file: ${instance.filename} (${position} bytes)`);
 
 
 		// [6] close file or return binary
