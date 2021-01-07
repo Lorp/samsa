@@ -2734,7 +2734,7 @@ function updateGlyphSVG (g, instance) {
 	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
 
 	// define radial gradient for quadratic tangents (only if tangents are active)
-	if (Q("#point-tangents").checked) {
+	if (Q("#point-tangents").checked && ui.tangent && ui.tangent.color) {
 		const   svgDefs = SVG("defs"),
 				linear = SVG("linearGradient"),
 				stop0 = SVG("stop"),
