@@ -275,7 +275,7 @@ SamsaGlyph.prototype.decompose = function (tuple, params) {
 				matched: matched,
 			});
 
-			let dx=dy=0;
+			let dx=0, dy=0;
 			if (matched) {
 				dx = simpleGlyph.points[matched[0]][0] - decomp.points[matched[1]][0];
 				dy = simpleGlyph.points[matched[0]][1] - decomp.points[matched[1]][1];
