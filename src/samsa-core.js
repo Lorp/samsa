@@ -275,6 +275,7 @@ SamsaGlyph.prototype.decompose = function (tuple, params) {
 				matched: matched,
 			});
 
+			// get delta if this component is positioned with "matched points"
 			let dx=0, dy=0;
 			if (matched) {
 				dx = simpleGlyph.points[matched[0]][0] - decomp.points[matched[1]][0];
@@ -1839,7 +1840,7 @@ function SamsaFont (init, config) {
 			glyph.xMax = data.getInt16(p), p+=2;
 			glyph.yMax = data.getInt16(p), p+=2;
 
-			let flag, repeat=0, x_=0, y_=0, x, y, c, r;
+			let flag, repeat, x_=0, y_=0, x, y, c, r;
 
 			// simple glyph
 			if (glyph.numContours > 0) {
@@ -1860,14 +1861,14 @@ function SamsaFont (init, config) {
 					flags[pt++] = flag;
 					if (flag & 0x08) {
 						repeat = data.getUint8(p), p++;
-						for (r=0; r<repeat; r++)
+						for (r=0; r<repeat; r++) 
 							flags[pt++] = flag;
 					}
 				}
 
 				// points
 				if (flags.length == glyph.numPoints) {
-					flags.forEach(function (flag, pt) {
+					flags.forEach((flag, pt) => {
 						switch (flag & 0x12) { // x
 							case 0x00: x = x_ + data.getInt16(p); p+=2; break;
 							case 0x02: x = x_ - data.getUint8(p); p++; break;
@@ -1876,7 +1877,7 @@ function SamsaFont (init, config) {
 						}
 						glyph.points[pt] = [x_ = x];
 					});
-					flags.forEach(function (flag, pt) {
+					flags.forEach((flag, pt) => {
 						switch (flag & 0x24) { // y
 							case 0x00: y = y_ + data.getInt16(p), p+=2; break;
 							case 0x04: y = y_ - data.getUint8(p), p++; break;
@@ -1886,6 +1887,48 @@ function SamsaFont (init, config) {
 						glyph.points[pt].push(y_ = y, flag & 0x01);
 					});
 				}
+
+				/*
+				// flags
+				let flags = [];
+				let p_y = 0;
+				for (pt=0; pt<glyph.numPoints; ) {
+					let repeat = 0;
+					flag = data.getUint8(p), p++;
+					flags[pt++] = flag;
+					if (flag & 0x08) {
+						repeat = data.getUint8(p), p++;
+						for (r=0; r<repeat; r++) {
+							flags[pt++] = flag;
+						}
+					}
+					if (flag & 0x02)
+						p_y += repeat+1;
+					else if ((flag & 0x12) == 0)
+						p_y += 2*(repeat+1);
+				}
+				p_y += p;
+
+				// points
+				if (flags.length == glyph.numPoints) {
+					flags.forEach((flag, pt) => {
+						switch (flag & 0x12) { // x
+							case 0x00: x = x_ + data.getInt16(p); p+=2; break;
+							case 0x02: x = x_ - data.getUint8(p); p++; break;
+							case 0x10: x = x_; break;
+							case 0x12: x = x_ + data.getUint8(p); p++; break;
+						}
+						switch (flag & 0x24) { // y
+							case 0x00: y = y_ + data.getInt16(p_y), p_y+=2; break;
+							case 0x04: y = y_ - data.getUint8(p_y), p_y++; break;
+							case 0x20: y = y_; break;
+							case 0x24: y = y_ + data.getUint8(p_y), p_y++; break;
+						}
+						glyph.points[pt] = [x_ = x, y_ = y, flag & 0x01];
+					});
+				}
+				p = p_y;
+				*/
 			}
 			
 			// composite glyph
