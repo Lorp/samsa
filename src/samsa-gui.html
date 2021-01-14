@@ -645,7 +645,7 @@ function appendInstanceEl(instance, select) {
 
 	const font = GLOBAL.vf;
 	const panel = Q("#panel-instances>div");
-	const cell0 = EL("div"), cell1 = EL("div"), cell2 = EL("div"), cell3 = EL("div"), cell4 = EL("div");
+	const cell0 = EL("div"), cell1 = EL("div"), cell2 = EL("div"), /*cell3 = EL("div"),*/ cell4 = EL("div");
 	//panel.classList.add("tiles");
 
 	// create the instance DOM element
@@ -665,8 +665,8 @@ function appendInstanceEl(instance, select) {
 
 	li.classList.add("instance");
 	li.style.display = "grid";
-	li.style.gridTemplateColumns = font.axes.length > 0 ? `30px 30px 100px 30px 30px repeat(${GLOBAL.vf.axisCount}, 70px)`
-														: `30px 30px 100px 30px 30px`;
+	li.style.gridTemplateColumns = font.axes.length > 0 ? `30px 30px 100px 30px repeat(${GLOBAL.vf.axisCount}, 70px)`
+														: `30px 30px 100px 30px`;
 
 	// instance type
 	switch (instance.type) {
@@ -706,12 +706,14 @@ function appendInstanceEl(instance, select) {
 	cell2.style.textAlign = "center";
 	cell2.innerHTML = `<input value="${instance.name}" ${instance.type == "default" ? "readonly " : ""}style="width: 85px">`;
 
+	/*
 	// visibility
 	cell3.setAttribute("title", "Visibility");
 	cell3.style.textAlign = "center";
 	cell3.style.fontFamily = "FontAwesome";
 	cell3.style.cursor = "pointer";
 	cell3.innerHTML = "&#xf06e"; // eye open f070 eye closed
+	*/
 
 	// instantiate button
 	cell4.classList.add("instantiate");
@@ -722,7 +724,7 @@ function appendInstanceEl(instance, select) {
 	cell4.innerHTML = "&#xf358;"; //"&#xf56d;" // download
 
 	// append all the elements so far
-	li.append(cell0, cell1, cell2, cell3, cell4);
+	li.append(cell0, cell1, cell2, cell4);
 
 	// all the axis settings
 	GLOBAL.vf.axes.forEach((axis, a) => {
