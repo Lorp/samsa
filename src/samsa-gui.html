@@ -2642,7 +2642,7 @@ function setActiveGlyph (g, instance) {
 		panelTvts.innerHTML = "";
 		const lh = EL("li"), axesHeader = EL("div");
 		lh.classList.add("tvt-item");
-		lh.innerHTML = `<div title="Delta set index">#</div><div>Points</div><div title="Points"></div><div title="Scalar">S</div><div title="Order">O</div>`;
+		lh.innerHTML = `<div title="Delta set index">#</div><div>Points</div><div title="Points"></div><div title="Scalar">Scalar</div><div title="Order">Order</div>`;
 		for (let axis of font.axes)
 			axesHeader.innerHTML += `<div style="display:inline-block;width:50px;"><code>${axis.tag}</code></div>`;
 
@@ -3434,7 +3434,7 @@ document.onclick = function (event) {
 			doc = doc.replace( /\[([^\]]*?)\]\(([^)]*?)\)/g, `<a href="$2">$1</a>`); // links
 
 			// code snippets
-			doc = doc.replace( /`([^ \n]*?)`/g, `<code>$1</code>`); // <code>
+			doc = doc.replace( /`([^\n]*?)`/g, `<code>$1</code>`); // <code>
 
 			// build ui
 			// - create the transparent overlay
