@@ -20,5 +20,6 @@ Help files are formatted in a subset of Markdown. Samsa is able to parse this wi
 - \`xxx\` : *terminal font*
 - \[space\]\[space\]\[linebreak\] : \<br\>
 - \[consecutive linebreaks\] : *new paragraph*
-- \* : *unnumbered list item*
-- [number] : *ordered list item*
+- \* [paragraph]: *list item, unnumbered*
+- [number][space][paragraph]: *list item, numbered*
+- """[some lines]""" : *code block*
