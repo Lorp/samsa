@@ -1,6 +1,6 @@
 ## Delta sets panel
 
-Delta sets, at the core of OpenType Variations technology, define how default glyph outlines morph into new glyph outlines when variation axes are moved away from their default locations. A detailed explanation of Delta sets is beyond the scope of this document, but a concise explanation is given below along with references to the specification.
+Delta sets, at the core of OpenType Variations technology, define how default glyph outlines morph into new glyph outlines (in other words, how variable glyphs are instantiated) when variation axes are moved away from their default locations. A detailed explanation of Delta sets is beyond the scope of this document, but a concise explanation is given below along with references to the specification.
 
 The Delta sets panel displays a list of all Delta sets belonging to the current glyph. The same Delta sets are also represented as coloured arrows in the main glyph window, and the colour of the arrows corresponds with the colours of rows in the Delta sets panel.
 
