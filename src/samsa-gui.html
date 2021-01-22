@@ -2415,45 +2415,19 @@ function updateTvts (glyph, iglyph) {
 	// display the tvts
 	glyph.tvts.forEach((tvt, t) => {
 
-		// show id, numPoints scalar, order, and an SVG graph for each axis
-		let li = EL("li");
-		li.classList.add("tvt-item");
-		let tvtId = EL("div");
+		// show id, numPoints, scalar, order, and an SVG graph for each axis
+		let axisGraphs = [], ASarray = [];
 		let tvtOrder = 0; // the number of axes involved in this tuple (i.e. with peak != 0); tvtOrder=1 (linear), tvtOrder=2 (quadratic), tvtOrder=3 (cubic), etc.
-
-		tvtId.innerText = t;
-		tvtId.style.backgroundColor = ui.tuple.colors[t % ui.tuple.colors.length];
-		tvtId.style.color = "white";
-		tvtId.style.fontWeight = "bold";
-		tvtId.style.textAlign = "center";
-
-		let tvtDeltas = EL("div");
+		let sValue = iglyph.tvtsVisualization[t].S; // get S value to draw as bar graph
 		let numDeltas = 0;
 		for (let p=0; p<tvt.deltas.length; p++) {
 			if (tvt.deltas[p] !== null)
 				numDeltas++;
 		}
-		tvtDeltas.innerHTML = `&nbsp;<span class="icon bold reveal open" style="position: static;">&#xf04b;</span>` + ` ${numDeltas}`;
-		tvtDeltas.setAttribute("title", `This tuple variation moves ${tvt.deltas.length-numDeltas} points via IUP.`);
-
-		// draw S value as bar graph
-		let sValue = iglyph.tvtsVisualization[t].S;
-		let tvtS = EL("div");
-		let vizWidth = Math.max(0.25, 40 * sValue); // minimum of 0.25px
-		tvtS.setAttribute("title", sValue);
-		if (sValue > 0) {
-			tvtS.setAttribute("style", `width: ${vizWidth}px; height: 20px; background-color: ${ui.tupleScalar.fill};`);
-			li.style.backgroundColor = "white";
-		}
-
-		li.append(tvtId, tvtDeltas, tvtS);
 
 		// add a graph for each axis
 		// - each graph is a single SVG element with descendants
 		// - each tuple contains <font.numAxes> graphs representing how this tuple responds to each axis
-
-		const axisGraphs = [];
-
 		for (let a=0; a<GLOBAL.vf.axisCount; a++) {
 			let tvtGraphEl = EL("div");
 			let tvtGraph = SVG("svg");
@@ -2462,7 +2436,6 @@ function updateTvts (glyph, iglyph) {
 			tvtGraph.setAttributeNS(null, "width","50");
 			tvtGraph.setAttributeNS(null, "height","21");
 			svgg.setAttributeNS(null, "transform", `translate(20,20) scale(1,-1)`);
-
 
 			// draw a graph through start, peak, end for each axis
 			let Sx = 20, Sy = 20; // x and y scales
@@ -2480,6 +2453,7 @@ function updateTvts (glyph, iglyph) {
 				// typicaly graphs are shown at https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
 				let path = SVG("path");
 				let pathD = `M ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy*1.0} L ${Sx*tvt.end[a]},0`;
+
 				path.setAttributeNS(null, "fill", "black");
 				path.setAttributeNS(null, "stroke", "none");
 				path.setAttributeNS(null, "d", pathD);
@@ -2492,23 +2466,39 @@ function updateTvts (glyph, iglyph) {
 					needle.attrsSVG({fill: "none", stroke: needleColor, "stroke-width": "1px", x1: GLOBAL.tuple[a]*20, y1: 0, x2: GLOBAL.tuple[a]*20, y2: 20});
 					svgg.append(needle);
 				}
+
+				// axis-scalar (copied from samsa-core.js)
+				let AS = 1;
+				const ua = GLOBAL.tuple[a], peak = tvt.peak[a], start = tvt.start[a], end = tvt.end[a];
+				if (ua < start || ua > end) {
+					AS = 0;
+				}
+				else if (ua < peak)
+					AS = (ua - start) / (peak - start);
+				else if (ua > peak)
+					AS = (end - ua) / (end - peak);
+
+				ASarray.push(AS);
 				tvtOrder++;
+				tvtGraphEl.title = `${GLOBAL.tuple[a]} → ${AS}`;
 			}
 
 			tvtGraph.append(svgg);
 			tvtGraphEl.append(tvtGraph);
 			tvtGraphEl.style.display = "inline-block";
 			tvtGraphEl.style.width = "50px";
-			li.append(tvtGraphEl);
 
 			axisGraphs.push(tvtGraphEl);
 		}
 
-		// add main row: <li>
-		li = EL("li");
+		// create main row: <li>
+		// TODO: create all this in JS without the innerHTML stuff
+		const li = EL("li");
 		li.classList.add("tvt-item");
 		let row = `<div class="index" style="background-color: ${ui.tuple.colors[t % ui.tuple.colors.length]};">${t}</div><div class="toggle bold icon">&#xf04b;</div><div class="points">${numDeltas}</div><div class="scalar" style="text-align: center;">${Math.round(sValue*1000)/1000}</div><div class="order">${tvtOrder}</div><div class="axes"></div>`;
 		li.innerHTML = row;
+		if (sValue > 0)
+			li.style.backgroundColor = "white";
 		panel.append(li);
 
 		li.querySelector(".toggle").addEventListener("click", ev => {
@@ -2519,16 +2509,14 @@ function updateTvts (glyph, iglyph) {
 			pointsEl.style.display = GLOBAL.tvtToggles[t];
 		} );
 
-		li.querySelector(".scalar").setAttribute("style", `width: ${sValue * 100}%; height: 20px; background-color: #d0f473;};`);
-
-		if (sValue > 0)
-			li.style.backgroundColor = "white";
+		const scalarEl = li.querySelector(".scalar");
+		scalarEl.setAttribute("style", `width: ${sValue * 100}%; height: 20px; background-color: #d0f473;`);
+		scalarEl.title = ASarray.join(" * "); // the factors for this product, e.g. "0.5 * 0.5" for a scalar of 0.25
 
 		const axesDiv = li.querySelector(".axes");
 		axesDiv.style.width = `${50 * axisGraphs.length}px`;
 		axesDiv.style.textAlign = "left";
-		for (const axisGraph of axisGraphs)
-  			axesDiv.append(axisGraph);
+  		axesDiv.append(...axisGraphs);
 
 		// add deltas: <ol> containing multiple <li>
 		let ol = EL("ol");
@@ -2538,18 +2526,17 @@ function updateTvts (glyph, iglyph) {
 
 		tvt.deltas.forEach((delta, p) => {
 
-			let li = EL("li");
-			li.innerText = delta === null ? "—" : `${Math.round(sValue*delta[0])},${Math.round(sValue*delta[1])}`;
+			let li_ = EL("li");
+			li_.innerText = delta === null ? "—" : `${Math.round(sValue*delta[0])},${Math.round(sValue*delta[1])}`;
 
-			li.innerText = Math.round(iglyph.tvtsVisualization[t].scaledDeltas[p][0]) + "," + Math.round(iglyph.tvtsVisualization[t].scaledDeltas[p][1]);
+			li_.innerText = Math.round(iglyph.tvtsVisualization[t].scaledDeltas[p][0]) + "," + Math.round(iglyph.tvtsVisualization[t].scaledDeltas[p][1]);
 			if (delta === null)
-				li.style.color = "grey";
+				li_.style.color = "grey";
 
-			ol.append(li);
+			ol.append(li_);
 
 		});
 		panel.append(ol);
-
 	});
 
 }
