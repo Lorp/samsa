@@ -67,7 +67,7 @@ A simple 2-axis variable font with 4 sources (masters), where `wght` ranges from
 * Delta set #1 controlled by the `wdth` axis with _min_=0, _peak_=1, _max_=1. The Delta set represents the point deltas from the Default (400,100) to the Wide source (400,200).
 * Delta set #2 controlled by 2 axes: the `wght` axis with _min_=0, _peak_=1, _max_=1 and the `wdth` axis with _min_=0, _peak_=1, _max_=1. Because the axis settings that invoke this Delta set also invoke the other two Delta sets, here we record the deltas needed _in addition to_ those applied by Delta set #0 and Delta set #1. Therefore the deltas required to obtain the points of the Bold Wide source (700,200) are rather small — corrections, in a sense.
 
-Note that the scalar for multi-axis Delta sets, such as Delta set #2 above, may be less than expected, due to the scalar calculation as the product of the axis-scalars. Thus, although the scalar Delta set #2 is 1 when both axes are at their maxima, the scalar is only 0.25 when both axes are at 0.5 (normalized), and 0.01 when both axes are at 0.1.
+Note that the scalar for multi-axis Delta sets, such as Delta set #2 above, may be less than expected, due to the scalar calculation as the product of the axis-scalars. Thus, although the scalar for Delta set #2 is 1 when both axes are at their maxima, the scalar is only 0.25 when both axes are at 0.5 (normalized), and 0.01 when both axes are at 0.1.
 
 ### References
 
