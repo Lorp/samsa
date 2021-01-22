@@ -30,19 +30,19 @@ There are several ways to try Samsa:
 * Visit [www.axis-praxis.org/samsa](https://www.axis-praxis.org/samsa/)
 * Visit [lorp.github.io/samsa](https://lorp.github.io/samsa/src/samsa-gui.html)
 * Download the repository and double-click `samsa-gui.html`
-	* This works fine for drag-drop usage, but does not allow fonts to be loaded from a server.
+	* This works well for drag-drop usage, but does not allow fonts to be loaded from a server.
 * Download the files and install on a web server
 	* You can make a symbolic link from index.html to samsa-gui.html or simply rename samsa-gui.html to index.html
-	* Edit `samsa-config.js` to change the fonts in Samsa’s “Fonts ready to load” panel
+	* Edit `samsa-config.js` to change the fonts in the Fonts panel
 	
 ## Try some fonts in Samsa
 
 There are many open source variable fonts to try in Samsa, including:
-* [Google Fonts](https://fonts.google.com/?vfonly) (38 fonts, 1 axis)
-* [IBM Plex Sans Var](https://github.com/IBM/plex/tree/master/IBM-Plex-Sans-Variable) (2 fonts, 2 axis)
-* Adobe [Source Serif, Source Sans, Source Code](https://github.com/adobe-fonts) (6 fonts, 1 axis)
-* [Amstelvar](https://github.com/TypeNetwork/Amstelvar/) (2 fonts, 12 axes)
-* [Decovar](https://github.com/TypeNetwork/Decovar/) (15 axes)
+* [Google Fonts](https://fonts.google.com/?vfonly=true) (82 VFs)
+* [IBM Plex Sans Var](https://github.com/IBM/plex/tree/master/IBM-Plex-Sans-Variable) (2 VFs)
+* Adobe [Source Serif, Source Sans, Source Code](https://github.com/adobe-fonts) (6 VFs)
+* [Amstelvar](https://github.com/TypeNetwork/Amstelvar/) (2 VFs, 12 axes each)
+* [Decovar](https://github.com/TypeNetwork/Decovar/) (1 VF, 15 axes)
 * many open source and trial fonts at [Axis-Praxis](https://www.axis-praxis.org) and [V-Fonts.com](https://v-fonts.com/)
 
 ## Background
