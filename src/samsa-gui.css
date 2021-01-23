@@ -136,10 +136,9 @@ button.close {
 	width: 100vw;
 	height: 100vh;
 	display: grid;
-	grid-template-columns: 360px 1fr;
+	grid-template-columns: 0fr 1fr;
 	grid-template-rows: 80px 1fr;
-	background-color: beige;
-	/* on font load becomes transparent */
+	background-color: beige; /* on font load is hidden */
 }
 
 #title {
@@ -203,9 +202,12 @@ button.close {
 .panel-container {
 	position: relative;
 	background-color: beige;
-	overflow-x: hidden;
-	overflow-y: scroll;
-}
+	overflow-x: auto;
+ 	overflow-y: scroll;
+ 	resize: horizontal;
+ 	min-width: 360px;
+ 	max-width: 50vw;
+ }
 
 .panel-container h2 {
 	position: relative;
@@ -282,8 +284,20 @@ button.close {
 }
 
 #panel-tvts .tvt-item {
+	display: grid;
+	grid-template-columns: 25px 15px 45px 45px 45px auto;
+	font-size: 75%;
 	white-space: nowrap;
 }
+
+#panel-tvts .scalar {
+	height: 20px;
+	background-color: #d0f473;
+}
+
+.tvt-points {
+	font-size: 75%;
+} 
 
 #panel-media .media-grid {
 	display: grid;
@@ -378,13 +392,6 @@ button.close {
 	width: 30px;
 	float: left;
 	position: relative;
-}
-
-.tvt {
-	background-color: white;
-	_border: 1px solid black;
-	_padding: 4px;
-	margin-bottom: 4px;
 }
 
 .glyph-thumb {
@@ -642,13 +649,3 @@ h4 {
 .template {
 	display: none;
 }
-
-.tvt-item {
-	display: grid;
-	grid-template-columns: 25px 15px 45px 45px 45px auto;
-	font-size: 75%;
-}
-
-.tvt-points {
-	font-size: 75%;
-} 
