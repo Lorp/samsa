@@ -2543,7 +2543,8 @@ function updateTvts (glyph, iglyph) {
 		tvt.deltas.forEach((delta, p) => {
 
 			let li_ = EL("li");
-			li_.innerText = Math.round(iglyph.tvtsVisualization[t].scaledDeltas[p][0]) + "," + Math.round(iglyph.tvtsVisualization[t].scaledDeltas[p][1]);
+			const scaledDelta = iglyph.tvtsVisualization[t].scaledDeltas[p];
+			li_.innerText = `${Math.round(scaledDelta[0])},${Math.round(scaledDelta[1])}`;
 			if (delta === null)
 				li_.style.color = "grey";
 
