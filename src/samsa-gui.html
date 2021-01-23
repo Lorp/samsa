@@ -683,7 +683,7 @@ function appendInstanceEl(instance, select) {
 	// - would current glyph be better? ... the image serves as a kind of visual label, but...
 	cell1.classList.add("preview");
 	let svg = SVG("svg");
-	let glyph = font.glyphs[getDefaultGlyphId(font)];
+	let glyph = font.glyphs[font.defaultGlyphId()];
 	let iglyph = glyph.numContours < 0 ? glyph.decompose(instance.tuple) : glyph.instantiate(null, instance);
 	if (iglyph && iglyph.numContours > 0) {
 
@@ -1751,7 +1751,7 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Glyphs panel
 	///////////////////////////////////////////////////////
-	GLOBAL.currentGlyphId = getDefaultGlyphId(font);
+	GLOBAL.currentGlyphId = font.defaultGlyphId();
 	updateGlyphsPanel (font.instances[0]); // instances[0] is always the default instance
 
 

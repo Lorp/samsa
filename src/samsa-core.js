@@ -3090,6 +3090,34 @@ function SamsaFont (init, config) {
 	}
 
 
+	//////////////////////////////////
+	//  defaultGlyphId()
+	//////////////////////////////////
+	this.defaultGlyphId = () => {
+		// returns the default glyph id for this font (normally "A")
+
+		// use config.defaultGlyph array to find the first available representative glyph for this font
+		for (let d=0; d < this.config.defaultGlyph.length; d++) {
+			let g, name = this.config.defaultGlyph[d];
+			if ((g = this.glyphNames.indexOf(name)) != -1) {
+				return g; // inelegant but concise
+			}
+		}
+
+		// we didn’t find any of the glyphs named in config.defaultGlyph, let’s use the first printable simple glyph
+		// - IMPORTANT: numContours requires the glyphs to be loaded
+		// - TODO: we probably shouldn't avoid returning a composite glyph, but we don't want to return a space glyph
+		for (let g=0; g < this.numGlyphs; g++) {
+			if (this.glyphs[g].numContours > 0 && g>0 && this.glyphNames[g] != ".notdef") {
+				return g; // inelegant but concise
+			}
+		}
+
+		// we tried to avoid .notdef and glyph 0, but here we are
+		return 0;
+	}
+
+
 	// featureVariationsGlyphId(g, tuple)
 	// - return a new glyphId for glyphId <g> at the designspace location <tuple> according to FeatureVariations data
 	// - there’s also a function SamsaGlyph.featureVariationsGlyphId which calls this function
@@ -3231,29 +3259,6 @@ function instanceApplyVariations (font, instance) {
 		instance.glyphs[g] = font.glyphs[g].instantiate(null, instance);
 		
 	}
-}
-
-
-function getDefaultGlyphId(font) {
-	// use config.defaultGlyph array to find the first available representative glyph for this font
-	for (let d=0; d < font.config.defaultGlyph.length; d++) {
-		let g, name = font.config.defaultGlyph[d];
-		if ((g = font.glyphNames.indexOf(name)) != -1) {
-			return g; // inelegant but concise
-		}
-	}
-
-	// we didn’t find any of the glyphs named in config.defaultGlyph, let’s use the first printable simple glyph
-	// - IMPORTANT: numContours requires the glyphs to be loaded
-	// - TODO: we probably shouldn't avoid returning a composite glyph, but we don't want to return a space glyph
-	for (let g=0; g < font.numGlyphs; g++) {
-		if (font.glyphs[g].numContours > 0 && g>0 && font.glyphNames[g] != ".notdef") {
-			return g; // inelegant but concise
-		}
-	}
-
-	// we tried to avoid .notdef and glyph 0, but here we are
-	return 0;
 }
 
 
