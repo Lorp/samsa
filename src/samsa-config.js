@@ -75,10 +75,10 @@ CONFIG.fontList = [
 		url: "fonts/SourceSansVariable-Italic.ttf",
 	},
 	{
-		url: "fonts/SourceSerifVariable-Roman.ttf",
+		url: "fonts/SourceSerif4Variable-Roman.ttf",
 	},
 	{
-		url: "fonts/SourceSerifVariable-Italic.ttf",
+		url: "fonts/SourceSerif4Variable-Italic.ttf",
 	},
 	{
 		url: "fonts/Zycon.ttf"
