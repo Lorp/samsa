@@ -1,17 +1,17 @@
 ## Axes panel
 
-This panel displays data about all the variation axes in font. For each axis, we can see:
+This panel displays data about the variation axes in the current font. For each axis, we see:
 
 * the 4-character tag name, e.g. `wght`
-* the human-reable name, e.g. “Weight”
+* the human-readable name, e.g. “Weight”
 * the minimum value
 * the default value
 * the maximum value
 * the current value (in green)
 
-Axis locations can be adjusted manually using its slider or by editing the current value field.
+Axis locations can be adjusted manually using the sliders or by editing the current value fields.
 
-Initial data for the axes panel comes from the `fvar` table in the font.
+Data for the axes panel comes from the `fvar` table in the font.
 
 ### Number format
 This control offers 4 different views on the minimum, default, maximum and current values. Each format has its uses, as set out below.
