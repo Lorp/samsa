@@ -301,8 +301,13 @@ button.close {
 }
 
 .tvt-points {
+	display: grid;
 	font-size: 75%;
-} 
+}
+
+#panel-tvts .tvt-item:not(.open)+.tvt-points { /* .tvt-item "open" class toggles visibility of subsequent .tvt-points element */
+	display: none;
+}
 
 #panel-media .media-grid {
 	display: grid;

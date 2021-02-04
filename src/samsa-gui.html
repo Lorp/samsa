@@ -2499,6 +2499,8 @@ function updateTvts (glyph, iglyph) {
 		// build the <li> (main tvt data)
 		const li = EL("li");
 		li.classList.add("tvt-item");
+		if (GLOBAL.tvtToggles[t])
+			li.classList.add("open");
 		li.data = {tvtId: t};
 		if (sValue > 0)
 			li.style.backgroundColor = "white";
@@ -2536,12 +2538,10 @@ function updateTvts (glyph, iglyph) {
 
 		li.append(...cells);
 
-		// build the <ol> (list of deltas)
+		// build the <ol> (list of deltas): its visibility is dependent on "open" class of the preceding <li> element
 		let ol = EL("ol");
 		ol.classList.add("tvt-points");
 		ol.setAttribute("start", 0);
-		ol.style.display = GLOBAL.tvtToggles[t] == "grid" ? "grid" : "none";
-
 		tvt.deltas.forEach((delta, p) => {
 
 			let li_ = EL("li");
@@ -3546,15 +3546,9 @@ document.onclick = function (event) {
 	else if (target = event.target.closest(".tvt-item .toggle")) {
 
 		const liTvt = event.target.closest("li");
-		const olPoints = liTvt.nextSibling;
 		const tvtId = liTvt.data.tvtId;
-
-		GLOBAL.tvtToggles[tvtId] = !GLOBAL.tvtToggles[tvtId]; // store the toggle state
-		olPoints.style.display = GLOBAL.tvtToggles[tvtId] ? "grid" : "none"; // display or hide the content
-		if (GLOBAL.tvtToggles[tvtId]) // triggers the animation of the reveal icon
-			liTvt.classList.add("open");
-		else
-			liTvt.classList.remove("open");
+		GLOBAL.tvtToggles[tvtId] = !GLOBAL.tvtToggles[tvtId]; // store the toggle state so we can rebuild the panel
+		event.target.closest("li").classList.toggle("open"); // the "open" class triggers visibility of a subsequent ol element
 	}
 
 	else if (event.target.classList.contains("axis-nudge")) {
