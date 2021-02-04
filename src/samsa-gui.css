@@ -283,6 +283,11 @@ button.close {
 	overflow-x: scroll;
 }
 
+#panel-tvts .tvt-item .toggle {
+	position: relative;
+	left: 3px;
+}
+
 #panel-tvts .tvt-item {
 	display: grid;
 	grid-template-columns: 25px 15px 45px 45px 45px auto;
@@ -514,17 +519,22 @@ pre {
 .reveal {
 	transform: rotate(0turn);
 	position: absolute;
-	_position: relative;
 	left: 1em;
-	text-align: left;
 	top: 0.6em;
+	text-align: left;
 	transition: transform 0.05s ease-out;
 }
 
-.open .reveal {
-	transform: rotate(0.25turn);
+.tvt-item .reveal {
+	display: inline-block;
+	position: relative;
+	top: 0;
+	left: 0;	
 }
 
+.panel.open>h2>.reveal, .tvt-item.open .reveal {
+	transform: rotate(0.25turn);
+}
 
 .cartesian-axis-row {
 	display: grid;

@@ -2510,8 +2510,10 @@ function updateTvts (glyph, iglyph) {
 		cells[0].innerText = t;
 
 		cells[1] = EL("div"); // toggle-points
-		cells[1].classList.add("toggle","toggle-deltas","bold","icon");
-		cells[1].innerHTML = "&#xf04b";
+		let toggle = EL("div");
+		toggle.innerHTML = "&#xf04b";
+		toggle.classList.add("toggle","bold","icon","reveal");
+		cells[1].append(toggle);
 
 		cells[2] = EL("div"); // points
 		cells[2].classList.add("points");
@@ -3541,13 +3543,18 @@ document.onclick = function (event) {
 		handled = true;
 	}
 
-	else if (target = event.target.closest(".toggle-deltas")) {
+	else if (target = event.target.closest(".tvt-item .toggle")) {
 
 		const liTvt = event.target.closest("li");
 		const olPoints = liTvt.nextSibling;
 		const tvtId = liTvt.data.tvtId;
-		GLOBAL.tvtToggles[tvtId] = (!GLOBAL.tvtToggles[tvtId] || GLOBAL.tvtToggles[tvtId] == "none") ? "grid" : "none";
-		olPoints.style.display = GLOBAL.tvtToggles[tvtId];
+
+		GLOBAL.tvtToggles[tvtId] = !GLOBAL.tvtToggles[tvtId]; // store the toggle state
+		olPoints.style.display = GLOBAL.tvtToggles[tvtId] ? "grid" : "none"; // display or hide the content
+		if (GLOBAL.tvtToggles[tvtId]) // triggers the animation of the reveal icon
+			liTvt.classList.add("open");
+		else
+			liTvt.classList.remove("open");
 	}
 
 	else if (event.target.classList.contains("axis-nudge")) {
