@@ -173,14 +173,14 @@ function SamsaGlyph (init) {
 	this.id = init.id;
 	this.name = init.name;
 	this.font = init.font;
-	this.numPoints = 0;
-	this.numContours = 0; // -1 is the flag for composite
+	this.numPoints = init.numPoints || 0;
+	this.numContours = init.numPoints || 0; // -1 is the flag for composite
 	this.instructionLength = 0;
-	this.points = [];
-	this.components = [];
-	this.endPts = [];
-	this.tvts = [];
-	this.curveOrder = this.font.curveOrder;
+	this.points = init.points || [];
+	this.components = init.components || [];
+	this.endPts = init.endPts || [];
+	this.tvts = init.tvts || [];
+	this.curveOrder = init.curveOrder || (this.font ? this.font.curveOrder : undefined);
 
 }
 
