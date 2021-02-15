@@ -41,6 +41,8 @@ The downloaded TTF files may be useful for testing, but they are not ready for p
 See also: [GitHub issue #37: Issues to fix before TTFs are production-ready](https://github.com/Lorp/samsa/issues/37)
 
 #### Technical details
+**The Samsa web app never uploads font data to a server.**
+
 When instantiating TTFs, Samsa first processes each glyph according to its location on all the axes, similarly to how Samsa instantiates glyphs for display in the Glyphs panel, using identical functions in `samsa-core.js` to generate a new set of outline points for each glyph.
 
 Then, instead of the method to convert these outlines into SVG for immediate display, another method converts the outlines to the TrueType binary format (as defined in [OpenType spec: `glyf` table](https://docs.microsoft.com/en-us/typography/opentype/spec/glyf)). These new binary objects are compiled, along with much of the metadata from the original font, into a JavaScript ArrayBuffer object, this being an entire TrueType font stored in the browser’s memory.
