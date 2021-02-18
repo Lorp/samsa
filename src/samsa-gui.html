@@ -584,7 +584,7 @@ CONFIG.docs = {
 // add an info (help) icon to each panel
 Qall(".panel>h2").forEach(header => {
 	let info = EL("div");
-	info.innerHTML = "&#xf129;";
+	info.innerHTML = "\uf129";
 	info.classList.add("icon","bold","info");
 	info.style.position = "absolute";
 	info.style.right = "0.5em";
@@ -668,10 +668,10 @@ function appendInstanceEl(instance, select) {
 
 	// instance type
 	switch (instance.type) {
-		case "default": icon = "&#xf015;"; title = "Default"; break; // FontAwesome home
-		case "named": icon = "&#xf02e;"; title = "Named instance"; break; // FontAwesome bookmark
-		case "custom": icon = "&#xf1de;"; title = "Custom instance"; break; // FontAwesome sliders
-		case "stat": icon = "&#xf03a;"; title = "STAT instance"; break; // FontAwesome list
+		case "default": icon = "\uf015"; title = "Default"; break; // FontAwesome home
+		case "named": icon = "\uf02e"; title = "Named instance"; break; // FontAwesome bookmark
+		case "custom": icon = "\uf1de"; title = "Custom instance"; break; // FontAwesome sliders
+		case "stat": icon = "\uf03a"; title = "STAT instance"; break; // FontAwesome list
 	}
 
 	cell0.style.cursor = "pointer";
@@ -718,7 +718,7 @@ function appendInstanceEl(instance, select) {
 	cell4.style.textAlign = "center";
 	cell4.style.fontFamily = "FontAwesome";
 	cell4.style.cursor = "pointer";
-	cell4.innerHTML = "&#xf358;"; //"&#xf56d;" // download
+	cell4.innerHTML = "\uf358"; // download
 
 	// append all the elements so far
 	li.append(cell0, cell1, cell2, cell4);
@@ -890,7 +890,7 @@ function vfLoaded (font) {
 	panelPart.style.wordBreak = "break-all";
 	[
 		["File", font.filename],
-		["Size", font.filesize],
+		["Size", `${font.filesize} bytes, ${font.numGlyphs} glyph${font.numGlyphs==1?"":"s"}`],
 		["Full name", font.names[4]],
 		["Version", font.names[5]],
 	].forEach(item => {
@@ -1172,7 +1172,7 @@ function vfLoaded (font) {
 	liH.classList.add("header");
 	liH.style.display = "grid";
 	liH.style.gridTemplateColumns = `35px 20px 1fr 50px 50px 50px 50px 10px`;
-	liH.innerHTML = `<label>Tag</label><label class="icon bold">&#xf129;</label><label>Name</label><label class="min icon bold" style="text-align:center;">&#xf13a;</label><label class="default icon bold" style="text-align:center;">&#xf015;</label><label class="max icon bold" style="text-align:center;">&#xf139;</label><label class="icon bold" style="text-align:center;">&#xf007;</label>`;
+	liH.innerHTML = `<label>Tag</label><label class="icon bold">\uf129</label><label>Name</label><label class="min icon bold" style="text-align:center;">\uf13a</label><label class="default icon bold" style="text-align:center;">\uf015</label><label class="max icon bold" style="text-align:center;">\uf139</label><label class="icon bold" style="text-align:center;">\uf007</label>`;
 	panel.append(liH);
 
 	// add each axis
@@ -1193,7 +1193,7 @@ function vfLoaded (font) {
 			if (docUrl && docParts[0] == "regex") {
 				docUrl = font.config.docs.regex[docParts[1]].replace("$1", axis.tag.toLowerCase()); // handles microsoft and typenetwork
 			}
-			docStr = `<a href="${docUrl}" class="icon bold" title="‘${axis.tag}’ axis specification" target="_blank">&#xf05a;</a>`; // book icon, links to the specification of this axis
+			docStr = `<a href="${docUrl}" class="icon bold" title="‘${axis.tag}’ axis specification" target="_blank">\uf05a</a>`; // info icon, links to the specification of this axis
 		}
 		li.innerHTML += `<div>${docStr}</div>`;
 
@@ -2513,7 +2513,7 @@ function updateTvts (glyph, iglyph) {
 
 		cells[1] = EL("div"); // toggle-points
 		let toggle = EL("div");
-		toggle.innerHTML = "&#xf04b";
+		toggle.innerText = "\uf04b";
 		toggle.classList.add("toggle","bold","icon","reveal");
 		cells[1].append(toggle);
 
