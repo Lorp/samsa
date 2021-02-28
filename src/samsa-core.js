@@ -537,6 +537,34 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 // - parse the tuple variation tables (tvts), also known as "delta sets with their tuples" for this glyph
 SamsaGlyph.prototype.parseTvts = function () {
 
+	// unpackPackedPointIds ()
+	// - expand pointIds from compressed representation
+	// <data> is the memory to read from
+	// <ptr> is the memory pointer
+	// <pointIds> is the array of pointIds to be appended to
+	function unpackPackedPointIds (data, ps, tupleNumPoints, pointIds) {
+
+		let pointId = 0;
+		let pc = 0; // point count
+		while (pc < tupleNumPoints) {
+
+			let runLength = data.getUint8(ps++);
+			let pointsAreWords = runLength & 0x80;
+			runLength = (runLength & 0x7f) +1; // get the low 7 bits
+			for (let r=0; r < runLength && (pc + r <= tupleNumPoints); r++) {
+				let pointInc;
+				if (pointsAreWords)
+					pointInc = data.getUint16(ps), ps+=2;
+				else
+					pointInc = data.getUint8(ps), ps++;
+				pointId += pointInc;
+				pointIds.push(pointId);
+			}
+			pc += runLength;
+		}
+		return ps;
+	}
+
 	let font = this.font;
 	if (font.axes.length == 0) // static font?
 		return [];
@@ -594,24 +622,7 @@ SamsaGlyph.prototype.parseTvts = function () {
 				tupleNumPoints = this.points.length; // we don't bother storing their IDs
 			}
 			else {
-				let pointNum = 0, pc = 0;
-				while (pc < tupleNumPoints) {
-					runLength = data.getUint8(ps), ps++;
-					let pointsAreWords = (runLength & 0x80) ? true : false;
-					runLength = (runLength & 0x7f) +1; // 0x7f = the low 7 bits
-					for (let r=0; r < runLength; r++) {
-						if (pc + r > tupleNumPoints)
-							break;
-						let pointData;
-						if (pointsAreWords)
-							pointData = data.getUint16(ps), ps+=2;
-						else
-							pointData = data.getUint8(ps), ps++;
-						pointNum += pointData;
-						sharedPointIds.push(pointNum);
-					}
-					pc += runLength;
-				}
+				ps = unpackPackedPointIds(data, ps, tupleNumPoints, sharedPointIds);
 			}
 			sharedTupleNumPoints = tupleNumPoints; // this sharedTupleNumPoints is tested later on (this case would have been better represented directly in the tuple as an all points tuple)
 		}
@@ -637,7 +648,7 @@ SamsaGlyph.prototype.parseTvts = function () {
 			tupleIndex &= 0x0fff;
 
 			// [[ 3b ]] get tvt peaks, starts, ends that define the subset of design space
-			// populate peak, start and end arrays for this tvt
+			// get peaks
 			if (tupleEmbedded) {
 				for (a=0; a<font.axisCount; a++) {
 					tvt.peak[a] = data.getF2DOT14(p), p+=2;
@@ -647,7 +658,8 @@ SamsaGlyph.prototype.parseTvts = function () {
 				tvt.peak = font.sharedTuples[tupleIndex];
 			}
 
-			if (tupleIntermediate) { // this should never happen if !tupleEmbedded
+			// get starts and ends
+			if (tupleIntermediate) { // for intermediates, the peak may still be embedded
 				for (a=0; a<font.axisCount; a++) {
 
 					// get start and end values for this region
@@ -661,6 +673,7 @@ SamsaGlyph.prototype.parseTvts = function () {
 				p += font.axisCount*4;
 			}
 			else {
+				// infer starts and ends from peaks
 				for (a=0; a<font.axisCount; a++) {
 					if (tvt.peak[a] > 0) {
 						tvt.start[a] = 0;
@@ -671,7 +684,7 @@ SamsaGlyph.prototype.parseTvts = function () {
 						tvt.end[a] = 0;
 					}
 				}
-			} // TODO? Don’t set start and end for non-intermediate tuples
+			}
 
 			// [[ 3c ]] get the packed point ids for this tuple
 			// - ps is the pointer inside the serialized data
@@ -679,41 +692,21 @@ SamsaGlyph.prototype.parseTvts = function () {
 			tupleNumPoints = 0;
 
 			if (tuplePrivatePointNumbers) {
-				// get the private packed point number data for this tuple
+				// get the private packed pointIds for this tuple
 				tupleNumPoints = data.getUint8(ps), ps++; // 0x00
 				if (tupleNumPoints & 0x80)
 					tupleNumPoints = 0x100 * (tupleNumPoints & 0x7F) + data.getUint8(ps), ps++;
 				else
 					tupleNumPoints &= 0x7F;
 
-				if (tupleNumPoints == 0) { // this is an "all points" tvt
+				if (tupleNumPoints == 0) { // 0 means "all points", in which case this tuple doesn’t store pointIds
 					impliedAllPoints = true;
 					tvt.iup = false;
-					tupleNumPoints = this.points.length; // remember that 0 meant "all points" - the table doesn’t store their IDs
+					tupleNumPoints = this.points.length;
 				}
 				else {
-					let pointNum = 0, pc = 0;
 					impliedAllPoints = false;
-					while (pc < tupleNumPoints) {
-
-						runLength = data.getUint8(ps), ps++;
-						let pointsAreWords = (runLength & 0x80) ? true : false;
-						runLength = (runLength & 0x7f) +1; // 0x7f = the low 7 bits
-						for (let r=0; r < runLength; r++) {
-							if (pc + r > tupleNumPoints)
-								break;
-
-							let pointData;
-							if (pointsAreWords)
-								pointData = data.getUint16(ps), ps+=2;
-							else
-								pointData = data.getUint8(ps), ps++;
-
-							pointNum += pointData;
-							pointIds.push(pointNum);
-						}
-						pc += runLength;
-					}
+					ps = unpackPackedPointIds(data, ps, tupleNumPoints, pointIds);
 				}
 			}			
 			else {
