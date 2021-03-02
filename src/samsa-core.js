@@ -537,40 +537,12 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 // - parse the tuple variation tables (tvts), also known as "delta sets with their tuples" for this glyph
 SamsaGlyph.prototype.parseTvts = function () {
 
-	// unpackPackedPointIds ()
-	// - expand pointIds from compressed representation
-	// <data> is the memory to read from
-	// <ptr> is the memory pointer
-	// <pointIds> is the array of pointIds to be appended to
-	function unpackPackedPointIds (data, ps, tupleNumPoints, pointIds) {
-
-		let pointId = 0;
-		let pc = 0; // point count
-		while (pc < tupleNumPoints) {
-
-			let runLength = data.getUint8(ps++);
-			let pointsAreWords = runLength & 0x80;
-			runLength = (runLength & 0x7f) +1; // get the low 7 bits
-			for (let r=0; r < runLength && (pc + r <= tupleNumPoints); r++) {
-				let pointInc;
-				if (pointsAreWords)
-					pointInc = data.getUint16(ps), ps+=2;
-				else
-					pointInc = data.getUint8(ps), ps++;
-				pointId += pointInc;
-				pointIds.push(pointId);
-			}
-			pc += runLength;
-		}
-		return ps;
-	}
-
 	let font = this.font;
 	if (font.axes.length == 0) // static font?
 		return [];
 
 	let node = font.config.isNode;
-	let data, p, tvtsStart;
+	let data, p;
 	let offset = font.tupleOffsets[this.id];
 	let size = font.tupleSizes[this.id];
 	let tvts = [];
@@ -585,6 +557,34 @@ SamsaGlyph.prototype.parseTvts = function () {
 	// do we have data?
 	if (size > 0) {
 
+		// unpackPackedPointIds ()
+		// - returns a new array of point ids (integers) expanded from the compressed representation
+		// - note that the <ps> variable in the enclosing function is updated
+		// <data> is the memory to read from
+		// <tupleNumPoints> is the number of points to be unpacked
+		function unpackPackedPointIds (data, tupleNumPoints) {
+
+			let pointIds = [];
+			let pointId = 0;
+			let pc = 0; // point count
+			while (pc < tupleNumPoints) {
+
+				let runLength = data.getUint8(ps++), pointInc;
+				let pointsAreWords = runLength & 0x80;
+				runLength = (runLength & 0x7f) +1; // get the low 7 bits
+				for (let r=0; r < runLength && (pc + r <= tupleNumPoints); r++) {
+					if (pointsAreWords)
+						pointInc = data.getUint16(ps), ps+=2;
+					else
+						pointInc = data.getUint8(ps), ps++;
+					pointId += pointInc;
+					pointIds.push(pointId);
+				}
+				pc += runLength;
+			}
+			return pointIds;
+		}
+
 		// [[ 0 ]] set up data and pointers
 		if (node) {
 			data = Buffer.alloc(size);
@@ -595,7 +595,7 @@ SamsaGlyph.prototype.parseTvts = function () {
 			data = font.data;
 			p = font.tables['gvar'].offset + font.tables['gvar'].data.offsetToData + offset;
 		}
-		tvtsStart = p;
+		let tvtsStart = p;
 
 		// [[ 1 ]] get tvts header
 		let tupleCount, tuplesSharePointNums, offsetToSerializedData;
@@ -622,7 +622,7 @@ SamsaGlyph.prototype.parseTvts = function () {
 				tupleNumPoints = this.points.length; // we don't bother storing their IDs
 			}
 			else {
-				ps = unpackPackedPointIds(data, ps, tupleNumPoints, sharedPointIds);
+				sharedPointIds = unpackPackedPointIds(data, tupleNumPoints); // updates ps variable
 			}
 			sharedTupleNumPoints = tupleNumPoints; // this sharedTupleNumPoints is tested later on (this case would have been better represented directly in the tuple as an all points tuple)
 		}
@@ -642,9 +642,9 @@ SamsaGlyph.prototype.parseTvts = function () {
 			// [[ 3a ]] get TupleVariationHeader
 			tupleSize = data.getUint16(p), p+=2;
 			tupleIndex = data.getUint16(p), p+=2;
-			tupleEmbedded = (tupleIndex & 0x8000) ? true : false; // TODO: get rid of these true/false things
-			tupleIntermediate = (tupleIndex & 0x4000) ? true : false;
-			tuplePrivatePointNumbers = (tupleIndex & 0x2000) ? true : false;
+			tupleEmbedded = tupleIndex & 0x8000;
+			tupleIntermediate = tupleIndex & 0x4000;
+			tuplePrivatePointNumbers = tupleIndex & 0x2000;
 			tupleIndex &= 0x0fff;
 
 			// [[ 3b ]] get tvt peaks, starts, ends that define the subset of design space
@@ -706,7 +706,7 @@ SamsaGlyph.prototype.parseTvts = function () {
 				}
 				else {
 					impliedAllPoints = false;
-					ps = unpackPackedPointIds(data, ps, tupleNumPoints, pointIds);
+					pointIds = unpackPackedPointIds(data, tupleNumPoints); // updates ps variable
 				}
 			}			
 			else {
