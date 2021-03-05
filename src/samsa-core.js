@@ -559,9 +559,10 @@ SamsaGlyph.prototype.parseTvts = function () {
 
 		// unpackPackedPointIds ()
 		// - returns a new array of point ids (integers) expanded from the compressed representation
-		// - note that the <ps> variable in the enclosing function is updated
 		// <data> is the memory to read from
 		// <tupleNumPoints> is the number of points to be unpacked
+		// - note that the <ps> variable in the enclosing function is in scope and updated
+		// - <data> and <tupleNumPoints> are also already in scope, but let’s pass them as arguments
 		function unpackPackedPointIds (data, tupleNumPoints) {
 
 			let pointIds = [];
@@ -572,13 +573,15 @@ SamsaGlyph.prototype.parseTvts = function () {
 				let runLength = data.getUint8(ps++), pointInc;
 				let pointsAreWords = runLength & 0x80;
 				runLength = (runLength & 0x7f) +1; // get the low 7 bits
-				for (let r=0; r < runLength && (pc + r <= tupleNumPoints); r++) {
-					if (pointsAreWords)
-						pointInc = data.getUint16(ps), ps+=2;
-					else
-						pointInc = data.getUint8(ps), ps++;
-					pointId += pointInc;
-					pointIds.push(pointId);
+				if (pc + runLength <= tupleNumPoints) {
+					for (let r=0; r < runLength; r++) {
+						if (pointsAreWords)
+							pointInc = data.getUint16(ps), ps+=2;
+						else
+							pointInc = data.getUint8(ps), ps++;
+						pointId += pointInc;
+						pointIds.push(pointId);
+					}
 				}
 				pc += runLength;
 			}
@@ -860,6 +863,7 @@ SamsaGlyph.prototype.svgPath = function () {
 					}
 				}
 			}
+
 			break;
 
 		// cubic curves
