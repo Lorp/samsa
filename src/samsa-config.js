@@ -51,10 +51,10 @@ CONFIG.fontList = [
 		url: "fonts/Inconsolata-VariableFont_wdth,wght.ttf",
 	},
 	{
-		url: "fonts/LibreFranklinGX-Roman.ttf",
+		url: "fonts/LibreFranklin-VariableFont_wght.ttf",
 	},
 	{
-		url: "fonts/LibreFranklinGX-Italic.ttf",
+		url: "fonts/LibreFranklin-Italic-VariableFont_wght.ttf",
 	},
 	{
 		url: "fonts/Literata-VariableFont_opsz,wght.ttf"
