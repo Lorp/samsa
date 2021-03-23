@@ -358,7 +358,7 @@ button.close {
 	background-color: var(--color-panel-background);
 	padding: 2px 4px;
 	display: grid;
-	grid-template-columns: 35% 40%;
+	grid-template-columns: 35% 40% 25%;
 }
 
 #panel-glyphs .header label {
@@ -663,4 +663,8 @@ h4 {
 
 .template {
 	display: none;
+}
+
+.point-number {
+	font-weight: normal;
 }
