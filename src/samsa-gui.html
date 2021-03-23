@@ -98,8 +98,14 @@
 		</h2>
 		<div class="panel-content">
 			<div class="header">
-				<label for="glyph-filter">Filter by name or id</label><input id="glyph-filter">
-				<label for="string-filter">Filter by string</label><input id="string-filter">
+				<label for="glyph-filter">Filter by name or id</label><input id="glyph-filter"><div></div>
+				<label for="string-filter">Filter by string</label><input id="string-filter"><div></div>
+				<label>Filter by type</label>
+				<div style="grid-column: 2 / 4">
+					<input type="checkbox" id="filter-simple" checked><label for="filter-simple">simple</label>
+					<input type="checkbox" id="filter-composite" checked><label for="filter-composite">composite</label>
+					<input type="checkbox" id="filter-blank" checked><label for="filter-blank">blank</label>
+				</div>
 			</div>
 		</div>
 		<br clear="all">
@@ -2178,7 +2184,6 @@ function panelSTAT_handleChange(fvs) {
 
 function updateGlyphsPanel(instance) {
 
-	//console.log("Updating glyphs panel: START");
 	const font = GLOBAL.vf;
 
 	///////////////////////////////////////////////////////
@@ -2187,7 +2192,12 @@ function updateGlyphsPanel(instance) {
 	const panel = Q("#panel-glyphs>div");
 	const panelHeader = panel.querySelector(".header"); // save the header
 	panel.innerText = ""; // clear all
-	panelHeader.querySelectorAll("input").forEach(el => el.value = ""); // clear the input boxes
+	panelHeader.querySelectorAll("input").forEach(el => { // reset the inputs
+		switch (el.type) {
+			case "text": el.value = ""; break;
+			case "checkbox": el.checked = true; break;
+		}
+	}); 
 	panel.append(panelHeader); // restore the header
 
 
@@ -3717,7 +3727,7 @@ document.onkeyup = e => {
 };
 
 
-// filter by glyph name or glyph id
+// Glyphs panel: filter by glyph name or glyph id
 Q("#glyph-filter").addEventListener("input", e => {
 
 	Q("#string-filter").value = "";
@@ -3741,7 +3751,7 @@ Q("#glyph-filter").addEventListener("input", e => {
 });
 
 
-// filter by string
+// Glyphs panel: filter by string
 Q("#string-filter").addEventListener("input", e => {
 
 	Q("#glyph-filter").value = "";
@@ -3761,6 +3771,26 @@ Q("#string-filter").addEventListener("input", e => {
 });
 
 
+// Glyphs panel: simple/composite glyphs toggles
+function filterGlyphs(el) {
+
+	const glyphThumbs = Qall(".glyph-thumb");
+	const simple = Q("#filter-simple").checked, composite = Q("#filter-composite").checked, blank = Q("#filter-blank").checked;
+
+	for (let g=0; g<glyphThumbs.length; g++) {
+		const numContours = GLOBAL.vf.glyphs[g].numContours;
+		if (numContours > 0)
+			glyphThumbs[g].style.display = simple ? "block" : "none";
+		else if (numContours < 0)
+			glyphThumbs[g].style.display = composite ? "block" : "none";
+		else
+			glyphThumbs[g].style.display = blank ? "block" : "none";
+	}
+}
+Qall("#filter-simple, #filter-composite, #filter-blank").forEach(el => el.addEventListener("input", e => filterGlyphs(e.target)))
+
+
+// Fonts panel menu: handle selection
 Q("#panel-fonts .font-selector").addEventListener("change", e => {
 
 	let target = e.target; //this.querySelector("option:selected");
