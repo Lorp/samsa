@@ -969,6 +969,7 @@ SamsaGlyph.prototype.ufo = function () {
 	// - assumes that UFO is cool with any number of off-curve points between on-curves, which is not clear from the spec
 	// - https://unifiedfontobject.org/versions/ufo3/glyphs/glif/
 	// - TODO: composites???
+	const curveType = this.curveOrder == 2 ? "qcurve" : "curve"; // qcurve for curveOrder 2, curve for curveOrder 3
 	let glif = `<?xml version="1.0" encoding="UTF-8"?>\n`;
 	glif += `<glyph name="${this.name}" format="2">\n`;
 	glif += `  <advance width="${this.points[this.numPoints+1][0]}"/>\n`;
@@ -983,7 +984,7 @@ SamsaGlyph.prototype.ufo = function () {
 			let prevPoint = this.points[startPt + (ptInContour-1+numContourPoints) % numContourPoints];
 			let typeString = "";
 			if (point[2] == 1) { // if point is on-curve
-				typeString = ` type="${ prevPoint[2] == 1 ? "line" : "qcurve" }"`; // decide if the current point is line or qcurve
+				typeString = ` type="${ prevPoint[2] == 1 ? "line" : curveType }"`; // decide if the current point is line or qcurve/curve
 			}
 			glif += `      <point x="${point[0]}" y="${point[1]}"${typeString}/>\n`;
 		}
