@@ -796,6 +796,22 @@ SamsaGlyph.prototype.recalculateBounds = function () {
 	return this.numPoints;
 }
 
+
+// maxCompiledSize()
+// - return the maximum size in bytes that this glyph compiles to (for the purposes of memory allocation)
+// - ignores compression possibilities
+SamsaGlyph.prototype.maxCompiledSize = function () {
+
+	if (this.numContours > 0)
+		return (5*2) + this.numContours*2 + 2 + this.instructionLength + this.numPoints * (2+2+1);
+	else if (this.numContours < 0)
+		return (5*2) + (4+4)*2 * this.components.length + 2 + glyph.instructionLength;
+	else
+		return 0;
+
+}
+
+
 // featureVariationsGlyphId(tuple)
 // - return a new glyphId for this glyph at the designspace location <tuple> according to FeatureVariations data
 // - main function is in SamsaFont, so that, given a glyphId, we don’t need to create a SamsaGlyph in order to find FeatureVariations 
@@ -2369,17 +2385,16 @@ function SamsaFont (init, config) {
 						// - same function for all glyphs: simple, composite, zero-contour
 						let iglyph = glyph.instantiate(null, instance);
 
-						// SIMPLE GLYPH
+						// flush the buffer if we need to (only for non-empty glyphs)
+						if (glyph.numContours &&
+							node && 
+							(p + glyph.maxCompiledSize() + glyfBufSafetyMargin) > font.config.glyf.bufferSize)
+							glyfBuffer = flushGlyfBuffer(glyfBuffer); // assigns new glyfBuffer and p
+
+						// main branch for SIMPLE, COMPOSITE and EMPTY glyphs
+
+						// 1. SIMPLE glyph
 						if (glyph.numContours > 0) {
-
-							// calculate max size
-							let maxNewGlyphSize = 12 + glyph.instructionLength + (glyph.numContours+glyph.instructionLength) * 2 + glyph.numPoints * (2+2+1);
-							maxNewGlyphSize += glyfBufSafetyMargin;
-
-							// flush buffer if we need to
-							if (node && (p + maxNewGlyphSize) > font.config.glyf.bufferSize) {
-								glyfBuffer = flushGlyfBuffer(glyfBuffer); // assigns new glyfBuffer and p
-							}
 
 							let xMin,xMax,yMin,yMax;
 							let pt;
@@ -2513,22 +2528,8 @@ function SamsaFont (init, config) {
 
 						} // simple glyph end
 
-						// COMPOSITE GLYPH
+						// 2. COMPOSITE GLYPH
 						else if (glyph.numContours < 0) {
-
-							// calculate max size
-							// max size of each composite glyph is:
-							//      10 bytes header
-							//    + 16 bytes (6..8 bytes + 0..8 bytes) for each component
-							//    +  2 bytes for instruction length
-							//    +  length of instructions
-							let maxNewGlyphSize = 10 + 16 * iglyph.components.length + 2 + glyph.instructionLength;
-							maxNewGlyphSize += glyfBufSafetyMargin;
-
-							// flush buffer if we need to
-							if (node && (p + maxNewGlyphSize) > font.config.glyf.bufferSize) {
-								glyfBuffer = flushGlyfBuffer(glyfBuffer); // assigns new glyfBuffer and p
-							}
 
 							// glyph header
 							// TODO: recalculate composite bbox (tricky in general, not bad for simple translations)
@@ -2571,7 +2572,7 @@ function SamsaFont (init, config) {
 
 						} // composite glyph end
 
-						// EMPTY GLYPH
+						// 3. EMPTY GLYPH
 						else { // (glyph.numContours == 0)
 							// TODO: fix metrics
 							aws[g] = iglyph.points[1][0]; // the x-coordinate of the numPoints+1 point;
