@@ -801,7 +801,7 @@ SamsaGlyph.prototype.maxCompiledSize = function () {
 		return 0;
 
 }
-
+let TOTAL=0
 
 // compile()
 // - compile this SamsaGlyph object into compact binary TrueType data
@@ -880,9 +880,25 @@ SamsaGlyph.prototype.compile = function (buf, startOffset, metrics) {
 			if (font.config.glyf.overlapSimple)
 				flags[0] |= 0x40;
 
-			// write flags
-			for (pt=0; pt<numPoints; pt++)
-				buf.setUint8(p, flags[pt]), p++; // TODO: RLE-compress this to save a bit of space
+			// write flags with RLE
+			let rpt = 0;
+			for (pt=0; pt<numPoints; pt++) {
+				if (pt > 0 && flags[pt] == flags[pt-1]) {
+					rpt++;
+				}
+				else {
+					rpt = 0;
+				}
+
+				if (rpt<2) {
+					buf.setUint8(p, flags[pt]), p++; // write without compression (don’t compress 2 consecutive identical bytes)
+				}
+				else {
+					if (rpt==2)
+						buf.setUint8(p-2, flags[pt] | 0x08); // set repeat bit on the pre-previous flag byte
+					buf.setUint8(p-1, rpt); // write the number of repeats
+				}
+			}
 
 			// write point coordinates
 			// TODO: slightly faster to work in terms of flags with a switch on 3 values? (probably not)
@@ -914,11 +930,10 @@ SamsaGlyph.prototype.compile = function (buf, startOffset, metrics) {
 			// write everything in one loop
 			for (pt=0; pt<numPoints; pt++) {
 
-				// write flag, x and y
 				const x = points[pt][0], y = points[pt][1];
-				buf.setUint8(p+pt, points[pt][2]); // 1 byte for flag
-				buf.setInt16(xOffset + 2*pt, x - cx); // 2 bytes for dx
-				buf.setInt16(yOffset + 2*pt, y - cy); // 2 bytes for dy
+				buf.setUint8(p+pt, points[pt][2]); // write 1 byte for flag
+				buf.setInt16(xOffset + 2*pt, x - cx); // write 2 bytes for dx
+				buf.setInt16(yOffset + 2*pt, y - cy); // write 2 bytes for dy
 				cx = x;
 				cy = y;
 			}
