@@ -805,10 +805,188 @@ SamsaGlyph.prototype.maxCompiledSize = function () {
 	if (this.numContours > 0)
 		return (5*2) + this.numContours*2 + 2 + this.instructionLength + this.numPoints * (2+2+1);
 	else if (this.numContours < 0)
-		return (5*2) + (4+4)*2 * this.components.length + 2 + glyph.instructionLength;
+		return (5*2) + (4+4)*2 * this.components.length + 2 + this.instructionLength;
 	else
 		return 0;
 
+}
+
+
+// compile()
+// - compile this SamsaGlyph object into compact binary TrueType data
+// - returns size of the compiled glyph in bytes (unpadded)
+SamsaGlyph.prototype.compile = function (buf, p, metrics) {
+
+	const font = this.font;
+	const startOffset = p;
+	const points = this.points;
+	const numPoints = this.numPoints;
+
+	// 1. SIMPLE glyph
+	if (this.numContours > 0) {
+
+		let xMin,xMax,yMin,yMax;
+		let pt;
+		let instructionLength = 0;
+
+		// calculate bbox
+		// - we always have >0 points in a simple glyph
+		if (points && points[0]) {
+			[xMin,yMin] = [xMax,yMax] = points[0];
+			for (pt=1; pt<numPoints; pt++) {
+				const P = points[pt][0], Q = points[pt][1];
+				if (P<xMin) xMin=P;
+				else if (P>xMax) xMax=P;
+				if (Q<yMin) yMin=Q;
+				else if (Q>yMax) yMax=Q;
+			}
+			xMin = Math.round(xMin);
+			xMax = Math.round(xMax);
+			yMin = Math.round(yMin);
+			yMax = Math.round(yMax);
+		}
+
+		// new bbox
+		buf.setInt16(p, this.numContours), p+=2;
+		buf.setInt16(p, xMin), p+=2;
+		buf.setInt16(p, yMin), p+=2;
+		buf.setInt16(p, xMax), p+=2;
+		buf.setInt16(p, yMax), p+=2;
+
+		// endpoints
+		for (let e=0; e<this.numContours; e++)
+			buf.setUint16(p, this.endPts[e]), p+=2;
+
+		// instructions (none for now)
+		buf.setUint16(p, instructionLength), p+=2;
+		p += instructionLength;
+
+		// write glyph points
+		let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
+		if (CONFIG.glyf.compression) {
+
+			// write compressed glyph points (slower)
+			for (pt=0; pt<numPoints; pt++) {
+				X = dx[pt] = Math.round(points[pt][0]) - cx;
+				Y = dy[pt] = Math.round(points[pt][1]) - cy;
+				f = points[pt][2]; // on-curve = 1, off-curve = 0
+				if (X==0)
+					f |= 0x10;
+				else if (X >= -255 && X <= 255)
+					f |= (X > 0 ? 0x12 : 0x02);
+
+				if (Y==0)
+					f |= 0x20;
+				else if (Y >= -255 && Y <= 255)
+					f |= (Y > 0 ? 0x24 : 0x04);
+
+				flags[pt] = f;
+				cx = points[pt][0];
+				cy = points[pt][1];
+			}
+
+			// overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
+			if (font.config.glyf.overlapSimple)
+				flags[0] |= 0x40;
+
+			// write flags
+			for (pt=0; pt<numPoints; pt++)
+				buf.setUint8(p, flags[pt]), p++; // TODO: RLE-compress this to save a bit of space
+
+			// write point coordinates
+			// TODO: slightly faster to work in terms of flags with a switch on 3 values? (probably not)
+			for (pt=0; pt<numPoints; pt++) {
+				if (dx[pt] == 0)
+					continue;
+				if (dx[pt] >= -255 && dx[pt] <= 255)
+					buf.setUint8(p, (dx[pt]>0) ? dx[pt] : -dx[pt]), p++;
+				else
+					buf.setInt16(p, dx[pt]), p+=2;
+			}
+			for (pt=0; pt<numPoints; pt++) {
+				if (dy[pt] == 0)
+					continue;
+				if (dy[pt] >= -255 && dy[pt] <= 255)
+					buf.setUint8(p, (dy[pt]>0) ? dy[pt] : -dy[pt]), p++;
+				else
+					buf.setInt16(p, dy[pt]), p+=2;
+			}
+		}
+
+		else { // CONFIG.glyf.compression != true
+
+			// write uncompressed glyph points (faster in memory and for SSD disks)
+			const xOffset = p + numPoints;
+			const yOffset = xOffset + 2 * numPoints;
+			let cx=0, cy=0;
+
+			// write everything in one loop
+			for (pt=0; pt<numPoints; pt++) {
+
+				// write flag, x and y
+				const x = points[pt][0], y = points[pt][1];
+				buf.setUint8(p+pt, points[pt][2]); // 1 byte for flag
+				buf.setInt16(xOffset + 2*pt, x - cx); // 2 bytes for dx
+				buf.setInt16(yOffset + 2*pt, y - cy); // 2 bytes for dy
+				cx = x;
+				cy = y;
+			}
+
+			// set the first flag to handle Apple overlaps if required
+			if (font.config.glyf.overlapSimple)
+				buf.setUint8(p, points[0][2] | 0x40); // overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
+
+			// update the pointer
+			p = yOffset + 2 * numPoints;
+
+		}
+	} // simple glyph end
+
+	// 2. COMPOSITE glyph
+	else if (this.numContours < 0) {
+
+		// glyph header
+		// TODO: recalculate composite bbox (tricky in general, not bad for simple translations)
+		buf.setInt16(p, -1), p+=2;
+		buf.setInt16(p, this.xMin), p+=2;
+		buf.setInt16(p, this.yMin), p+=2;
+		buf.setInt16(p, this.xMax), p+=2;
+		buf.setInt16(p, this.yMax), p+=2;
+
+		// components
+		for (let c=0; c<this.components.length; c++) {
+			let component = this.components[c];
+
+			// set up the flags
+			let flags = 0;
+			flags |= 0x0001; // ARG_1_AND_2_ARE_WORDS (could compress the component a tiny bit if we cared about this)
+			flags |= 0x0002; // ARGS_ARE_XY_VALUES
+			if (c < this.components.length-1)
+				flags |= 0x0020; // MORE_COMPONENTS
+			if (component.flags & 0x0200)
+				flags |= 0x0200; // USE_MY_METRICS (copy from the original glyph)
+			// flag 0x0100 WE_HAVE_INSTRUCTIONS is set to zero
+
+			// TODO: handle matched points method (ARGS_ARE_XY_VALUES == 0)
+			// TODO: handle transforms
+
+			// write this component
+			buf.setUint16(p, flags), p+=2;
+			buf.setUint16(p, component.glyphId), p+=2;
+			buf.setInt16(p, points[c][0]), p+=2;
+			buf.setInt16(p, points[c][1]), p+=2;								
+		}
+	} // composite glyph end
+
+	// store metrics (for simple, composite and empty glyphs)
+	if (metrics) {
+		metrics[0] = points[numPoints+0][0]; // lsb point, usually 0
+		metrics[1] = points[numPoints+1][0]; // advance point
+		metrics[2] = points[numPoints+2][1]; // top metric, usually 0 in horizontal glyphs
+		metrics[3] = points[numPoints+3][1]; // bottom metric, usually 0 in horizontal glyphs
+	}
+
+	return p - startOffset; // size of binary glyph in bytes
 }
 
 
@@ -2373,6 +2551,8 @@ function SamsaFont (init, config) {
 						// fetch/parse our glyph object
 						// - we will release this glyph later, if CONFIG.purgeGlyphs
 						let glyph;
+						let metrics = [];
+
 						if (font.glyphs[g]) {
 							glyph = font.glyphs[g];
 						}
@@ -2388,197 +2568,17 @@ function SamsaFont (init, config) {
 						// flush the buffer if we need to (only for non-empty glyphs)
 						if (glyph.numContours &&
 							node && 
-							(p + glyph.maxCompiledSize() + glyfBufSafetyMargin) > font.config.glyf.bufferSize)
+							(p + iglyph.maxCompiledSize() + glyfBufSafetyMargin) > font.config.glyf.bufferSize)
 							glyfBuffer = flushGlyfBuffer(glyfBuffer); // assigns new glyfBuffer and p
 
-						// main branch for SIMPLE, COMPOSITE and EMPTY glyphs
+						// COMPILE THIS GLYPH!
+						p += iglyph.compile(glyfBuffer, p, metrics); // write compiled glyph into glyfBuffer at position p, return its byte length
+						aws[g] = metrics[1];
+						lsbs[g] = iglyph.xMin || 0;
 
-						// 1. SIMPLE glyph
-						if (glyph.numContours > 0) {
-
-							let xMin,xMax,yMin,yMax;
-							let pt;
-							let points = iglyph.points;
-							let instructionLength = 0;
-
-							// calculate bbox
-							// - we always have >0 points in a simple glyph
-							if (points && points[0]) {
-								[xMin,yMin] = [xMax,yMax] = points[0];
-								
-								for (pt=1; pt<iglyph.numPoints; pt++) {
-									const P = points[pt][0], Q = points[pt][1];
-									if (P<xMin) xMin=P;
-									else if (P>xMax) xMax=P;
-									if (Q<yMin) yMin=Q;
-									else if (Q>yMax) yMax=Q;
-								}
-								xMin = Math.round(xMin);
-								xMax = Math.round(xMax);
-								yMin = Math.round(yMin);
-								yMax = Math.round(yMax);
-							}
-							iglyph.newLsb = xMin;
-
-							// new bbox
-							glyfBuffer.setInt16(p, iglyph.numContours), p+=2;
-							glyfBuffer.setInt16(p, xMin), p+=2;
-							glyfBuffer.setInt16(p, yMin), p+=2;
-							glyfBuffer.setInt16(p, xMax), p+=2;
-							glyfBuffer.setInt16(p, yMax), p+=2;
-
-							// endpoints
-							for (let e=0; e<iglyph.numContours; e++)
-								glyfBuffer.setUint16(p, iglyph.endPts[e]), p+=2;
-
-							// instructions (none for now)
-							glyfBuffer.setUint16(p, instructionLength), p+=2;
-							p += instructionLength;
-
-							// write glyph points
-							let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
-							if (CONFIG.glyf.compression) {
-
-								// write compressed glyph points (slower)
-								for (pt=0; pt<iglyph.numPoints; pt++) {
-									X = dx[pt] = Math.round(points[pt][0]) - cx;
-									Y = dy[pt] = Math.round(points[pt][1]) - cy;
-									f = points[pt][2]; // on-curve = 1, off-curve = 0
-									if (X==0)
-										f |= 0x10;
-									else if (X >= -255 && X <= 255)
-										f |= (X > 0 ? 0x12 : 0x02);
-
-									if (Y==0)
-										f |= 0x20;
-									else if (Y >= -255 && Y <= 255)
-										f |= (Y > 0 ? 0x24 : 0x04);
-
-									flags[pt] = f;
-									cx = points[pt][0];
-									cy = points[pt][1];
-								}
-
-								// overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
-								if (font.config.glyf.overlapSimple)
-									flags[0] |= 0x40;
-
-								// write flags
-								for (pt=0; pt<iglyph.numPoints; pt++)
-									glyfBuffer.setUint8(p, flags[pt]), p++; // TODO: RLE-compress this to save a bit of space
-
-								// write point coordinates
-								// TODO: slightly faster to work in terms of flags with a switch on 3 values? (probably not)
-								for (pt=0; pt<iglyph.numPoints; pt++) {
-									if (dx[pt] == 0)
-										continue;
-									if (dx[pt] >= -255 && dx[pt] <= 255)
-										glyfBuffer.setUint8(p, (dx[pt]>0) ? dx[pt] : -dx[pt]), p++;
-									else
-										glyfBuffer.setInt16(p, dx[pt]), p+=2;
-								}
-								for (pt=0; pt<iglyph.numPoints; pt++) {
-									if (dy[pt] == 0)
-										continue;
-									if (dy[pt] >= -255 && dy[pt] <= 255)
-										glyfBuffer.setUint8(p, (dy[pt]>0) ? dy[pt] : -dy[pt]), p++;
-									else
-										glyfBuffer.setInt16(p, dy[pt]), p+=2;
-								}
-							}
-
-							else { // CONFIG.glyf.compression != true
-
-								// write uncompressed glyph points (faster in memory and for SSD disks)
-								const xOffset = p + iglyph.numPoints;
-								const yOffset = xOffset + 2 * iglyph.numPoints;
-								let cx=0, cy=0;
-
-								// write everything in one loop
-								for (pt=0; pt<iglyph.numPoints; pt++) {
-
-									// write flag, x and y
-									const x = points[pt][0], y = points[pt][1];
-									glyfBuffer.setUint8(p+pt, points[pt][2]); // 1 byte for flag
-									glyfBuffer.setInt16(xOffset + 2*pt, x - cx); // 2 bytes for dx
-									glyfBuffer.setInt16(yOffset + 2*pt, y - cy); // 2 bytes for dy
-									cx = x;
-									cy = y;
-								}
-
-								// set the first flag to handle Apple overlaps if required
-								if (font.config.glyf.overlapSimple)
-									glyfBuffer.setUint8(p, points[0][2] | 0x40); // overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
-
-								// update the pointer
-								p = yOffset + 2 * iglyph.numPoints;
-
-							}
-
-
-							// padding
-							if ((glyfBufferOffset+p)%2)
-								glyfBuffer.setUint8(p, 0), p++;
-
-							// store metrics (with node, we soon lose the iglyph)
-							aws[g] = iglyph.points[iglyph.numPoints+1][0]; // the x-coordinate of the numPoints+1 point
-							if (aws[g] < 0)
-								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
-							lsbs[g] = iglyph.xMin;
-
-						} // simple glyph end
-
-						// 2. COMPOSITE GLYPH
-						else if (glyph.numContours < 0) {
-
-							// glyph header
-							// TODO: recalculate composite bbox (tricky in general, not bad for simple translations)
-							glyfBuffer.setInt16(p, -1), p+=2;
-							glyfBuffer.setInt16(p, glyph.xMin), p+=2;
-							glyfBuffer.setInt16(p, glyph.yMin), p+=2;
-							glyfBuffer.setInt16(p, glyph.xMax), p+=2;
-							glyfBuffer.setInt16(p, glyph.yMax), p+=2;
-
-							// components
-							for (let c=0; c<iglyph.components.length; c++) {
-								let component = iglyph.components[c];
-
-								// set up the flags
-								let flags = 0;
-								flags |= 0x0001; // ARG_1_AND_2_ARE_WORDS (could compress the component a tiny bit if we cared about this)
-								flags |= 0x0002; // ARGS_ARE_XY_VALUES
-								if (c < iglyph.components.length-1)
-									flags |= 0x0020; // MORE_COMPONENTS
-								if (component.flags & 0x0200)
-									flags |= 0x0200; // USE_MY_METRICS (copy from the original glyph)
-								// flag 0x0100 WE_HAVE_INSTRUCTIONS is set to zero
-
-								// write this component
-								glyfBuffer.setUint16(p, flags), p+=2;
-								glyfBuffer.setUint16(p, component.glyphId), p+=2;
-								glyfBuffer.setInt16(p, iglyph.points[c][0]), p+=2;
-								glyfBuffer.setInt16(p, iglyph.points[c][1]), p+=2;								
-							}
-
-							// padding
-							if ((glyfBufferOffset+p)%2)
-								glyfBuffer.setUint8(p, 0), p++;
-
-							// store metrics (with node, we soon lose the iglyph)
-							aws[g] = iglyph.points[iglyph.components.length+1][0]; // the x-coordinate of the iglyph.components.length+1 point
-							if (aws[g] < 0)
-								aws[g] = 0; // gvar may have pushed this negative, as in CrimsonPro-Italic-VariableFont_wght.ttf from wght 400..700
-							lsbs[g] = 0; // TODO: we don’t know xMin so work out a solution to replace simple glyph’s iglyph.xMin;
-
-						} // composite glyph end
-
-						// 3. EMPTY GLYPH
-						else { // (glyph.numContours == 0)
-							// TODO: fix metrics
-							aws[g] = iglyph.points[1][0]; // the x-coordinate of the numPoints+1 point;
-							lsbs[g] = 0;
-						} // empty glyph end
-
+						// padding
+						if ((glyfBufferOffset+p)%2)
+							glyfBuffer.setUint8(p, 0), p++;
 
 						// release memory explicitly
 						if (node && CONFIG.purgeGlyphs) {
