@@ -2,17 +2,8 @@
 
 samsa-core.js
 
-Pre-GitHub version history
-2019-10-18 glyf parsing in node & browser
-2019-10-18 TVTs parsing in node & browser
-2019-10-18 Tons of refactoring working nicely (tvts is much clearer structure than old gvd)
-2019-10-19 avar seems to be working now
-2019-10-20 Finally got gvar decompiling for all fonts I throw at it. Just need to do the fake glyph.points for composites and we’re done.
-
-
-
 Minification:
-- https://www.npmjs.com/package/uglify-es // this version of uglify is ES6 compatible, earlier versions were not
+- https://www.npmjs.com/package/uglify-es
 - uglifyjs samsa-core.js > samsa-core.min.js
 
 */
@@ -815,12 +806,12 @@ SamsaGlyph.prototype.maxCompiledSize = function () {
 // compile()
 // - compile this SamsaGlyph object into compact binary TrueType data
 // - returns size of the compiled glyph in bytes (unpadded)
-SamsaGlyph.prototype.compile = function (buf, p, metrics) {
+SamsaGlyph.prototype.compile = function (buf, startOffset, metrics) {
 
 	const font = this.font;
-	const startOffset = p;
 	const points = this.points;
 	const numPoints = this.numPoints;
+	let p = startOffset;
 
 	// 1. SIMPLE glyph
 	if (this.numContours > 0) {
@@ -841,8 +832,8 @@ SamsaGlyph.prototype.compile = function (buf, p, metrics) {
 				else if (Q>yMax) yMax=Q;
 			}
 			xMin = Math.round(xMin);
-			xMax = Math.round(xMax);
 			yMin = Math.round(yMin);
+			xMax = Math.round(xMax);
 			yMax = Math.round(yMax);
 		}
 
@@ -862,7 +853,7 @@ SamsaGlyph.prototype.compile = function (buf, p, metrics) {
 		p += instructionLength;
 
 		// write glyph points
-		let dx=[], dy=[], X, Y, flags=[], f, cx=cy=0;
+		let X, Y, f, dx=[], dy=[], flags=[], cx=0, cy=0;
 		if (CONFIG.glyf.compression) {
 
 			// write compressed glyph points (slower)
@@ -3234,7 +3225,6 @@ function SamsaFont (init, config) {
 
 	if (init.arrayBuffer) {
 
-		//console.log ("arraybuffer method!")
 		this.data = new DataView(this.arrayBuffer);
 		this.parse();
 	}
@@ -3244,7 +3234,6 @@ function SamsaFont (init, config) {
 function instanceApplyVariations (font, instance) {
 
 	for (let g=0; g<font.numGlyphs; g++) {
-		//instance.glyphs[g] = glyphApplyVariations (font.glyphs[g], null, instance);
 
 		instance.glyphs[g] = font.glyphs[g].instantiate(null, instance);
 		
