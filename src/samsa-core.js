@@ -883,7 +883,7 @@ SamsaGlyph.prototype.compile = function (buf, startOffset, metrics) {
 			// write flags with RLE
 			let rpt = 0;
 			for (pt=0; pt<numPoints; pt++) {
-				if (pt > 0 && flags[pt] == flags[pt-1]) {
+				if (pt > 0 && rpt < 255 && flags[pt] == flags[pt-1]) {
 					rpt++;
 				}
 				else {
