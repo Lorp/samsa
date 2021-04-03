@@ -34,7 +34,7 @@ let CONFIG = {
 	glyf: {
 		overlapSimple: true,
 		bufferSize: 500000, // max data to accumulate in binary glyf table before a write (ignored for in-memory instantiation)
-		compression: false, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
+		compression: true, // toggles glyf data compression for output; default to true to minimize TTF file size; if false we generate instances faster; Bahnschrift-ship.ttf (2-axis) produces instances of ~109kb compressed, ~140kb uncompressed (note that woff2 compression generates identical woff2 files from compressed/uncompressed glyf data)
 	},
 
 	name: {
@@ -881,7 +881,7 @@ SamsaGlyph.prototype.compile = function (buf, startOffset=0, metrics, compress=t
 				cy = points[pt][1];
 			}
 
-			// overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
+			// overlap signal for Apple
 			if (font.config.glyf.overlapSimple)
 				flags[0] |= 0x40;
 
@@ -943,9 +943,9 @@ SamsaGlyph.prototype.compile = function (buf, startOffset=0, metrics, compress=t
 				cy = y;
 			}
 
-			// set the first flag to handle Apple overlaps if required
+			// overlap signal for Apple
 			if (font.config.glyf.overlapSimple)
-				buf.setUint8(p, points[0][2] | 0x40); // overlap signal for Apple, see https://developer.apple.com/fonts/TrueType-Reference-Manual/RM06/Chap6AATIntro.html ('glyf' table section)
+				buf.setUint8(p, points[0][2] | 0x40);
 
 			// update the pointer
 			p = yOffset + 2 * numPoints;
@@ -2577,7 +2577,7 @@ function SamsaFont (init, config) {
 						let iglyph = glyph.instantiate(null, instance);
 
 						// flush the buffer if we need to (only for non-empty glyphs)
-						if (glyph.numContours &&
+						if (iglyph.numContours &&
 							node && 
 							(p + iglyph.maxCompiledSize() + glyfBufSafetyMargin) > font.config.glyf.bufferSize)
 							glyfBuffer = flushGlyfBuffer(glyfBuffer); // assigns new glyfBuffer and p
