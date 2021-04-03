@@ -789,8 +789,9 @@ SamsaGlyph.prototype.recalculateBounds = function () {
 
 
 // maxCompiledSize()
-// - return the maximum size in bytes that this glyph compiles to (for the purposes of memory allocation)
-// - ignores compression possibilities
+// - return the maximum size in bytes that this glyph compiles to
+// - assumes no compression is possible
+// - use it to allocate memory for a compiled glyph
 SamsaGlyph.prototype.maxCompiledSize = function () {
 
 	if (this.numContours > 0)
@@ -801,12 +802,16 @@ SamsaGlyph.prototype.maxCompiledSize = function () {
 		return 0;
 
 }
-let TOTAL=0
+
 
 // compile()
-// - compile this SamsaGlyph object into compact binary TrueType data
-// - returns size of the compiled glyph in bytes (unpadded)
-SamsaGlyph.prototype.compile = function (buf, startOffset, metrics) {
+// - compile a SamsaGlyph object into compact binary TrueType data
+// - buf: DataView onto an ArrayBuffer (this is the only required argument)
+// - startOffset: position within buf to start writing
+// - metrics: array in which 4 metrics values will be stored
+// - compress: whether to use glyf table compression (RLE for flags, flags for point positions); avoiding compression is faster
+// - returns the size of the compiled glyph in bytes (unpadded)
+SamsaGlyph.prototype.compile = function (buf, startOffset=0, metrics, compress=true) {
 
 	const font = this.font;
 	const points = this.points;
@@ -854,7 +859,7 @@ SamsaGlyph.prototype.compile = function (buf, startOffset, metrics) {
 
 		// write glyph points
 		let X, Y, f, dx=[], dy=[], flags=[], cx=0, cy=0;
-		if (CONFIG.glyf.compression) {
+		if (compress) {
 
 			// write compressed glyph points (slower)
 			for (pt=0; pt<numPoints; pt++) {
@@ -920,7 +925,7 @@ SamsaGlyph.prototype.compile = function (buf, startOffset, metrics) {
 			}
 		}
 
-		else { // CONFIG.glyf.compression != true
+		else { // compress != true
 
 			// write uncompressed glyph points (faster in memory and for SSD disks)
 			const xOffset = p + numPoints;
@@ -2578,12 +2583,12 @@ function SamsaFont (init, config) {
 							glyfBuffer = flushGlyfBuffer(glyfBuffer); // assigns new glyfBuffer and p
 
 						// COMPILE THIS GLYPH!
-						p += iglyph.compile(glyfBuffer, p, metrics); // write compiled glyph into glyfBuffer at position p, return its byte length
+						p += iglyph.compile(glyfBuffer, p, metrics, CONFIG.glyf.compression); // write compiled glyph into glyfBuffer at position p, return its byte length
 						aws[g] = metrics[1];
 						lsbs[g] = iglyph.xMin || 0;
 
 						// padding
-						if ((glyfBufferOffset+p)%2)
+						if (p%2)
 							glyfBuffer.setUint8(p, 0), p++;
 
 						// release memory explicitly
