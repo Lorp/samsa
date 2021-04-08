@@ -616,7 +616,7 @@ function SVG (tag) {
     return document.createElementNS("http://www.w3.org/2000/svg", tag);
 }
 
-SVGElement.prototype.attrsSVG = function (attrs) {
+SVGElement.prototype.attr = function (attrs) {
 // attach multiple SVG attributes
 // - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
 	for (const prop in attrs) {
@@ -697,7 +697,7 @@ function appendInstanceEl(instance, select) {
 		let svgPath = SVG("path");
 		let svgg = SVG("g");
 		let scale = 20 / font.unitsPerEm;
-		svg.attrsSVG({width: 30, height: 30});
+		svg.attr({width: 30, height: 30});
 		svgg.setAttributeNS(null, "transform", `translate(4,20) scale(${scale},-${scale})`);
  		svgPath.setAttributeNS(null, "d", iglyph.svgPath());
 		svgg.append(svgPath);
@@ -827,7 +827,7 @@ function exportImage (format, filename="samsa-drawing", params) {
 		svgInstance.removeAttribute("d");
 		svgInstance.removeAttribute("id");
 
-		svgAnimate.attrsSVG({
+		svgAnimate.attr({
 			attributeName: "d",
 			values: params.values, // the array of paths converted to a string
 			keyTimes: params.keyTimes,
@@ -1348,13 +1348,13 @@ function vfLoaded (font) {
 
 				avarSVG.classList.add("avar-axis-svg");
 				avarSVG.data = {axis: font.axes[a]};
-				avarSVG.attrsSVG({
+				avarSVG.attr({
 					width: 360,
 					height: 116,
 				});
 
 				let rect = SVG("rect");
-				rect.attrsSVG({
+				rect.attr({
 					x: 10,
 					y: 10,
 					width: avarSVGwidth,
@@ -1378,7 +1378,7 @@ function vfLoaded (font) {
 						tipLen: 10,
 					});
 
-					arrowLine.attrsSVG({
+					arrowLine.attr({
 						x1: arrow.x1,
 						y1: arrow.y1,
 						x2: arrow.newX2,
@@ -1388,7 +1388,7 @@ function vfLoaded (font) {
 						fill: avarMapColor,
 					});
 
-					arrowHead.attrsSVG({
+					arrowHead.attr({
 						d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
 						fill: avarMapColor,
 					});
@@ -1407,7 +1407,7 @@ function vfLoaded (font) {
 					tipWid: 10,
 					tipLen: 20,
 				});
-				avarCurrentLine.attrsSVG({
+				avarCurrentLine.attr({
 					stroke: avarCurrentColor,
 					"stroke-width": 3,
 					x1: arrow.x1,
@@ -1416,7 +1416,7 @@ function vfLoaded (font) {
 					y2: arrow.newY2,
 				});
 
-				avarCurrentHead.attrsSVG({
+				avarCurrentHead.attr({
 					d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
 					fill: avarCurrentColor,
 				});
@@ -1912,13 +1912,13 @@ function axesUpdateValues () {
 				});
 
 				// adjust the arrow’s line and head attributes
-				avarCurrentLine.attrsSVG({
+				avarCurrentLine.attr({
 					x1: arrow.x1,
 					y1: arrow.y1,
 					x2: arrow.newX2,
 					y2: arrow.newY2,
 				});
-				avarCurrentHead.attrsSVG({
+				avarCurrentHead.attr({
 					d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
 				});
 
@@ -1986,7 +1986,7 @@ function buildDesignspace() {
 	svgg.id = "svg-designspace-transform";
 	let svgXYAxes, svgXVal, svgYVal;
 	let scale = 360/2; // 360 is the width & height of the cartesian space in px, 2 is the width & height of the cartesian space in normalized units (-1 to +1)
-	svg.attrsSVG({width: 360, height: 360});
+	svg.attr({width: 360, height: 360});
 	svgg.setAttributeNS(null, "transform", `translate(180,180) scale(${scale},-${scale})`); // TODO: rewrite this with a viewBox on the parent SVG
 
 	// feature variations layer
@@ -1996,7 +1996,7 @@ function buildDesignspace() {
 
 	// cartesian axes
 	svgXYAxes = SVG("path");
-	svgXYAxes.attrsSVG({
+	svgXYAxes.attr({
 		d: "M-1 0 L1 0 M0 -1 L0 1",
 		stroke: `lightblue`,
 		"stroke-width": `${1/scale}px`,
@@ -2007,7 +2007,7 @@ function buildDesignspace() {
 	// x value
 	svgXVal = SVG("path");
 	svgXVal.id = "svgXVal";
-	svgXVal.attrsSVG({
+	svgXVal.attr({
 		d: "M0 -1 V1",
 		stroke: ui.designspace.colors[1],
 		"stroke-width": `${1/scale}px`,
@@ -2018,7 +2018,7 @@ function buildDesignspace() {
 	// y value
 	svgYVal = SVG("path");
 	svgYVal.id = "svgYVal";
-	svgYVal.attrsSVG({
+	svgYVal.attr({
 		d: "M-1 0 H1",
 		stroke: ui.designspace.colors[0],
 		"stroke-width": `${1/scale}px`,
@@ -2217,7 +2217,7 @@ function updateGlyphsPanel(instance) {
 
 			// simple glyph
 			let svg = SVG("svg");
-			svg.attrsSVG({width: 90, height: 90});
+			svg.attr({width: 90, height: 90});
 
 			let svgg = SVG("g");
 			svgg.id = `g${glyph.id}`;
@@ -2230,7 +2230,7 @@ function updateGlyphsPanel(instance) {
 			else
 				iglyph = glyph.instantiate(null, instance);
 			let svgPath = SVG("path");
-			svgPath.attrsSVG({
+			svgPath.attr({
 				d: iglyph.svgPath(),
 				stroke: GLOBAL.vf.config.ui.glyphThumb.stroke,
 				"stroke-width": `${GLOBAL.vf.config.ui.glyphThumb.strokeWidth}px`,
@@ -2363,7 +2363,7 @@ function getSVGForShape (point, shape, size) {
 		// "■●▲+x"
 		case "■":
 			svgEl = SVG("rect");
-			svgEl.attrsSVG({
+			svgEl.attr({
 				x: point[0]-size/2,
 				y: point[1]-size/2,
 				width: size,
@@ -2373,7 +2373,7 @@ function getSVGForShape (point, shape, size) {
 
 		case "●":
 			svgEl = SVG("circle");
-			svgEl.attrsSVG({
+			svgEl.attr({
 				cx: point[0],
 				cy: point[1],
 				r: size/2,
@@ -2382,21 +2382,21 @@ function getSVGForShape (point, shape, size) {
 
 		case "▲":
 			svgEl = SVG("path");
-			svgEl.attrsSVG({
+			svgEl.attr({
 				d: `M${point[0]} ${point[1]+size/2}L${point[0]+size/2*0.86602540378} ${point[1]-size/2*0.5}L${point[0]-size/2*0.86602540378} ${point[1]-size/2*0.5}Z`,
 			});
 			break;
 
 		case "+":
 			svgEl = SVG("path");
-			svgEl.attrsSVG({
+			svgEl.attr({
 				d: `M${point[0]-size/2} ${point[1]}L${point[0]+size/2} ${point[1]}M${point[0]} ${point[1]-size/2}L${point[0]} ${point[1]+size/2}`,
 			});
 			break;
 
 		case "x":
 			svgEl = SVG("path");
-			svgEl.attrsSVG({
+			svgEl.attr({
 				d: `M${point[0]-size/2} ${point[1]-size/2}L${point[0]+size/2} ${point[1]+size/2}M${point[0]-size/2} ${point[1]+size/2}L${point[0]+size/2} ${point[1]-size/2}`,
 			});
 			break;
@@ -2439,7 +2439,7 @@ function updateTvts (glyph, iglyph) {
 			let tvtGraph = SVG("svg");
 			let svgg = SVG("g");
 
-			tvtGraph.attrsSVG({width: 50, height: 21});
+			tvtGraph.attr({width: 50, height: 21});
 			svgg.setAttributeNS(null, "transform", `translate(20,20) scale(1,-1)`);
 
 			// draw a graph through start, peak, end for each axis
@@ -2447,7 +2447,7 @@ function updateTvts (glyph, iglyph) {
 
 			// draw graph paper
 			let pathG = SVG("path");
-			pathG.attrsSVG({
+			pathG.attr({
 				fill: "none",
 				stroke: "darkgrey",
 				"stroke-width": 0.5,
@@ -2461,7 +2461,7 @@ function updateTvts (glyph, iglyph) {
 				// sawtooth graph for this tuple
 				// - typical graph shapes are shown at https://docs.microsoft.com/en-us/typography/opentype/spec/otvaroverview
 				const path = SVG("path");
-				path.attrsSVG({
+				path.attr({
 					fill: "black",
 					stroke: "none",
 					d: `M ${Sx*tvt.start[a]},0 L ${Sx*tvt.peak[a]},${Sy*1.0} L ${Sx*tvt.end[a]},0`,
@@ -2471,7 +2471,7 @@ function updateTvts (glyph, iglyph) {
 				// needle showing current axis position
 				if (GLOBAL.tuple[a] != 0) {	
 					const needle = SVG("line");
-					needle.attrsSVG({
+					needle.attr({
 						fill: "none",
 						stroke: ui.tupleNeedle.stroke,
 						"stroke-width": "1px",
@@ -2618,7 +2618,7 @@ function redrawFeatureVariationsBoxes(g) {
 
 		if (!(x == -1 && width == 2 && y == -1 && height == 2)) {
 			let svgBox = SVG("rect");
-			svgBox.attrsSVG({
+			svgBox.attr({
 				width: width,
 				height: height,
 				x: x,
@@ -2744,7 +2744,7 @@ function updateGlyphSVG (g, instance) {
 	svgEl.id = "samsa-svg";
 	let svgg = SVG("g"); // this transforms everything inside it
 	svgg.id = "svg-transform-group";
-	svgEl.attrsSVG( {
+	svgEl.attr( {
 		width: drawingEl.clientWidth, // we rewrite width and height on export, so clientWidth/clientHeight have no effect
 		height: drawingEl.clientHeight,
 		style: `background-color: ${ui.glyphDefault.backgroundColor};`,
@@ -2757,9 +2757,9 @@ function updateGlyphSVG (g, instance) {
 				linear = SVG("linearGradient"),
 				stop0 = SVG("stop"),
 				stop1 = SVG("stop");
-		stop0.attrsSVG({ offset: "0%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 1;` });
-		stop1.attrsSVG({ offset: "100%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 0;` });
-		linear.attrsSVG({
+		stop0.attr({ offset: "0%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 1;` });
+		stop1.attr({ offset: "100%", style: `stop-color: ${ui.tangent.color}; stop-opacity: 0;` });
+		linear.attr({
 			id: "tangent-linear-fade",
 			x1: "0%",
 			y1: "0%",
@@ -2791,7 +2791,7 @@ function updateGlyphSVG (g, instance) {
 				if (ui.cartesianAxes.strokeWidth > 0 || ui.cartesianAxes.stroke != "none") {
 					svgPath = SVG("path");
 					svgPath.id = layer;
-					svgPath.attrsSVG({
+					svgPath.attr({
 						d: "M-10000,0 L10000,0 M0,-10000 L0,10000",
 						stroke: ui.cartesianAxes.stroke,
 						"stroke-width": ui.cartesianAxes.strokeWidth * uiScale,
@@ -2803,7 +2803,7 @@ function updateGlyphSVG (g, instance) {
 				// draw advance width
 				if (ui.metrics.strokeWidth > 0 || ui.metrics.stroke != "none") {
 					svgPath = SVG("path");
-					svgPath.attrsSVG({
+					svgPath.attr({
 						d: `M${iglyph.points[glyph.points.length-3][0]} -10000V10000`, // glyph.points.length works for simple, composite and empty
 						stroke: ui.metrics.stroke,
 						"stroke-width": ui.metrics.strokeWidth * uiScale,
@@ -2813,7 +2813,7 @@ function updateGlyphSVG (g, instance) {
 						ui.metrics.dashArray.forEach(dash => {
 							dashStr += `${dash*uiScale} `;
 						});
-						svgPath.attrsSVG({
+						svgPath.attr({
 							"stroke-dasharray": dashStr,
 						});
 					}
@@ -2837,7 +2837,7 @@ function updateGlyphSVG (g, instance) {
 
 				svgPath = SVG("path");
 				svgPath.id = layer;
-				svgPath.attrsSVG({
+				svgPath.attr({
 					d: glyph.decompose().svgPath(),
 					stroke: ui.glyphDefault.stroke,
 					"stroke-width": ui.glyphDefault.strokeWidth * uiScale,
@@ -2857,7 +2857,7 @@ function updateGlyphSVG (g, instance) {
 
 				svgPath = SVG("path"); // give this an id so we can detect clicks
 				svgPath.id = layer;
-				svgPath.attrsSVG({
+				svgPath.attr({
 					d: iglyph.decompose(GLOBAL.tuple).svgPath(),
 					style: `opacity: ${uiStyle.opacity}`,
 					stroke: uiStyle.stroke,
@@ -2870,7 +2870,7 @@ function updateGlyphSVG (g, instance) {
 					for (dash of uiStyle.strokeDash) {
 						dashes += `${dash * uiScale} `;
 					}
-					svgPath.attrsSVG({ "stroke-dasharray": dashes.trim() }); // IUP implicit movement
+					svgPath.attr({ "stroke-dasharray": dashes.trim() }); // IUP implicit movement
 				}
 
 				svgg.append(svgPath);
@@ -2904,7 +2904,7 @@ function updateGlyphSVG (g, instance) {
 					svgg2.id = layer;
 
 					// set attrs
-					svgg2.attrsSVG({
+					svgg2.attr({
 						fill: style.fill,
 						"stroke-width": style.strokeWidth * uiScale,
 						stroke: style.stroke,
@@ -2975,7 +2975,7 @@ function updateGlyphSVG (g, instance) {
 										let len = Math.sqrt((otherPt[0]-pt[0])*(otherPt[0]-pt[0]) + (otherPt[1]-pt[1]) * (otherPt[1]-pt[1]));
 										if (otherPt[2] == 0)
 											len *= 0.5;
-										tangent.attrsSVG({
+										tangent.attr({
 											x: pt[0],
 											y: pt[1] - 0.5*strokeWidth*uiScale,
 											width: len,
@@ -2990,7 +2990,7 @@ function updateGlyphSVG (g, instance) {
 								case 3:
 									tangents[0] = SVG("line");
 									const eitherPt = prevPt[2] ? prevPt : nextPt;
-									tangents[0].attrsSVG({
+									tangents[0].attr({
 										x1: pt[0],
 										y1: pt[1],
 										x2: eitherPt[0],
@@ -3018,7 +3018,7 @@ function updateGlyphSVG (g, instance) {
 
 				svgg2 = SVG("g");
 				svgg2.id = layer;
-				svgg2.attrsSVG({
+				svgg2.attr({
 					"stroke": ui.arrow.color,
 					"stroke-width": ui.arrow.strokeWidth * uiScale,
 				});
@@ -3035,15 +3035,15 @@ function updateGlyphSVG (g, instance) {
 						let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000});
 						let svgLine = SVG("line");
 						let svgArrowHead = SVG("path");
-						svgLine.attrsSVG({ x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2 });
-						svgArrowHead.attrsSVG({
+						svgLine.attr({ x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2 });
+						svgArrowHead.attr({
 							d: `M${x2} ${y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
 							fill: ui.arrow.color,
 							stroke: "none",
 						});
 
 						if (!iglyph.touched[pt]) {
-							svgLine.attrsSVG({ "stroke-dasharray": 4 * uiScale }); // IUP implicit movement
+							svgLine.attr({ "stroke-dasharray": 4 * uiScale }); // IUP implicit movement
 						}
 
 						svgg2.append(svgLine, svgArrowHead);
@@ -3063,7 +3063,7 @@ function updateGlyphSVG (g, instance) {
 
 				svgg2 = SVG("g");
 				svgg2.id = layer;
-				svgg2.attrsSVG({
+				svgg2.attr({
 					"fill": "none",
 					"stroke-width": 3,
 					"stroke": "green",
@@ -3102,18 +3102,18 @@ function updateGlyphSVG (g, instance) {
 
 							// make the line
 							let svgLine = SVG("line");
-							svgLine.attrsSVG({
+							svgLine.attr({
 								x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2,
 								stroke: lineColor,
 								"stroke-width": ui.arrow.strokeWidth * uiScale,
 							});
 							if (iup)
-								svgLine.attrsSVG({ "stroke-dasharray": 4 * uiScale });
+								svgLine.attr({ "stroke-dasharray": 4 * uiScale });
 
 							// make the arrowhead with SVG path
 							// - SVG polygon more efficient, but less flexible if we want a special shape
 							let svgArrowHead = SVG("path");
-							svgArrowHead.attrsSVG({
+							svgArrowHead.attr({
 								d: `M${x2} ${y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
 								fill: lineColor,
 								stroke: "none",
@@ -3130,7 +3130,7 @@ function updateGlyphSVG (g, instance) {
 
 							console.log("circle!");
 							let svgCircle = SVG("circle");
-							svgCircle.attrsSVG({
+							svgCircle.attr({
 								cx: x1,
 								cy: y1,
 								r: 28,
@@ -3156,7 +3156,7 @@ function updateGlyphSVG (g, instance) {
 
 				svgg2 = SVG("g");
 				svgg2.id = layer + "-X";
-				svgg2.attrsSVG({
+				svgg2.attr({
 					"fill": "none",
 				});
 
@@ -3218,7 +3218,7 @@ function updateGlyphSVG (g, instance) {
 
 						// draw initial polyline
 						svgPolyline = SVG("polyline");
-						svgPolyline.attrsSVG({
+						svgPolyline.attr({
 							points: LOCI[p],
 							stroke: LOCI===lociX ? ui.designspace.colors[0] : ui.designspace.colors[1],
 							"stroke-width": ui.loci.strokeWidth * uiScale,
@@ -3230,7 +3230,7 @@ function updateGlyphSVG (g, instance) {
 						if (ui.loci.style == "railway") {
 
 							svgPolyline = SVG("polyline");
-							svgPolyline.attrsSVG({
+							svgPolyline.attr({
 								points: LOCI[p],
 								stroke: "white",
 								"stroke-width": ui.loci.strokeWidth / 1.5 * uiScale,
@@ -3238,7 +3238,7 @@ function updateGlyphSVG (g, instance) {
 							svgg2.append(svgPolyline);
 
 							svgPolyline = SVG("polyline");
-							svgPolyline.attrsSVG({
+							svgPolyline.attr({
 								points: LOCI[p],
 								stroke: LOCI===lociX ? ui.designspace.colors[0] : ui.designspace.colors[1],
 								"stroke-width": ui.loci.strokeWidth * 1.5 * uiScale,
@@ -3262,7 +3262,7 @@ function updateGlyphSVG (g, instance) {
 
 				svgg2 = SVG("g");
 				svgg2.id = layer;
-				svgg2.attrsSVG({
+				svgg2.attr({
 					"fill": ui.pointNumbers.color || "black",
 					"stroke": "none",
 				});
@@ -3280,7 +3280,7 @@ function updateGlyphSVG (g, instance) {
 					let svgText = SVG("text");
 					svgText.textContent = pt;
 
-					svgText.attrsSVG({
+					svgText.attr({
 						x: point[0]+xOffset,
 						y: point[1]+yOffset,
 						class: "point-number",
@@ -3289,7 +3289,7 @@ function updateGlyphSVG (g, instance) {
 
 					// if angle points to the left of the point, make the number’s text anchor on the right hand side
 					if (xOffset < 0)
-						svgText.attrsSVG({
+						svgText.attr({
 							"text-anchor": "end",
 						});
 
@@ -3333,7 +3333,7 @@ document.onclick = function (event) {
 
 	if (target = event.target.closest("#panels-left .panel .instantiate")) {
 
-		// create and download the instance		
+		// create and download the instance
 		let instanceEl = target.closest(".instance");
 		let instance = instanceEl.data.instance;
 
@@ -3827,7 +3827,7 @@ window.onresize = () => {
 	const svgEl = Q("#samsa-svg");
 
 	if (drawingEl && svgEl) {
-		svgEl.attrsSVG({
+		svgEl.attr({
 			width: drawingEl.clientWidth,
 			height: drawingEl.clientHeight,
 		});
