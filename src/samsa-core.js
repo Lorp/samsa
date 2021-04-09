@@ -1123,16 +1123,28 @@ SamsaGlyph.prototype.svgPath = function () {
 
 
 // svg()
-// - export glyph as a string, suitable for saving as a complete SVG file
-SamsaGlyph.prototype.svg = function () {
-	let svg = 
-`<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" style="background-color: transparent;">
-	<g transform="translate(130,500) scale(0.5,-0.5)">
-		<path d="$_PATH_$" stroke="none" stroke-width="0" fill="#555"></path>
+// - export glyph as an SVG string, suitable for saving as a complete SVG file
+// - style is an object (with all properties optional), such as:
+//   {
+//	   class: "letter simple",
+//     fill: "orange",
+//     stroke: "#fe55a0",
+//     strokeWidth: 4,
+//     transform: "translate(130,500) scale(0.5,-0.5)"
+//	 }
+// - note that with no transform, the glyph will be displayed upside-down
+// - note that if the transform scale has a positive y transform, the glyph will be displayed upside-down
+SamsaGlyph.prototype.svg = function (style={}) {
+	let extra = "";
+	extra += style.class ? ` class="${style.class}"` : "";
+	extra += style.fill ? ` fill="${style.fill}"` : "";
+	extra += style.stroke ? ` stroke="${style.stroke}"` : "";
+	extra += style.strokeWidth ? ` stroke-width="${style.strokeWidth}"` : "";
+	return `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" style="background-color: transparent;">
+	<g${style.transform ? ` transform="${style.transform}"` : ""}>
+		<path d="${this.svgPath()}"${extra}></path>
 	</g>
 </svg>`;
-	svg = svg.replace("$_PATH_$", this.svgPath());
-	return svg;
 }
 
 
