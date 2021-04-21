@@ -3844,12 +3844,20 @@ window.onload = () => {
 	// panels that need to be initialized once per session
 	let panel, panelPart;
 
+	// handle loading a font via a url in query string: prepend a new record to the fontList with preload=true
+	GLOBAL.urlParams = new URLSearchParams(window.location.search);
+	let preloaded = false, preloadUrl;
+	if (preloadUrl = GLOBAL.urlParams.get("preload")) {
+		CONFIG.fontList.unshift ({
+			url: preloadUrl,
+			preload: true,
+		});
+	}
 
 	///////////////////////////////////////////////////////
 	// Fonts panel
 	///////////////////////////////////////////////////////
 
-	let preloaded = false;
 	panelPart = Q("#panel-fonts .font-selector");
 	panelPart.innerHTML = "";
 
@@ -3890,9 +3898,8 @@ window.onload = () => {
 
 			preloaded = true; // we preload max one font
 			Q(".font-selector").value = filename;
-		}		
+		}
 	}
-
 
 	// assign each panel to left or right panel-container
 	const panelsLeft = Q("#panels-left"), panelsRight = Q("#panels-right");
