@@ -74,7 +74,7 @@ CONFIG.fontList = [
 		url: "fonts/SourceSerif4Variable-Italic.ttf",
 	},
 	{
-		url: "https://www.axis-praxis.org/fonts/MuybridgeGX.ttf",
+		url: "https://www.axis-praxis.org/samsa/fonts/MuybridgeGX.ttf",
 	},
 	{
 		url: "fonts/Zycon.ttf"
