@@ -14,13 +14,12 @@
 CONFIG.fontList = [
 
 	{
-		url: "fonts/Amstelvar-Roman-VF.ttf",
+		url: "https://github.com/TypeNetwork/Amstelvar/blob/main/fonts/Amstelvar-Roman%5BGRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,wdth,wght,opsz%5D.ttf?raw=true",
+		filename: "Amstelvar-Roman[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,wdth,wght,opsz].ttf",
 	},
 	{
-		url: "fonts/Amstelvar-Italic-VF.ttf",
-	},
-	{
-		url: "fonts/Amstelvar-Roman-parametric-VF.ttf",
+		url: "https://github.com/TypeNetwork/Amstelvar/blob/main/fonts/Amstelvar-Italic%5BGRAD,YOPQ,YTAS,YTDE,YTLC,YTUC,wdth,wght,opsz%5D.ttf?raw=true",
+		filename: "Amstelvar-Italic[GRAD,YOPQ,YTAS,YTDE,YTLC,YTUC,wdth,wght,opsz].ttf",
 	},
 	{
 		url: "fonts/Bitter-VariableFont_wght.ttf",
@@ -50,16 +49,20 @@ CONFIG.fontList = [
 		url: "fonts/LibreFranklin-Italic-VariableFont_wght.ttf",
 	},
 	{
-		url: "fonts/Literata-VariableFont_opsz,wght.ttf"
+		url: "fonts/Literata-VariableFont_opsz,wght.ttf",
 	},
 	{
-		url: "fonts/Literata-Italic-VariableFont_opsz,wght.ttf"
+		url: "fonts/Literata-Italic-VariableFont_opsz,wght.ttf",
 	},
 	{
 		url: "fonts/MutatorSans.ttf",
 	},
 	{
 		url: "fonts/Recursive-VariableFont_CASL,CRSV,MONO,slnt,wght.ttf",
+	},
+	{
+		url: "https://github.com/TypeNetwork/Roboto-Flex/blob/main/fonts/RobotoFlex%5BGRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght%5D.ttf?raw=true",
+		filename: "RobotoFlex[GRAD,XOPQ,XTRA,YOPQ,YTAS,YTDE,YTFI,YTLC,YTUC,opsz,slnt,wdth,wght].ttf",
 	},
 	{
 		url: "fonts/SourceSansVariable-Roman.ttf",
@@ -77,7 +80,7 @@ CONFIG.fontList = [
 		url: "https://www.axis-praxis.org/samsa/fonts/MuybridgeGX.ttf",
 	},
 	{
-		url: "fonts/Zycon.ttf"
+		url: "fonts/Zycon.ttf",
 	},
 
 	// this shows how to embed a font as base64, and preload it
