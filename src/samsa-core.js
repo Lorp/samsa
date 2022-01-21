@@ -806,7 +806,7 @@ SamsaGlyph.prototype.maxCompiledSize = function () {
 
 // compile()
 // - compile a SamsaGlyph object into compact binary TrueType data
-// - buf: DataView onto an ArrayBuffer (this is the only required argument)
+// - buf: DataView onto an ArrayBuffer OR Node buffer (this is the only required argument)
 // - startOffset: position within buf to start writing
 // - metrics: array in which 4 metrics values will be stored
 // - compress: whether to use glyf table compression (RLE for flags, flags for point positions); avoiding compression is faster
@@ -1063,10 +1063,9 @@ SamsaGlyph.prototype.svgPath = function () {
 						}
 						else // on-curve point
 							path += `L${pt[0]} ${pt[1]}`;
-						if (p == contour.length-1)
-							path += "Z";
 					}
 				}
+				path += "Z";
 			}
 
 			break;
@@ -1135,12 +1134,11 @@ SamsaGlyph.prototype.svgPath = function () {
 // - note that with no transform, the glyph will be displayed upside-down
 // - note that if the transform scale has a positive y transform, the glyph will be displayed upside-down
 SamsaGlyph.prototype.svg = function (style={}) {
-	let extra = "";
-	extra += style.class ? ` class="${style.class}"` : "";
-	extra += style.fill ? ` fill="${style.fill}"` : "";
-	extra += style.stroke ? ` stroke="${style.stroke}"` : "";
-	extra += style.strokeWidth ? ` stroke-width="${style.strokeWidth}"` : "";
-	return `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" style="background-color: transparent;">
+	let extra = (style.class ? ` class="${style.class}"` : "")
+	          + (style.fill ? ` fill="${style.fill}"` : "")
+	          + (style.stroke ? ` stroke="${style.stroke}"` : "")
+	          + (style.strokeWidth ? ` stroke-width="${style.strokeWidth}"` : "");
+	return `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="1000" height="1000">
 	<g${style.transform ? ` transform="${style.transform}"` : ""}>
 		<path d="${this.svgPath()}"${extra}></path>
 	</g>
@@ -2548,8 +2546,6 @@ function SamsaFont (init, config) {
 			switch (table.tag) {
 
 				case "glyf":
-
-					// OPTIMIZE: write to a large buffer, handle overflows: the large write data size should be faster
 
 					let glyfBufferOffset = 0;
 
