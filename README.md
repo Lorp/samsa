@@ -38,7 +38,7 @@ There are several ways to try Samsa:
 ## Try some fonts in Samsa
 
 There are many open source variable fonts to try in Samsa, including:
-* [Google Fonts](https://fonts.google.com/?vfonly=true) (82 VFs)
+* [Google Fonts](https://fonts.google.com/?vfonly=true) (215 VFs)
 * [IBM Plex Sans Var](https://github.com/IBM/plex/tree/master/IBM-Plex-Sans-Variable) (2 VFs)
 * Adobe [Source Serif, Source Sans, Source Code](https://github.com/adobe-fonts) (6 VFs)
 * [Amstelvar](https://github.com/TypeNetwork/Amstelvar/) (2 VFs, 12 axes each)
