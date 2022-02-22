@@ -69,15 +69,15 @@ if (CONFIG.isNode) {
 	Buffer.prototype.setInt8   = function (p,v) {this.writeInt8(v,p);}
 
 	// add new Buffer methods
-	Buffer.prototype.getTag = function (p) {
+	Buffer.prototype.getTag = function (p, length=4) {
 		let tag = "";
-		let p_end = p + 4;
+		let p_end = p + length;
 		while (p < p_end) {
 			let ch = this.readUInt8(p++);
 			if (ch >= 32 && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
 				tag += String.fromCharCode(ch);	
 		}
-		return tag.length == 4 ? tag : false;
+		return tag.length == length ? tag : false;
 	}
 
 	Buffer.prototype.getF2DOT14 = function (p) {
@@ -1245,6 +1245,7 @@ function SamsaFont (init, config) {
 	this.callback = init.callback;
 	this.data = undefined;
 	this.fontFamily = init.fontFamily;
+	this.names = init.names || [];
 	this.axes = [];
 	this.axisTagToId = {};
 	this.instances = [{
@@ -1259,6 +1260,7 @@ function SamsaFont (init, config) {
 	}];
 	this.errors = [];
 	this.glyphs = [];
+	this.numGlyphs = 0;
 	this.glyphOffsets = [];
 	this.glyphSizes = [];
 	this.tupleOffsets = [];
@@ -1273,7 +1275,10 @@ function SamsaFont (init, config) {
 	}
 
 	this.path = init.inFile || this.url;
-	this.filename = init.filename || this.path.substr(this.path.lastIndexOf("/")+1); // works nicely even when there are no slashes in the name because of the -1 return :)
+	if (init.filename)
+		this.filename = init.filename;
+	else if (this.path)
+		this.filename = this.path.substr(this.path.lastIndexOf("/")+1); // works nicely even when there are no slashes in the name because of the -1 return :)
 	this.filesize = init.filesize;
 
 
@@ -1317,7 +1322,6 @@ function SamsaFont (init, config) {
 				this.filesize = arrayBuffer.byteLength;
 				this.data = new DataView(arrayBuffer);
 				this.parse();
-
 			});
 		}
 	}
@@ -1434,7 +1438,9 @@ function SamsaFont (init, config) {
 
 		// we parsed the font, get a timestamp
 		font.dateParsed = new Date();
-		font.callback(font);
+
+		// call the given callback function
+		font.callback(font)
 	}
 
 	//////////////////////////////////
@@ -2333,48 +2339,6 @@ function SamsaFont (init, config) {
 						glyph.points[pt].push(y_ = y, flag & 0x01);
 					});
 				}
-
-				/*
-				// flags
-				let flags = [];
-				let p_y = 0;
-				for (pt=0; pt<glyph.numPoints; ) {
-					let repeat = 0;
-					flag = data.getUint8(p), p++;
-					flags[pt++] = flag;
-					if (flag & 0x08) {
-						repeat = data.getUint8(p), p++;
-						for (r=0; r<repeat; r++) {
-							flags[pt++] = flag;
-						}
-					}
-					if (flag & 0x02)
-						p_y += repeat+1;
-					else if ((flag & 0x12) == 0)
-						p_y += 2*(repeat+1);
-				}
-				p_y += p;
-
-				// points
-				if (flags.length == glyph.numPoints) {
-					flags.forEach((flag, pt) => {
-						switch (flag & 0x12) { // x
-							case 0x00: x = x_ + data.getInt16(p); p+=2; break;
-							case 0x02: x = x_ - data.getUint8(p); p++; break;
-							case 0x10: x = x_; break;
-							case 0x12: x = x_ + data.getUint8(p); p++; break;
-						}
-						switch (flag & 0x24) { // y
-							case 0x00: y = y_ + data.getInt16(p_y), p_y+=2; break;
-							case 0x04: y = y_ - data.getUint8(p_y), p_y++; break;
-							case 0x20: y = y_; break;
-							case 0x24: y = y_ + data.getUint8(p_y), p_y++; break;
-						}
-						glyph.points[pt] = [x_ = x, y_ = y, flag & 0x01];
-					});
-				}
-				p = p_y;
-				*/
 			}
 			
 			// composite glyph
@@ -2504,7 +2468,26 @@ function SamsaFont (init, config) {
 		let newTables = {};
 		font.tableDirectory.forEach (table => {
 			if (!font.config.instantiation.skipTables.includes(table.tag)) // if this table is not in the "skipTables" list
-				newTableDirectory.push(newTables[table.tag] = {	tag: table.tag } ); // add it to newTableDirectory (we’ll set length and offset later)
+				//newTableDirectory.push(newTables[table.tag] = {	tag: table.tag } ); // add it to newTableDirectory (we’ll set length and offset later)
+				newTables[table.tag] = { tag: table.tag }; // add it to newTableDirectory (we’ll set length and offset later)
+		});
+
+		// are there any new tables to be added? e.g. COLR, CPAL, CFF2
+		if (font.addTables) {
+			font.addTables.forEach(table => {
+				newTables[table.tag] = table;
+				if (table.tag == "CFF2") { // if we add a CFF2 table, we no longer want glyf or loca
+					if (newTables["glyf"])
+						delete newTables["glyf"];
+					if (newTables["loca"])
+						delete newTables["loca"];
+				}
+			});
+		}
+
+		// now we have our final set of tables we can create newTableDirectory
+		Object.keys(newTables).forEach(tag => {
+			newTableDirectory.push(newTables[tag]);
 		});
 
 
@@ -2527,8 +2510,7 @@ function SamsaFont (init, config) {
 		// - this is because we will write them in the order from the original font file
 		// - we later sort them by tag, so that we get nice table indices to update file with new offset and length
 		// - we might consider sorting tables by size here instead: this brings header tables to the front of the file and ensures loca will come before glyf; there was a Microsoft tool that did this
-		newTableDirectory.sort((a,b) => font.tables[a.tag].offset - font.tables[b.tag].offset); // sort in the order of the original font’s table offsets
-
+		newTableDirectory.sort((a,b) => a.offset - b.offset); // sort in the order of the original font’s table offsets (this step is non-critical)
 
 		// [3] write tables (same offset order as source font)
 		// - newTableDirectory is ordered by original offset and only contains tables we want for static output
@@ -2540,7 +2522,7 @@ function SamsaFont (init, config) {
 
 			// set the new offset
 			table.offset = position;
-			let originalTable = font.tables[table.tag];
+			let originalTable = font.tables[table.tag] || newTables[table.tag];			
 			let p; // the current data offset in glyfBuffer, where the binary glyph is being written in memory
 
 			switch (table.tag) {
@@ -2764,18 +2746,23 @@ function SamsaFont (init, config) {
 
 					// allocate memory for table
 					let tableBuffer, sourceTableBuffer;
-					table.length = font.tables[table.tag].length; // new length = old length
+					table.length = originalTable.length; // new length = old length
+
 
 					// read table
 					if (node) {
-						//tableBuffer = Buffer.alloc(table.length);
-						tableBuffer = new DataView(new ArrayBuffer(table.length));
-						read (fd, tableBuffer, 0, table.length, font.tables[table.tag].offset);
-						// OPTIMIZE: don’t read these short tables again if we already read them when parsing
+						if (table.buffer) {
+							tableBuffer = table.buffer;
+						}
+						else {
+							tableBuffer = new DataView(new ArrayBuffer(table.length));
+							read (fd, tableBuffer, 0, table.length, originalTable.offset);
+							// OPTIMIZE: don’t read these short tables again if we already read them when parsing
+						}
 					}
 					else {
 						tableBuffer = new DataView(fontBuffer.buffer, table.offset, table.length); // looks into new font
-						sourceTableBuffer = new DataView(font.data.buffer, originalTable.offset, table.length); // looks into original font
+						sourceTableBuffer = table.buffer || new DataView(font.data.buffer, originalTable.offset, table.length); // looks into original font
 					}
 
 					// write table
@@ -2808,12 +2795,19 @@ function SamsaFont (init, config) {
 		// [4] fix up
 
 		// [4a] write final loca table
-		newLocas.forEach((loca, g) => {
-			locaBuf.setUint32(4*g, loca); // in frontend, this writes final loca values in place
-		});
-		if (node)
-			write (fdw, locaBuf, 0, 4*(font.numGlyphs+1), newTables["loca"].offset);
+		if (newTables["loca"]) {		
+				newLocas.forEach((loca, g) => {
+				locaBuf.setUint32(4*g, loca); // in frontend, this writes final loca values in place
+			});
+			if (node)
+				write (fdw, locaBuf, 0, 4*(font.numGlyphs+1), newTables["loca"].offset);
+		}
 
+		// [4aa] write lsbs and aws if CFF2
+		for (let g=0; g<font.numGlyphs; g++) {
+			aws[g] = font.glyphs[g].points[font.glyphs[g].points.length-3][0];
+			lsbs[g] = 0;
+		}
 
 		// [4b] write final hmtx table
 		for (let g=0; g<font.numGlyphs; g++) {
@@ -2826,7 +2820,7 @@ function SamsaFont (init, config) {
 			write (fdw, hmtxBuf, 0, 4*font.numGlyphs, newTables["hmtx"].offset);
 
 		// [4c] fix the font header
-		fileHeaderBuf.setUint32(0, font.fingerprint);
+		fileHeaderBuf.setUint32(0, newTables["CFF2"] ? 0x4f54544f : font.fingerprint); // "OTTO" if CFF2
 		fileHeaderBuf.setUint16(4, newTableDirectory.length); // numTables
 
 		// calculate searchRange, entrySelector, rangeShift
@@ -3250,12 +3244,16 @@ function SamsaFont (init, config) {
 		this.load(this.url || this.inFile);
 	}
 
-
 	if (init.arrayBuffer) {
-
 		this.data = new DataView(this.arrayBuffer);
 		this.parse();
 	}
+
+	// is this a new font? then call the callback now
+	if (init && init.new && this.callback) {
+		this.callback(this);
+	}
+
 }
 
 
