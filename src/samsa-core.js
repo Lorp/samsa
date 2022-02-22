@@ -51,7 +51,6 @@ let CONFIG = {
 
 };
 
-
 if (CONFIG.isNode) {
 	// mappings from DataView methods to Buffer methods
 	Buffer.prototype.getUint32 = Buffer.prototype.readUInt32BE;
@@ -84,7 +83,6 @@ if (CONFIG.isNode) {
 		return this.getInt16(p) / 16384.0; // signed
 	}
 }
-
 
 function getStringFromData (data, p0, length)
 {
@@ -352,7 +350,7 @@ SamsaGlyph.prototype.instantiate = function (userTuple, instance, extra) {
 	let p=this.points.length;
 	while (--p >= 0) {
 		const point = this.points[p];
-		newGlyph.points[p] = [point[0], point[1], point[2]];
+		newGlyph.points[p] = [point[0], point[1], point[2]]; // DON’T replace with [...point] as it’s slower :)
 	}
 
 	// go through each tuple variation table for this glyph
@@ -2423,7 +2421,6 @@ function SamsaFont (init, config) {
 
 		// we either write to a memory object or straight to a file
 
-		const timerStart = new Date();
 		const font = this;
 
 		// node
@@ -2439,6 +2436,10 @@ function SamsaFont (init, config) {
 		let position = 0;
 		let fdw;
 		const glyfBufSafetyMargin = 64;
+
+		// timer
+		//const timerStart = (!node || (node && performance)) ? performance.now() : 0;
+		const timerStart = performance.now();
 
 		if (node) {
 			fd = font.fd;
@@ -2864,8 +2865,7 @@ function SamsaFont (init, config) {
 
 
 		// [5] reporting
-		const timerEnd = new Date();
-		instance.timer = timerEnd-timerStart;
+		instance.timer = performance.now() - timerStart;
 		instance.size = position;
 
 
