@@ -2804,9 +2804,11 @@ function SamsaFont (init, config) {
 		}
 
 		// [4aa] write lsbs and aws if CFF2
-		for (let g=0; g<font.numGlyphs; g++) {
-			aws[g] = font.glyphs[g].points[font.glyphs[g].points.length-3][0];
-			lsbs[g] = 0;
+		if (newTables["CFF2"]) {
+			for (let g=0; g<font.numGlyphs; g++) {
+				aws[g] = font.glyphs[g].points[font.glyphs[g].points.length-3][0];
+				lsbs[g] = 0;
+			}	
 		}
 
 		// [4b] write final hmtx table
