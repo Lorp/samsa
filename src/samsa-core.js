@@ -1317,8 +1317,7 @@ function SamsaFont (init, config) {
 			.then(response => {
 				return response.arrayBuffer();
 			})
-			.then(arrayBuffer => {
-			
+			.then(arrayBuffer => {			
 				this.filesize = arrayBuffer.byteLength;
 				this.data = new DataView(arrayBuffer);
 				this.parse();
@@ -1449,7 +1448,7 @@ function SamsaFont (init, config) {
 	this.parseSmallTable = tag => {
 		let font = this;
 		let data;
-		let tableOffset, p=p_=0; // data pointers
+		let p=0, p_=0; // data pointers
 		let config = this.config;
 		let table = {};
 		let node = this.config.isNode;
@@ -1462,13 +1461,13 @@ function SamsaFont (init, config) {
 
 		// set up data and pointers
 		if (node) {
+			// create new Buffer read from the file 
 			data = Buffer.alloc(font.tables[tag].length);
 			read (fd, data, 0, font.tables[tag].length, font.tables[tag].offset);
-			p = tableOffset = 0;
 		}
 		else {
-			data = this.data;
-			p = tableOffset = font.tables[tag].offset;
+			// create a DataView into the existing arrayBuffer font.data.buffer
+			data = new DataView(font.data.buffer, font.tables[tag].offset, font.tables[tag].length);
 		}
 
 		// switch by tag to process each table
@@ -1476,52 +1475,49 @@ function SamsaFont (init, config) {
 
 			case "maxp":
 
-				table.version = data.getUint32(p), p+=4;
-				table.numGlyphs = data.getUint16(p), p+=2;
+				table.version = data.getUint32(0);
+				table.numGlyphs = data.getUint16(4);
 				font.numGlyphs = table.numGlyphs;
 				break; // maxp end
 
 
 			case "hhea":
 
-				table.majorVersion = data.getUint16(p), p+=2;
-				table.minorVersion = data.getUint16(p), p+=2;
-				table.ascender = data.getInt16(p), p+=2;
-				table.descender = data.getInt16(p), p+=2;
-				table.lineGap = data.getInt16(p), p+=2;
-				table.advanceWidthMax = data.getUint16(p), p+=2;
-				table.minLeftSideBearing = data.getInt16(p), p+=2;
-				table.minRightSideBearing = data.getInt16(p), p+=2;
-				table.xMaxExtent = data.getInt16(p), p+=2;
-				table.caretSlopeRise = data.getInt16(p), p+=2;
-				table.caretSlopeRun = data.getInt16(p), p+=2;
-				table.caretOffset = data.getInt16(p), p+=2;
-				p+=8;
-				table.metricDataFormat = data.getInt16(p), p+=2;
-				table.numberOfHMetrics = data.getUint16(p), p+=2;
+				table.majorVersion = data.getUint16(0);
+				table.minorVersion = data.getUint16(2);
+				table.ascender = data.getInt16(4);
+				table.descender = data.getInt16(6);
+				table.lineGap = data.getInt16(8);
+				table.advanceWidthMax = data.getUint16(10);
+				table.minLeftSideBearing = data.getInt16(12);
+				table.minRightSideBearing = data.getInt16(14);
+				table.xMaxExtent = data.getInt16(16);
+				table.caretSlopeRise = data.getInt16(18);
+				table.caretSlopeRun = data.getInt16(20);
+				table.caretOffset = data.getInt16(22);
+				table.metricDataFormat = data.getInt16(32);
+				table.numberOfHMetrics = data.getUint16(34);
 				break; // hhea end
 
 
 			case "head":
 
-				table.majorVersion = data.getUint16(p), p+=2;
-				table.minorVersion = data.getUint16(p), p+=2;
-				table.fontRevision = data.getUint32(p), p+=4;
-				table.checkSumAdjustment = data.getUint32(p), p+=4;
-				table.magicNumber = data.getUint32(p), p+=4;
-				table.flags = data.getUint16(p), p+=2;
-				table.unitsPerEm = data.getUint16(p), p+=2;
-				p += 8;
-				p += 8;
-				table.xMin = data.getInt16(p), p+=2;
-				table.yMin = data.getInt16(p), p+=2;
-				table.xMax = data.getInt16(p), p+=2;
-				table.yMax = data.getInt16(p), p+=2;
-				table.macStyle = data.getUint16(p), p+=2;
-				table.lowestRecPPEM = data.getUint16(p), p+=2;
-				table.fontDirectionHint = data.getInt16(p), p+=2;
-				table.indexToLocFormat = data.getUint16(p), p+=2;
-				table.glyphDataFormat = data.getUint16(p), p+=2;
+				table.majorVersion = data.getUint16(0);
+				table.minorVersion = data.getUint16(2);
+				table.fontRevision = data.getUint32(4);
+				table.checkSumAdjustment = data.getUint32(8);
+				table.magicNumber = data.getUint32(12);
+				table.flags = data.getUint16(16);
+				table.unitsPerEm = data.getUint16(18);
+				table.xMin = data.getInt16(36);
+				table.yMin = data.getInt16(38);
+				table.xMax = data.getInt16(40);
+				table.yMax = data.getInt16(42);
+				table.macStyle = data.getUint16(44);
+				table.lowestRecPPEM = data.getUint16(46);
+				table.fontDirectionHint = data.getInt16(48);
+				table.indexToLocFormat = data.getUint16(50);
+				table.glyphDataFormat = data.getUint16(52);
 
 				font.unitsPerEm = table.unitsPerEm;
 				break; // head end
@@ -1598,11 +1594,14 @@ function SamsaFont (init, config) {
 
 			case "name":
 
-				table.format = data.getUint16(p), p+=2;
-				table.count = data.getUint16(p), p+=2;
-				table.stringOffset = data.getUint16(p), p+=2;
 				table.nameRecords = [];
 				font.names = [];
+
+				table.format = data.getUint16(0);
+				table.count = data.getUint16(2);
+				table.stringOffset = data.getUint16(4);
+
+				p = 6;
 				for (let n=0; n < table.count; n++) {
 					let nameRecord = {};
 					let str = "";
@@ -1615,9 +1614,9 @@ function SamsaFont (init, config) {
 					nameRecord.length = data.getUint16(p), p+=2;
 					nameRecord.offset = data.getUint16(p), p+=2;
 
-					nameRecordStart = tableOffset + table.stringOffset + nameRecord.offset;
+					nameRecordStart = table.stringOffset + nameRecord.offset;
 					nameRecordEnd = nameRecordStart + nameRecord.length;
-					if (nameRecordEnd > tableOffset + font.tables['name'].length) // safety check
+					if (nameRecordEnd > font.tables['name'].length) // safety check
 						continue;
 
 					p_ = p;
@@ -1674,16 +1673,16 @@ function SamsaFont (init, config) {
 			case "post":
 
 				font.glyphNames = []; // store the names separately because the glyph often has not been loaded
-				table.format = data.getUint32(p+0);
-				font.italicAngle = data.getInt32(p+4) / 65536;
+				table.format = data.getUint32(0);
+				font.italicAngle = data.getInt32(4) / 65536;
 
 				// most fonts are format 2
 				if (table.format == 0x00020000) {
 
 					// parse names data
-					p = tableOffset + 32 + 2 + 2 * font.numGlyphs; // jump past header and glyphNameIndex array
+					p = 32 + 2 + 2 * font.numGlyphs; // jump past header and glyphNameIndex array
 					let extraNames = [];
-					while (p < tableOffset + font.tables['post'].length) {
+					while (p < font.tables['post'].length) {
 						let str="", len=data.getUint8(p++); // Pascal style strings: first byte is length, the rest is the string
 						while (len--) {
 							str += String.fromCharCode(data.getUint8(p++));
@@ -1692,7 +1691,7 @@ function SamsaFont (init, config) {
 					}
 
 					// parse glyphNameIndex array
-					p = tableOffset + 32; // jump past header
+					p = 32; // jump past header
 					p += 2;
 					for (let g=0; g<font.numGlyphs; g++) {
 						let gni = data.getUint16(p + g*2);
@@ -1710,9 +1709,9 @@ function SamsaFont (init, config) {
 
 					// long offsets or short offsets?
 					if (indexToLocFormat)
-						font.glyphOffsets[g] = data.getUint32(tableOffset + 4*g);
+						font.glyphOffsets[g] = data.getUint32(4*g);
 					else
-						font.glyphOffsets[g] = 2 * data.getUint16(tableOffset + 2*g);
+						font.glyphOffsets[g] = 2 * data.getUint16(2*g);
 
 					font.glyphSizes[g-1] = font.glyphOffsets[g] - font.glyphOffsets[g-1];
 				}
@@ -1721,17 +1720,18 @@ function SamsaFont (init, config) {
 
 			case "fvar":
 
-				table.majorVersion = data.getUint16(p), p+=2;
-				table.minorVersion = data.getUint16(p), p+=2;
-				table.offsetToAxesArray = data.getUint16(p), p+=2;
-				table.countSizePairs = data.getUint16(p), p+=2;
-				table.axisCount = data.getUint16(p), p+=2;
-				table.axisSize = data.getUint16(p), p+=2;
-				table.instanceCount = data.getUint16(p), p+=2;
-				table.instanceSize = data.getUint16(p), p+=2;
+				table.majorVersion = data.getUint16(0);
+				table.minorVersion = data.getUint16(2);
+				table.offsetToAxesArray = data.getUint16(4);
+				table.countSizePairs = data.getUint16(6);
+				table.axisCount = data.getUint16(8);
+				table.axisSize = data.getUint16(10);
+				table.instanceCount = data.getUint16(12);
+				table.instanceSize = data.getUint16(14);
 
 				// build axes
 				// - font.axes == [] at this point
+				p = 16
 				for (let a=0; a<table.axisCount; a++)
 				{
 					let axis = { id: a };
@@ -1816,20 +1816,20 @@ function SamsaFont (init, config) {
 
 				// NOTE: this only parses the table header!
 				// the main data, tuple variation tables for each glyph, is processed in SamsaVF_parseTvts()
-				table.majorVersion = data.getUint16(p), p+=2;
-				table.minorVersion = data.getUint16(p), p+=2;
-				table.axisCount = data.getUint16(p), p+=2;
-				table.sharedTupleCount = data.getUint16(p), p+=2;
-				table.offsetToSharedTuples = data.getUint32(p), p+=4;
-				table.glyphCount = data.getUint16(p), p+=2;
-				table.flags = data.getUint16(p), p+=2;
-				table.offsetToData = data.getUint32(p), p+=4;
+				table.majorVersion = data.getUint16(0);
+				table.minorVersion = data.getUint16(2);
+				table.axisCount = data.getUint16(4);
+				table.sharedTupleCount = data.getUint16(6);
+				table.offsetToSharedTuples = data.getUint32(8);
+				table.glyphCount = data.getUint16(12);
+				table.flags = data.getUint16(14);
+				table.offsetToData = data.getUint32(16);
 				table.sizeofTuple = table.axisCount * 2; // sizeof (F2DOT14)
-				//table.sizeofOffset = (table.flags & 0x01) ? 4 : 2;
 
-				// get sharedTuples array - working nicely!
+				// get sharedTuples array
 				table.sharedTuples = [];
-				let ps = tableOffset + table.offsetToSharedTuples;
+
+				let ps = table.offsetToSharedTuples;
 				for (let t=0; t < table.sharedTupleCount; t++) {
 					let tuple = [];
 					for (let a=0; a<table.axisCount; a++)
@@ -1841,9 +1841,9 @@ function SamsaFont (init, config) {
 				font.tupleOffsets[0] = 0;
 				for (let g=0; g < font.numGlyphs; g++) {
 					if (table.flags & 0x01) // offsets are Offset32
-						font.tupleOffsets[g+1] = data.getUint32(tableOffset + 20 + 4 * (g+1));
+						font.tupleOffsets[g+1] = data.getUint32(20 + 4 * (g+1));
 					else // offsets are 2*Offset16
-						font.tupleOffsets[g+1] = 2 * data.getUint16(tableOffset + 20 + 2 * (g+1));
+						font.tupleOffsets[g+1] = 2 * data.getUint16(20 + 2 * (g+1));
 					font.tupleSizes[g] = font.tupleOffsets[g+1] - font.tupleOffsets[g];
 				}
 				font.sharedTuples = table.sharedTuples;
@@ -1868,7 +1868,7 @@ function SamsaFont (init, config) {
 
 				// parse designAxes
 				for (let a=0; a<table.designAxisCount; a++) {
-					p = tableOffset + designAxesOffset + a*designAxisSize;
+					p = designAxesOffset + a*designAxisSize;
 					let designAxis = {
 						designAxisID: a, // in case we are enumerating a sorted array
 						tag:          data.getTag(p),
@@ -1881,9 +1881,9 @@ function SamsaFont (init, config) {
 
 				// parse axisValueTables
 				for (let a=0; a<table.axisValueCount; a++) {
-					p = tableOffset + offsetToAxisValueOffsets + 2*a;
+					p = offsetToAxisValueOffsets + 2*a;
 					let axisValueOffset = data.getUint16(p);
-					p = tableOffset + offsetToAxisValueOffsets + axisValueOffset;
+					p = offsetToAxisValueOffsets + axisValueOffset;
 					let format = data.getUint16(p);
 					if (format < 1 || format > 4)
 						continue;
@@ -1934,7 +1934,7 @@ function SamsaFont (init, config) {
 
 						// features
 						table.features = [];
-						p = tableOffset + table.featureListOffset;
+						p = table.featureListOffset;
 						table.featureCount = data.getUint16(p), p+=2;
 						for (let f=0; f<table.featureCount && f < 100; f++, p+=6) {
 							let feature = {
@@ -1942,14 +1942,14 @@ function SamsaFont (init, config) {
 								offset: data.getUint16(p+4),
 								name: null,
 							};
-							let p_ = tableOffset + table.featureListOffset + feature.offset;
+							let p_ = table.featureListOffset + feature.offset;
 							if (feature.tag !== false) {
 								feature.featureParams = data.getUint16(p_), p_+=2; // this is an offset, or 0 if there are none
 								feature.lookupIndexCount = data.getUint16(p_), p_+=2;
 
 								// get featureParams (i.e. nice name of this feature)
 								if (feature.featureParams) {
-									p_ = tableOffset + table.featureListOffset + feature.offset + feature.featureParams;
+									p_ = table.featureListOffset + feature.offset + feature.featureParams;
 									feature.featureParamsVersion = data.getUint16(p_), p_+=2;
 									feature.nameId = data.getUint16(p_), p_+=2;
 									if (feature.nameId > 0)
@@ -1969,13 +1969,13 @@ function SamsaFont (init, config) {
 
 						// lookups: initialize
 						table.lookups = [];
-						p = tableOffset + table.lookupListOffset;
+						p = table.lookupListOffset;
 						table.lookupCount = data.getUint16(p), p+=2;
 
 						for (let lu=0; lu<table.lookupCount; lu++) {
 
 							let offset = data.getUint16(p); p+=2;
-							let p_ = tableOffset + table.lookupListOffset + offset;
+							let p_ = table.lookupListOffset + offset;
 							let lookup = {
 								offset: offset,
 								lookupType: data.getUint16(p_),
@@ -2002,7 +2002,7 @@ function SamsaFont (init, config) {
 
 							for (let st=0; st<lookup.subTableCount; st++) {
 
-								p = tableOffset + table.lookupListOffset + lookup.offset + lookup.subtableOffsets[st];
+								p = table.lookupListOffset + lookup.offset + lookup.subtableOffsets[st];
 
 								switch (lookup.lookupType) {
 
@@ -2023,7 +2023,7 @@ function SamsaFont (init, config) {
 
 										// get lookup.coverage (an array of glyph ids) whether it is format 1 (simple) or format 2 (ranges)
 										lookup.coverage = [];
-										p = tableOffset + table.lookupListOffset + lookup.offset + lookup.subtableOffsets[st] + coverageOffset;
+										p = table.lookupListOffset + lookup.offset + lookup.subtableOffsets[st] + coverageOffset;
 										const format = data.getUint16(p);
 										p+=2;
 
@@ -2058,7 +2058,7 @@ function SamsaFont (init, config) {
 						// FeatureVariations?
 						if (table.featureVariationsOffset) {
 
-							p = tableOffset + table.featureVariationsOffset;
+							p = table.featureVariationsOffset;
 
 							if (data.getUint16(p) == 1 && data.getUint16(p+2) == 0) { // check version
 								table.featureVariationCount = data.getUint32(p+4);
@@ -2071,16 +2071,16 @@ function SamsaFont (init, config) {
 										conditions: [],
 										substitutions: [],
 									};
-									p = tableOffset + table.featureVariationsOffset + 8 + 8 * fv;
+									p = table.featureVariationsOffset + 8 + 8 * fv;
 									let csOffset = data.getUint32(p); // conditionSetOffset
 									let ftsOffset = data.getUint32(p+4); // featureTableSubstitutionOffset
 
 									// get the condition set
-									p = tableOffset + table.featureVariationsOffset + csOffset;
+									p = table.featureVariationsOffset + csOffset;
 									let conditionCount = data.getUint16(p);
 									p+=2;
 									for (let cd=0; cd<conditionCount; cd++) {
-										let p_ = tableOffset + table.featureVariationsOffset + csOffset + data.getUint32(p);
+										let p_ = table.featureVariationsOffset + csOffset + data.getUint32(p);
 										let format = data.getUint16(p_);
 										if (format == 1) { // only format=1 is defined
 											featureVariation.conditions.push( [
@@ -2093,7 +2093,7 @@ function SamsaFont (init, config) {
 									}
 
 									// get the feature table substitutions
-									p = tableOffset + table.featureVariationsOffset + ftsOffset;
+									p = table.featureVariationsOffset + ftsOffset;
 									if (data.getUint16(p) == 1 && data.getUint16(p+2) == 0) { // check version
 										p+=4;
 										let subsCount = data.getUint16(p);
@@ -2105,7 +2105,7 @@ function SamsaFont (init, config) {
 											p+=6; // increment pointer where we came from
 
 											// now jump to the alternateFeatureTable that is sitting nearby
-											let p_ = tableOffset + table.featureVariationsOffset + ftsOffset + offsetToFeatureTable; // alternateFeatureTable offset
+											let p_ = table.featureVariationsOffset + ftsOffset + offsetToFeatureTable; // alternateFeatureTable offset
 											p_+=2; // skip over featureParams, always 0
 											const lookupCount = data.getUint16(p_);
 											p_+=2;
@@ -2166,7 +2166,7 @@ function SamsaFont (init, config) {
 					if (encodingRecord.valid) {
 
 						let format, length, language;
-						p = tableOffset + encodingRecord.offset;
+						p = encodingRecord.offset;
 
 						// parse the format, then switch to format-specific parser
 						format = data.getUint16(p), p+=2;
