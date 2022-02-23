@@ -1458,6 +1458,7 @@ function SamsaFont (init, config) {
 		}
 
 		// set up data and pointers
+		// - we retain <data> in table.buffer, but only for those tables where it’s likely to remain valid (we definitely don’t want the large gvar buffer)
 		if (node) {
 			// create new Buffer read from the file 
 			data = Buffer.alloc(font.tables[tag].length);
@@ -1473,6 +1474,7 @@ function SamsaFont (init, config) {
 
 			case "maxp":
 
+				table.buffer = data;
 				table.version = data.getUint32(0);
 				table.numGlyphs = data.getUint16(4);
 				font.numGlyphs = table.numGlyphs;
@@ -1481,6 +1483,7 @@ function SamsaFont (init, config) {
 
 			case "hhea":
 
+				table.buffer = data;
 				table.majorVersion = data.getUint16(0);
 				table.minorVersion = data.getUint16(2);
 				table.ascender = data.getInt16(4);
@@ -1500,6 +1503,7 @@ function SamsaFont (init, config) {
 
 			case "head":
 
+				table.buffer = data;
 				table.majorVersion = data.getUint16(0);
 				table.minorVersion = data.getUint16(2);
 				table.fontRevision = data.getUint32(4);
@@ -1539,6 +1543,7 @@ function SamsaFont (init, config) {
 
 			case "OS/2":
 
+				table.buffer = data;
 				if (font.tables[tag].length >= 78) {
 					table.version = data.getUint16(p), p+=2;
 					table.xAvgCharWidth = data.getInt16(p), p+=2;
@@ -1813,7 +1818,8 @@ function SamsaFont (init, config) {
 			case "gvar":
 
 				// NOTE: this only parses the table header!
-				// the main data, tuple variation tables for each glyph, is processed in SamsaVF_parseTvts()
+				// - the tuple variation tables for each glyph are processed in the SamsaGlyph.parseTvts() method
+				// TODO: we should only load the gvar table header at this point
 				table.majorVersion = data.getUint16(0);
 				table.minorVersion = data.getUint16(2);
 				table.axisCount = data.getUint16(4);
@@ -1822,7 +1828,6 @@ function SamsaFont (init, config) {
 				table.glyphCount = data.getUint16(12);
 				table.flags = data.getUint16(14);
 				table.offsetToData = data.getUint32(16);
-				table.sizeofTuple = table.axisCount * 2; // sizeof (F2DOT14)
 
 				// get sharedTuples array
 				table.sharedTuples = [];
@@ -2138,6 +2143,7 @@ function SamsaFont (init, config) {
 
 				// cmap table spec: https://docs.microsoft.com/en-us/typography/opentype/spec/cmap
 				// - parses formats 0, 4
+				table.buffer = data;
 				table.version = data.getUint16(p), p+=2;
 				table.numTables = data.getUint16(p), p+=2;
 				table.encodingRecords = [];
@@ -2229,7 +2235,7 @@ function SamsaFont (init, config) {
 				break;
 
 		}
-		
+
 		font.tables[tag].data = table;
 	}
 
@@ -2474,10 +2480,11 @@ function SamsaFont (init, config) {
 		});
 
 		// are there any new tables to be added? e.g. COLR, CPAL, CFF2
+		// - all added tables require a <buffer> property, which contains the binary data
 		if (font.addTables) {
 			font.addTables.forEach(table => {
 				newTables[table.tag] = table;
-				if (table.tag == "CFF2") { // if we add a CFF2 table, we no longer want glyf or loca
+				if (table.tag == "CFF2" || table.tag == "CFF ") { // if we add a CFF/CFF2 table, we no longer want glyf or loca
 					if (newTables["glyf"])
 						delete newTables["glyf"];
 					if (newTables["loca"])
@@ -2523,6 +2530,7 @@ function SamsaFont (init, config) {
 
 			// set the new offset
 			table.offset = position;
+			let tableBuffer, newTableBuffer;
 			let originalTable = font.tables[table.tag] || newTables[table.tag];			
 			let p; // the current data offset in glyfBuffer, where the binary glyph is being written in memory
 
@@ -2724,62 +2732,50 @@ function SamsaFont (init, config) {
 
 				default:
 
-					// final changes to head and hhea tables
-					// - in node, we call this *before* writing to the file
-					// - memory, we call this *after* copying to the new file in memory
-					// - this helps avoid allocating temporary memory to edit
-					const tweakTable = tag => {
-						switch (tag) {
-							case "head":
-								let longDateTime = Math.floor(new Date().getTime()/1000) + ((1970-1904) * 365 + Math.floor((1970-1904)/4)+1) * 24 * 60 * 60; // seconds since 1904-01-01 00:00:00... new Date().getTime() is UTC; Math.floor((1970-1904)/4)+1 = 17 leap years between 1904 and 1970
-								tableBuffer.setUint32(28, Math.floor(longDateTime / 0x100000000)); // modified LONGDATETIME (high 4 bytes)
-								tableBuffer.setUint32(32, longDateTime % 0x100000000); // modified LONGDATETIME (low 4 bytes)
+					table.length = originalTable.length
 
-								tableBuffer.setUint16(50, 0x0001); // force long loca format (makes things simpler since we know in advance how much space we need for loca)
-								break;
-
-							case "hhea":
-								tableBuffer.setUint16(34, font.numGlyphs); // easier if  we ignore minor compression possibilities
-								break;
-						}
-
-					}
-
-					// allocate memory for table
-					let tableBuffer, sourceTableBuffer;
-					table.length = originalTable.length; // new length = old length
-
-
-					// read table
+					// clone the old table buffer
 					if (node) {
-						if (table.buffer) {
-							tableBuffer = table.buffer;
+						if (originalTable.data && originalTable.data.buffer)
+							newTableBuffer = Buffer.from(originalTable.data.buffer);
+						else {
+							newTableBuffer = new DataView(new ArrayBuffer(table.length));
+							read (fd, newTableBuffer, 0, table.length, originalTable.offset); // we can read newTableBuffer directly, we don’t need tableBuffer
+						}
+					}
+					else {
+						if (originalTable.data && originalTable.data.buffer) {
+							newTableBuffer = new DataView(originalTable.data.buffer.buffer.slice(originalTable.offset, originalTable.offset + originalTable.length)); // slice() copies an arrayBuffer
 						}
 						else {
-							tableBuffer = new DataView(new ArrayBuffer(table.length));
-							read (fd, tableBuffer, 0, table.length, originalTable.offset);
-							// OPTIMIZE: don’t read these short tables again if we already read them when parsing
+							newTableBuffer = new DataView(fontBuffer.buffer, table.offset, table.length); // looks into new font
+							tableBuffer = table.buffer || new DataView(font.data.buffer, originalTable.offset, table.length); // looks into original font
 						}
 					}
-					else {
-						tableBuffer = new DataView(fontBuffer.buffer, table.offset, table.length); // looks into new font
-						sourceTableBuffer = table.buffer || new DataView(font.data.buffer, originalTable.offset, table.length); // looks into original font
-					}
 
-					// write table
-					// - note tweaking happens *before* the write in node, but *after* the copy in memory
-					if (node) {
-						tweakTable(table.tag);
-						write (fdw, tableBuffer, 0, table.length, table.offset);
+					// perform tweaks
+					// - update the modifiedDate (head)
+					// - force long locas (hhea)
+					if (table.tag == "head") {
+						let longDateTime = Math.floor(new Date().getTime()/1000) + ((1970-1904) * 365 + Math.floor((1970-1904)/4)+1) * 24 * 60 * 60; // seconds since 1904-01-01 00:00:00... new Date().getTime() is UTC; Math.floor((1970-1904)/4)+1 = 17 leap years between 1904 and 1970
+
+						newTableBuffer.setUint32(28, Math.floor(longDateTime / 0x100000000)); // modified LONGDATETIME (high 4 bytes)
+						newTableBuffer.setUint32(32, longDateTime % 0x100000000); // modified LONGDATETIME (low 4 bytes)
+						newTableBuffer.setUint16(50, 0x0001); // force long loca format (makes things simpler since we know in advance how much space we need for loca)
 					}
-					else {
-						copyBytes(sourceTableBuffer, tableBuffer, 0, 0, table.length); // copy from original table to new table without intermediate
-						tweakTable(table.tag);
+					else if (table.tag == "hhea") {
+						newTableBuffer.setUint16(34, font.numGlyphs); // easier if  we ignore minor compression possibilities
 					}
+				
+					// write the new table buffer
+					if (node)
+						write (fdw, newTableBuffer, 0, table.length, table.offset);
+					else
+						copyBytes (newTableBuffer, fontBuffer, 0, table.offset, table.length);
 
 					position += table.length;
 					break;
-			}
+				}
 
 			// pad table to 4 byte boundary
 			let padLength = (4 - table.length%4) % 4; // no padding if table.length%4 == 0
