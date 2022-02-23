@@ -30,6 +30,36 @@
 */
 
 
+// Pseudo-random number generator (we want repeatability for testing)
+// SeedRandom function from here
+// - https://stackoverflow.com/questions/424292/seedable-javascript-random-number-generator
+function SeedRandom(state1,state2){
+	var mod1=4294967087
+    var mul1=65539
+    var mod2=4294965887
+    var mul2=65537
+    if(typeof state1!="number"){
+        state1=+new Date()
+    }
+    if(typeof state2!="number"){
+        state2=state1
+    }
+    state1=state1%(mod1-1)+1
+    state2=state2%(mod2-1)+1
+    function random(limit){
+        state1=(state1*mul1)%mod1
+        state2=(state2*mul2)%mod2
+        if(state1<limit && state2<limit && state1<mod1%limit && state2<mod2%limit){
+            return random(limit)
+        }
+        return (state1+state2)%limit
+    }
+    return random
+}
+
+
+const generator1=SeedRandom(12345)
+
 
 // on font load
 function vfLoaded () {
@@ -49,8 +79,11 @@ function vfLoaded () {
 
 		// generate an fvs string for a random location in the font’s designspace
 		for (let a=0; a<vf.axisCount; a++) {
-			fvs[vf.axes[a].tag] = vf.axes[a].min + Math.random() * (vf.axes[a].max - vf.axes[a].min);
+			//fvs[vf.axes[a].tag] = vf.axes[a].min + Math.random() * (vf.axes[a].max - vf.axes[a].min);
+			let random = generator1(vf.axes[a].max - vf.axes[a].min + 1)
+			fvs[vf.axes[a].tag] = vf.axes[a].min + random;
 		}
+		//console.log(fvs);
 
 		// create the instance
 		let instance = vf.addInstance (fvs, "");
@@ -86,9 +119,9 @@ function vfLoaded () {
 
 	document.body.innerHTML += (`Font file: ${fontFilename} (${vf.filesize} bytes, ${vf.numGlyphs} glyphs)<br>`)
 	document.body.innerHTML += (`Iterations: ${numIterations}<br>`)
-	document.body.innerHTML += (`Minimum time (ms): ${minTiming}<br>`)
-	document.body.innerHTML += (`Maximum time (ms): ${maxTiming}<br>`)
-	document.body.innerHTML += (`Median time (ms): ${medianTiming}<br>`)
+	document.body.innerHTML += (`Minimum time (ms): ${Math.round(minTiming)}<br>`)
+	document.body.innerHTML += (`Maximum time (ms): ${Math.round(maxTiming)}<br>`)
+	document.body.innerHTML += (`Median time (ms): ${Math.round(medianTiming)}<br>`)
 	document.body.innerHTML += (`Mean time (ms): ${meanTiming.toFixed(2)}<br>`)
 	document.body.innerHTML += (`Median instance size (bytes): ${sizes[Math.floor(sizes.length / 2)]}<br>`)
 	document.body.innerHTML += (`Instances/second: ${(1000/meanTiming).toFixed(2)}<br>`)
