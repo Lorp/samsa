@@ -163,7 +163,7 @@ function SamsaGlyph (init) {
 	this.name = init.name;
 	this.font = init.font;
 	this.numPoints = init.numPoints || 0;
-	this.numContours = init.numPoints || 0; // -1 is the flag for composite
+	this.numContours = init.numContours || 0; // -1 is the flag for composite
 	this.instructionLength = 0;
 	this.points = init.points || [];
 	this.components = init.components || [];
@@ -1242,6 +1242,8 @@ function SamsaFont (init, config) {
 	this.url = init.url; // for browser using a VF on a server
 	this.callback = init.callback;
 	this.data = undefined;
+	this.tableDirectory = [];
+	this.tables = {};
 	this.fontFamily = init.fontFamily;
 	this.names = init.names || [];
 	this.axes = [];
@@ -1376,9 +1378,6 @@ function SamsaFont (init, config) {
 
 				/////////////////////////////////////////////////////////////////////////////////
 				// get sfnt table directory
-				font.tableDirectory = [];
-				font.tables = {};
-
 				if (node) {
 					p = 0;
 					data = Buffer.alloc(16 * font.numTables);
@@ -2443,9 +2442,12 @@ function SamsaFont (init, config) {
 		let fdw;
 		const glyfBufSafetyMargin = 64;
 
-		// timer
-		//const timerStart = (!node || (node && performance)) ? performance.now() : 0;
-		const timerStart = performance.now();
+		// set up timer
+		let timerStart
+		if (typeof performance !== "undefined")
+			timerStart = performance.now();
+		else 
+			timerStart = 0
 
 		if (node) {
 			fd = font.fd;
@@ -2861,7 +2863,11 @@ function SamsaFont (init, config) {
 
 
 		// [5] reporting
-		instance.timer = performance.now() - timerStart;
+		if (typeof performance !== "undefined")
+			instance.timer = performance.now() - timerStart;
+		else 
+			instance.timer = 0;
+
 		instance.size = position;
 
 
