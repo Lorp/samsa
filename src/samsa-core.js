@@ -14,7 +14,7 @@ Minification:
 // - pass the actual config object along with the font
 let CONFIG = {
 
-	isNode: (typeof module !== 'undefined' && module.exports),
+	isNode: typeof window === "undefined",
 	outFileDefault: "samsa-out.ttf",
 
 	instantiation: {
@@ -51,37 +51,48 @@ let CONFIG = {
 
 };
 
+
+// define helper functions and assign aliases
+DataView.prototype.getF2DOT14 = function (p) { return this.getInt16(p) / 16384.0 }
+DataView.prototype.setF2DOT14 = function (p, v) { this.setInt16(p, v * 16384) }
+DataView.prototype.getFixed = function (p) { return this.getInt32(p) / 65536.0 }
+DataView.prototype.setFixed = function (p, v) { this.setInt32(p, v * 65536.0) }
+DataView.prototype.getTag = function (p, length=4) {
+	let tag = "", p_end = p + length
+	while (p < p_end) {
+		const ch = this.getUint8(p++)
+		if (32 <= ch && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
+			tag += String.fromCharCode(ch)
+	}
+	return tag.length == length ? tag : false
+}
+DataView.prototype.setTag = function (p, v) {
+	let p_end = p + v.length, ch=0
+	while (p < p_end) {
+		this.setUint8(p++, charCodeAt(ch++))
+	}
+}
+
+// if we are not in a browser, we are (probably) in Node.js, so make Buffer aliases of all the DataView read functions
 if (CONFIG.isNode) {
-	// mappings from DataView methods to Buffer methods
-	Buffer.prototype.getUint32 = Buffer.prototype.readUInt32BE;
-	Buffer.prototype.getInt32  = Buffer.prototype.readInt32BE;
-	Buffer.prototype.getUint16 = Buffer.prototype.readUInt16BE;
-	Buffer.prototype.getInt16  = Buffer.prototype.readInt16BE;
-	Buffer.prototype.getUint8  = Buffer.prototype.readUInt8;
-	Buffer.prototype.getInt8   = Buffer.prototype.readInt8;
-
-	Buffer.prototype.setUint32 = function (p,v) {this.writeUInt32BE(v,p);}
-	Buffer.prototype.setInt32  = function (p,v) {this.writeInt32BE(v,p);}
-	Buffer.prototype.setUint16 = function (p,v) {this.writeUInt16BE(v,p);}
-	Buffer.prototype.setInt16  = function (p,v) {this.writeInt16BE(v,p);}
-	Buffer.prototype.setUint8  = function (p,v) {this.writeUInt8(v,p);}
-	Buffer.prototype.setInt8   = function (p,v) {this.writeInt8(v,p);}
-
-	// add new Buffer methods
-	Buffer.prototype.getTag = function (p, length=4) {
-		let tag = "";
-		let p_end = p + length;
-		while (p < p_end) {
-			let ch = this.readUInt8(p++);
-			if (ch >= 32 && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
-				tag += String.fromCharCode(ch);	
-		}
-		return tag.length == length ? tag : false;
-	}
-
-	Buffer.prototype.getF2DOT14 = function (p) {
-		return this.getInt16(p) / 16384.0; // signed
-	}
+	Buffer.prototype.getUint32  = Buffer.prototype.readUInt32BE
+	Buffer.prototype.getInt32   = Buffer.prototype.readInt32BE
+	Buffer.prototype.getUint16  = Buffer.prototype.readUInt16BE
+	Buffer.prototype.getInt16   = Buffer.prototype.readInt16BE
+	Buffer.prototype.getUint8   = Buffer.prototype.readUInt8
+	Buffer.prototype.getInt8    = Buffer.prototype.readInt8
+	Buffer.prototype.getF2DOT14 = DataView.prototype.getF2DOT14
+	Buffer.prototype.setF2DOT14 = DataView.prototype.setF2DOT14
+	Buffer.prototype.getFixed   = DataView.prototype.getFixed
+	Buffer.prototype.setFixed   = DataView.prototype.setFixed
+	Buffer.prototype.getTag     = DataView.prototype.getTag
+	Buffer.prototype.setTag     = DataView.prototype.setTag
+	Buffer.prototype.setUint32 = function (p,v) {this.writeUInt32BE(v,p)}
+	Buffer.prototype.setInt32  = function (p,v) {this.writeInt32BE(v,p)}
+	Buffer.prototype.setUint16 = function (p,v) {this.writeUInt16BE(v,p)}
+	Buffer.prototype.setInt16  = function (p,v) {this.writeInt16BE(v,p)}
+	Buffer.prototype.setUint8  = function (p,v) {this.writeUInt8(v,p)}
+	Buffer.prototype.setInt8   = function (p,v) {this.writeInt8(v,p)}
 }
 
 function getStringFromData (data, p0, length)
@@ -1221,7 +1232,9 @@ function SamsaFont (init, config) {
 	// high-level optimization to low-level
 	if (this.config.optimize) {
 
-		this.config.optimize = this.config.optimize.split(","); // convert string into array: "memory,size" => ["memory","size"]
+		console.log("Here is this.config.optimize: ", this.config.optimize)
+
+		//this.config.optimize = this.config.optimize.split(","); // convert string into array: "memory,size" => ["memory","size"]
 		if (this.config.optimize.includes("speed")) {
 			this.config.glyf.compression = false;
 			this.config.purgeGlyphs = false;
