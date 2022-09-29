@@ -53,46 +53,54 @@ let CONFIG = {
 
 
 // define helper functions and assign aliases
-DataView.prototype.getF2DOT14 = function (p) { return this.getInt16(p) / 16384.0 }
-DataView.prototype.setF2DOT14 = function (p, v) { this.setInt16(p, v * 16384) }
-DataView.prototype.getFixed = function (p) { return this.getInt32(p) / 65536.0 }
-DataView.prototype.setFixed = function (p, v) { this.setInt32(p, v * 65536.0) }
+DataView.prototype.getF2DOT14 = function (p) { return this.getInt16(p) / 16384.0 };
+DataView.prototype.setF2DOT14 = function (p, v) { this.setInt16(p, v * 16384) };
+DataView.prototype.getFixed = function (p) { return this.getInt32(p) / 65536.0 };
+DataView.prototype.setFixed = function (p, v) { this.setInt32(p, v * 65536.0) };
 DataView.prototype.getTag = function (p, length=4) {
-	let tag = "", p_end = p + length
+	let tag = "", p_end = p + length;
 	while (p < p_end) {
-		const ch = this.getUint8(p++)
+		const ch = this.getUint8(p++);
 		if (32 <= ch && ch < 126) // valid chars in tag data type https://www.microsoft.com/typography/otspec/otff.htm
-			tag += String.fromCharCode(ch)
+			tag += String.fromCharCode(ch);
 	}
-	return tag.length == length ? tag : false
+	return tag.length == length ? tag : false;
 }
 DataView.prototype.setTag = function (p, v) {
-	let p_end = p + v.length, ch=0
+	let p_end = p + v.length, ch=0;
 	while (p < p_end) {
-		this.setUint8(p++, charCodeAt(ch++))
+		this.setUint8(p++, charCodeAt(ch++));
 	}
 }
 
 // if we are not in a browser, we are (probably) in Node.js, so make Buffer aliases of all the DataView read functions
 if (CONFIG.isNode) {
-	Buffer.prototype.getUint32  = Buffer.prototype.readUInt32BE
-	Buffer.prototype.getInt32   = Buffer.prototype.readInt32BE
-	Buffer.prototype.getUint16  = Buffer.prototype.readUInt16BE
-	Buffer.prototype.getInt16   = Buffer.prototype.readInt16BE
-	Buffer.prototype.getUint8   = Buffer.prototype.readUInt8
-	Buffer.prototype.getInt8    = Buffer.prototype.readInt8
-	Buffer.prototype.getF2DOT14 = DataView.prototype.getF2DOT14
-	Buffer.prototype.setF2DOT14 = DataView.prototype.setF2DOT14
-	Buffer.prototype.getFixed   = DataView.prototype.getFixed
-	Buffer.prototype.setFixed   = DataView.prototype.setFixed
-	Buffer.prototype.getTag     = DataView.prototype.getTag
-	Buffer.prototype.setTag     = DataView.prototype.setTag
-	Buffer.prototype.setUint32 = function (p,v) {this.writeUInt32BE(v,p)}
-	Buffer.prototype.setInt32  = function (p,v) {this.writeInt32BE(v,p)}
-	Buffer.prototype.setUint16 = function (p,v) {this.writeUInt16BE(v,p)}
-	Buffer.prototype.setInt16  = function (p,v) {this.writeInt16BE(v,p)}
-	Buffer.prototype.setUint8  = function (p,v) {this.writeUInt8(v,p)}
-	Buffer.prototype.setInt8   = function (p,v) {this.writeInt8(v,p)}
+	Buffer.prototype.getUint32  = Buffer.prototype.readUInt32BE;
+	Buffer.prototype.getInt32   = Buffer.prototype.readInt32BE;
+	Buffer.prototype.getUint16  = Buffer.prototype.readUInt16BE;
+	Buffer.prototype.getInt16   = Buffer.prototype.readInt16BE;
+	Buffer.prototype.getUint8   = Buffer.prototype.readUInt8;
+	Buffer.prototype.getInt8    = Buffer.prototype.readInt8;
+	Buffer.prototype.getF2DOT14 = DataView.prototype.getF2DOT14;
+	Buffer.prototype.setF2DOT14 = DataView.prototype.setF2DOT14;
+	Buffer.prototype.getFixed   = DataView.prototype.getFixed;
+	Buffer.prototype.setFixed   = DataView.prototype.setFixed;
+	Buffer.prototype.getTag     = DataView.prototype.getTag;
+	Buffer.prototype.setTag     = DataView.prototype.setTag;
+	Buffer.prototype.setUint32 = function (p,v) {this.writeUInt32BE(v,p)};
+	Buffer.prototype.setInt32  = function (p,v) {this.writeInt32BE(v,p)};
+	Buffer.prototype.setUint16 = function (p,v) {this.writeUInt16BE(v,p)};
+	Buffer.prototype.setInt16  = function (p,v) {this.writeInt16BE(v,p)};
+	Buffer.prototype.setUint8  = function (p,v) {this.writeUInt8(v,p)};
+	Buffer.prototype.setInt8   = function (p,v) {this.writeInt8(v,p)};
+}
+
+function clamp (num, min, max) {
+	if (num < min)
+		num = min;
+	else if (num > max)
+		num = max;
+	return num;
 }
 
 function getStringFromData (data, p0, length)
@@ -1423,12 +1431,21 @@ function SamsaFont (init, config) {
 		// - name must precede fvar
 		// - name must precede STAT
 		// - gvar isn’t short, but we only parse its header here
-		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca", "GSUB", "cmap"].forEach(tag => {
+
+		// NEW: avar immediately follows fvar, correcting the initial tuple values
+		//["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca", "GSUB", "cmap"].forEach(tag => {
+		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "fvar", "avar", "gvar", "STAT", "loca", "GSUB", "cmap"].forEach(tag => {
 
 			if (font.tables[tag])
 				font.parseSmallTable(tag);
 
 		});
+
+		// TODO avar: 
+		// avar1: generate intermediate tuple values for all named instances
+		// avar2: generate final tuple values for all named instances
+		// or is it better to always calculate these on the fly?
+		// delete code in fvar that initializes the tuple values for each named instance
 
 		// parse glyf table: all glyphs!
 		if (!node) {
@@ -1787,8 +1804,9 @@ function SamsaFont (init, config) {
 						p+=4;
 					}
 
+					// get initial tuple values for each named instance (these will be modified if avar table exists)
+					/*
 					font.axes.forEach((axis, a) => {
-						instance.tuple[a] = axis.default;
 						if (i==0)
 							instance.tuple[a] = axis.default; // user-facing value
 						else
@@ -1796,6 +1814,15 @@ function SamsaFont (init, config) {
 						instance.fvs[axis.tag] = instance.tuple[a];
 						instance.tuple[a] = font.axisNormalize(axis, instance.tuple[a]);
 					});
+					*/
+
+					font.axes.forEach((axis, a) => {
+						if (i==0)						
+							instance.fvs[axis.tag] = axis.default;
+						else
+							instance.fvs[axis.tag] = data.getInt32(p)/65536, p+=4;
+					});
+					instance.tuple = font.fvsToTuple(instance.fvs);
 
 					if (i>0) {
 						if (table.instanceSize == table.axisCount * 4 + 6)
@@ -1804,27 +1831,148 @@ function SamsaFont (init, config) {
 						instance.type = "named"; // one of default, named, stat, custom
 						font.instances.push(instance);
 					}
+					//console.log(instance)
 				}
 
 				font.axisCount = table.axisCount;
 				break; // fvar end
 
 
-			case "avar":
-				table.majorVersion = data.getUint16(p), p+=2;
-				table.minorVersion = data.getUint16(p), p+=2;
-				if (!(table.majorVersion === 1 && table.minorVersion === 0))
-					break;
-				p+=2
-				table.axisCount = data.getUint16(p), p+=2;
-				for (let a=0; a<table.axisCount; a++) { // not font.axisCount, because we have not yet parsed fvar
-					font.avar[a] = [];
-					let positionMapCount = data.getUint16(p); p+=2; // TODO: if positionMapCount==3 (NOOP), don’t store anything
-					for (let m=0; m<positionMapCount; m++) {
-						font.avar[a][m] = [data.getF2DOT14(p), data.getF2DOT14(p+2)], p+=4; // = [<fromCoordinate>,<toCoordinate>]
+				case "avar":
+
+					table.majorVersion = data.getUint16(p), p+=2;
+					table.minorVersion = data.getUint16(p), p+=2;
+					table.axisSegmentMaps = [];
+	
+					if ((table.majorVersion === 1 || table.majorVersion === 2) && table.minorVersion === 0) {
+	
+						// avar version 1 processing
+						p+=2; // reserved
+						const axisSegmentMapCount = data.getUint16(p);
+						p+=2;
+
+						// TODO: check that axisSegmentMapCount == 0 or == font.axisCount
+						// not font.axisCount, because we have not yet parsed fvar (hmmm, it seems wrong that fvar is not parsed already, we should allow instance tuples to be calculated when needed, not on parsing fvar)
+						// but in any case, it only means we cannot perform the validity check above, because we don’t yet know fvar.axisCount
+						for (let a=0; a<axisSegmentMapCount; a++) {
+							table.axisSegmentMaps[a] = [];
+							let positionMapCount = data.getUint16(p); p+=2; // TODO: if positionMapCount==3 (NOOP), don’t store anything
+							for (let m=0; m<positionMapCount; m++) {
+								table.axisSegmentMaps[a][m] = [data.getF2DOT14(p), data.getF2DOT14(p+2)], p+=4; // = [<fromCoordinate>,<toCoordinate>]
+							}
+						}
+
+						// avar version 2 processing
+						if (table.majorVersion === 2) {
+							
+							// TODO:
+							// - generalize indexMap processing
+							// - generalize ItemVariationStore processing
+
+							table.ivs = {
+								ivds: [],
+								regions: [],
+								scalars: [], // the scalars (each in the range [0.0,1.0]) are recalculated each time the instance coordinates change, derived from regions and instance coordinates via variation math; there is one scalar per region
+							};
+
+							const axisIdxMapOffset = data.getUint32(p);
+							const ivsOffset = data.getUint32(p+4);
+							table.axisIndexMap = this.deltaSetIndexMapDecode(data, axisIdxMapOffset);
+	
+							// ivs processing
+							p = ivsOffset;
+							const format = data.getUint16(p), regionListOffset = data.getUint32(p+2), ivdCount = data.getUint16(p+6);
+							p += 8;
+
+							// get ivd offsets
+							let ivdOffsets = [];
+							for (let i=0; i<ivdCount; i++) {
+								ivdOffsets[i] = data.getUint32(p), p+=4;
+							}
+						
+							// get the Variation Regions
+							p = ivsOffset + regionListOffset;
+							table.ivs.axisCount = data.getUint16(p);
+							const regionCount = data.getUint16(p+2);
+
+							p+=4;
+							for (r=0; r<regionCount; r++) {
+								let region = [];
+								for (let a=0; a<table.ivs.axisCount; a++) {
+									region[a] = [ data.getF2DOT14(p), data.getF2DOT14(p+2), data.getF2DOT14(p+4) ]; // startCoord, peakCoord, endCoord
+									p+=6;
+								}
+								table.ivs.regions.push(region); // region now contains a [start, peak, end] array for each axis
+							}
+	
+							// process each ivd subtable in the ivs
+							// TODO: facilitate making this work if we do not want to decode the whole ItemVariationStore, so diving into just one value
+							// - probably move this to the getOffsetForDataItem function, so it works simialrly to Akiem’s example
+							for (let i=0; i<ivdCount; i++) {
+								p = ivsOffset + ivdOffsets[i]
+								let ivd = {
+									itemCount: data.getUint16(p),
+									wordDeltaCount: data.getUint16(p+2),
+									regionIds: [],
+									deltaSets: [],
+								}
+								const
+									regionCount = data.getUint16(p+4),
+									wordDeltaCount = ivd.wordDeltaCount & 0x7fff,
+									longWords = ivd.wordDeltaCount & 0x8000;
+								p += 6
+						
+								// assign the regions to the ivd according their indices into the main region list
+								for (r=0; r<regionCount; r++) {
+									ivd.regionIds.push(data.getUint16(p+r*2));
+								}
+								p += 2*regionCount;
+						
+								// each deltaSet needs one delta value per region
+								// long case: int32, int16 (“The LONG_WORDS flag should only be used in top-level tables that include 32-bit values that can be variable — currently, only the COLR table.”)
+								if (longWords) {
+									for (let d=0; d < ivd.itemCount; d++) {
+										let deltaSet = [];
+										for (r=0; r < wordDeltaCount; r++) {
+											deltaSet.push(data.getInt32(p)), p+=4;
+										}
+										for (; r < regionCount; r++) {
+											deltaSet.push(data.getInt16(p)), p+=2;
+										}
+										ivd.deltaSets.push(deltaSet);
+									}
+								}
+								// short case (usual): int16, int8
+								else {
+									for (let d=0; d < ivd.itemCount; d++) {
+										let deltaSet = [];
+										for (r=0; r < wordDeltaCount; r++) {
+											deltaSet.push(data.getInt16(p)), p+=2;
+										}
+										for (; r < ivd.regionIndexCount; r++) {
+											deltaSet.push(data.getInt8(p)), p++;
+										}
+										ivd.deltaSets.push(deltaSet);
+										if (deltaSet.find(element => element !== 0) == undefined) {
+											//console.log("We have a zero deltaSet")
+											//console.log(deltaSet)
+										}
+									}
+								}
+								table.ivs.ivds.push(ivd);
+							}
+						}
 					}
-				}
-				break; // avar end
+
+					// recalculate instance tuples from scratch
+					this.instances.forEach(instance => {
+						instance.tuple = font.fvsToTuple(instance.fvs);
+						instance.tuple = this.tupleToFinalTuple(instance.tuple);
+					})
+
+					this.avar = table;
+
+					break; // avar end
 
 
 			case "gvar":
@@ -2934,10 +3082,15 @@ function SamsaFont (init, config) {
 		// - I think so
 		if (fvs) {
 			this.axes.forEach((axis,a) => {
+				//console.log(a, axis.tag)
 				instance.fvs[axis.tag] = (fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
-				instance.tuple[a] = this.axisNormalize(axis, instance.fvs[axis.tag]);
+				//instance.tuple[a] = this.axisNormalize(axis, instance.fvs[axis.tag]);
 			});
 		}
+
+		console.log(this.axes.length, "::::::::")
+		instance.tuple = this.fvsToTuple(fvs) // TODO: consider what happens if we are messing with normalized values
+		//instance.tuple = this.tupleToFinalTuple(instance.tuple)
 		this.instances.push(instance);
 		return instance;
 	}
@@ -2963,13 +3116,14 @@ function SamsaFont (init, config) {
 	//////////////////////////////////
 	this.fvsToTuple = fvs => {
 
-		// transforms an fvs object into a normalized tuple
+		// transform fvs into a normalized tuple including avar1 if present
 		let tuple = [];
 		this.axes.forEach((axis,a) => {
 			let val = (!fvs || fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
 			tuple[a] = this.axisNormalize(axis, val);
 		});
-		return tuple;
+
+		return this.tupleToFinalTuple(tuple); // perform the avar2 transformation
 	}
 
 
@@ -3034,11 +3188,45 @@ function SamsaFont (init, config) {
 		return indices;
 	}
 
+	this.tupleToFinalTuple = tuple => {
+		// this is a reimplementation of the variation algorithm, but only for avar2
+		// - should be generalized to work for any ItemVariationStore
+
+		if (!this.avar || !(this.avar.majorVersion == 2 && this.avar.minorVersion == 0) || !this.avar.axisIndexMap || !this.avar.ivs) {
+			console.log("No avar2")
+			return tuple
+		}
+
+		const
+			tup = [...tuple], // initialize tup as a copy of tuple
+			regions = this.avar.ivs.regions,
+			ivds = this.avar.ivs.ivds,
+			axisIndexMap = this.avar.axisIndexMap,
+			scalars = this.getVariationScalars(regions, tuple) // get the region scalars: we should only get this ONCE per instance (input is the avar1 tuple)
+
+		// each entry in the map defines how a particular axis gets influenced by the region scalars
+		// - axisId is given by index in the mapping array
+		// - entry identifies the ivd and the deltaSet within the ivd
+		axisIndexMap.forEach((entry, axisId) => {
+			if (entry[0] != 0xffff && entry[1] != 0xffff) {
+				const ivd = ivds[entry[0]], deltaSet = ivd.deltaSets[entry[1]];
+				deltaSet.forEach((delta, r) => tup[axisId] += scalars[ivd.regionIds[r]] * delta/16384); // this is where the good stuff happens!
+				tup[axisId] = clamp(Math.round(tup[axisId] * 16384) / 16384, -1, 1); // round to closest 1/16384, then clamp to [-1,1]
+			}
+		})
+
+		return tup;
+	}
+
 
 	//////////////////////////////////
 	//  axisNormalize(axis, t)
 	//////////////////////////////////
-	this.axisNormalize = (axis, t, avarIgnore) => {
+	// avarVersions controls which versions of the avar processing to use (0x01 = avar1, 0x02 = avar2)
+
+	// NOTE: we must normalize all axes before we can do the avar v2 processing
+
+	this.axisNormalize = (axis, t, avarVersions=0x03) => {
 
 		// noramalizes t into n, which is returned
 
@@ -3054,15 +3242,15 @@ function SamsaFont (init, config) {
 		//   <mapping from="0.0" to="0.0"/>
 		//   <mapping from="1.0" to="1.0"/>
 		// </segment>
-		let n;
 
-		if (axis === undefined) {
-			n = 0;
-			return n;
+		// validate axis
+		if (axis === undefined || axis.id === undefined || axis.id < 0 || axis.id >= this.axes.length) {
+			return 0;
 		}
 
+		// initial normalization to get n
+		let n;
 
-		// basic normalization
 		if (t == axis.default)
 			n = 0;
 		else if (t > axis.default) {
@@ -3071,7 +3259,7 @@ function SamsaFont (init, config) {
 			else
 				n = axis.max==axis.default? 0 : (t-axis.default)/(axis.max-axis.default);
 		}
-		else {
+		else { // t < axis.default
 			if (t < axis.min)
 				n = -1;
 			else
@@ -3080,24 +3268,28 @@ function SamsaFont (init, config) {
 
 		// "avar" table transformation
 		// - see https://docs.microsoft.com/en-us/typography/opentype/spec/avar
-		if (this.avar && this.avar[axis.id] && !avarIgnore) {
-			let map = this.avar[axis.id];
-			for (let m=0; m<map.length; m++) {
 
-				if (map[m][0] >= n) {
+		if (this.avar && (avarVersions & 0x01)) {
 
-					if (map[m][0] == n)
-						n = map[m][1];
-					else
-						n = map[m-1][1] + (map[m][1] - map[m-1][1]) * ( ( n - map[m-1][0] ) / ( map[m][0] - map[m-1][0] ) );
-
-					break;
+			// avar v1 processing: transform n into n'
+			if ((avarVersions & 0x01) && this.avar.axisSegmentMaps && this.avar.axisSegmentMaps.length > 0) {
+				
+				let map = this.avar.axisSegmentMaps[axis.id];
+				for (let m=0; m<map.length; m++) {
+	
+					if (map[m][0] >= n) {
+	
+						if (map[m][0] == n)
+							n = map[m][1];
+						else
+							n = map[m-1][1] + (map[m][1] - map[m-1][1]) * ( ( n - map[m-1][0] ) / ( map[m][0] - map[m-1][0] ) );
+	
+						break;
+					}
 				}
 			}
-		}
 
-		// rounding
-		n = Math.round(n * 16384) / 16384;
+		}
 
 		return n;
 	}
@@ -3254,6 +3446,107 @@ function SamsaFont (init, config) {
 
 		return boxes;
 	}
+
+
+	// process ItemVariationStore to get scalars for an instance (including avar2)
+	// - the scalars[n]  array contains a scalar for each region, and regions.length == scalars.length
+	// - we should therefore keep the indirection, thus use regionId in ivd pointing into the ivs regionList, then we can just look up scalars[regionId]
+	this.getVariationScalars = (regions, tuple) => {
+		const scalars = [], axisCount = regions[0].length;
+	
+		// for each region...
+		regions.forEach(region => {
+	
+			// ... go thru each of the axisCount linearRegions in the region
+			let S = 1;
+			for (let a=0; a < axisCount; a++) {
+				const [start, peak, end] = region[a];
+				if (peak !== 0) { // does the linearRegion participate in the calculation?
+					const v = tuple[a]; // v is one normalized axis value from the tuple
+					if (v == 0) {
+						S = 0;
+						break; // zero scalar, which makes S=0, so quit loop (maybe this is more common than the v==peak case, so should be tested first)
+					}
+					else if (v !== peak) { // we could let the v==peak case fall through, but it’s common so worth testing first
+						const vMstart = v - start, vMend = v - end; // precalculating these speeds things up a bit
+						if (vMstart < 0 || vMend > 0) {
+							S = 0;
+							break; // zero scalar, which makes S=0, so quit loop (maybe this is more common than the v==peak case, so should be tested first)
+						}
+						else if (v < peak)
+							S *= vMstart / (peak - start);
+						else if (v > peak) // because we already tested all other possibilities (including v==peak) we could remove this test and just have "else"
+							S *= vMend / (peak - end);
+					}
+				}
+			}
+			scalars.push(S);
+		})
+	
+		return scalars;
+	}
+	
+	// decoder for variationIndexMap
+	// - converts a compressed binary into an array of outer and inner values
+	// - each element in the returned array is an array of 2 elements made of [outer, inner]
+	// - deltaSetIndexMaps are always 0-based, so do not omit any items
+	this.deltaSetIndexMapDecode = (buf, p=0) => {
+
+		let mapping = [];
+		let format, entryFormat, mapCount, itemSize, innerBitCount;
+
+		format = buf.getUint8(p), p++;
+		entryFormat = buf.getUint8(p), p++;
+		if (format === 0)
+			mapCount = buf.getUint16(p), p+=2;
+		else if (format == 1)
+			mapCount = buf.getUint32(p), p+=4;
+
+		itemSize = ((entryFormat & 0x30) >> 4) + 1;
+		innerBitCount = (entryFormat & 0x0f) + 1;
+
+		for (let m=0; m<mapCount; m++) {
+
+			let entry, outer, inner;
+			switch (itemSize) {
+				case 1:
+					entry = buf.getUint8(p);
+					break;
+				case 2:
+					entry = buf.getUint16(p);
+					break;
+				case 3:
+					entry = (buf.getUint16(p) << 8) + buf.getUint8(p+2); // 24-bit is a special case
+					break;
+				case 4:
+					entry = buf.getUint32(p);
+					break;
+			}
+
+			outer = entry >>> innerBitCount; // note >>> to avoid creating negative values (i.e. we want 0xffff, not -1)
+			inner = entry & ((1 << innerBitCount) - 1);
+			mapping.push([outer, inner]);
+
+			p += itemSize;
+		}
+
+		return mapping;
+	}
+
+
+
+	// apply the scalars to a deltaSet, summing the scaled deltas into totalDelta
+	// - deltaSets array and scalars array must be the same length
+	this.getVariationDelta2 = (deltaSet, scalars) => {
+		let sumProduct = 0
+		for (let d=0; d<deltaSet.length; d++) {
+			sumProduct += deltaSet[d] * scalars[d]
+		}
+		return sumProduct
+
+		// return deltaSet.reduce( (prev, curr, i) => prev + curr * scalars[i], 0) // the reduce() version is marginally slower
+	}
+
 
 
 	// load data if not already loaded
