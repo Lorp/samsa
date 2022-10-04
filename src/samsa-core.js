@@ -72,6 +72,13 @@ DataView.prototype.setTag = function (p, v) {
 		this.setUint8(p++, charCodeAt(ch++));
 	}
 }
+DataView.prototype.getChar = function (p) {
+	return String.fromCharCode(this.getUint8(p));
+}
+DataView.prototype.setChar = function (p, ch) {
+	this.setUint8(p, ch.charCodeAt(0));
+}
+
 
 // if we are not in a browser, we are (probably) in Node.js, so make Buffer aliases of all the DataView read functions
 if (CONFIG.isNode) {
@@ -87,6 +94,8 @@ if (CONFIG.isNode) {
 	Buffer.prototype.setFixed   = DataView.prototype.setFixed;
 	Buffer.prototype.getTag     = DataView.prototype.getTag;
 	Buffer.prototype.setTag     = DataView.prototype.setTag;
+	Buffer.prototype.getChar    = DataView.prototype.getChar;
+	Buffer.prototype.setChar    = DataView.prototype.setChar;
 	Buffer.prototype.setUint32 = function (p,v) {this.writeUInt32BE(v,p)};
 	Buffer.prototype.setInt32  = function (p,v) {this.writeInt32BE(v,p)};
 	Buffer.prototype.setUint16 = function (p,v) {this.writeUInt16BE(v,p)};
@@ -166,13 +175,6 @@ function copyBytes(source, target, zs, zt, n) {
 	const tgt = new Uint8Array(target.buffer, target.byteOffset + zt, n);
 	for (let i=0; i < n; i++)
 		tgt[i] = src[i]; // this seems to be the quickest way to copy between two ArrayBuffers, see benchmark at https://www.measurethat.net/Benchmarks/Show/7537/0/copy-arraybuffer-dataview-vs-uint8arrayset-vs-float64ar
-}
-
-
-// TODO make SamsaVFInstance a proper object
-function SamsaVFInstance (init) {
-
-
 }
 
 
@@ -882,7 +884,7 @@ SamsaGlyph.prototype.compile = function (buf, startOffset=0, metrics, compress=t
 			for (pt=0; pt<numPoints; pt++) {
 				X = dx[pt] = Math.round(points[pt][0]) - cx;
 				Y = dy[pt] = Math.round(points[pt][1]) - cy;
-				f = points[pt][2]; // on-curve = 1, off-curve = 0
+				f = points[pt][2] & 0xc1; // preserve bits 0 (on-curve), 6 (overlaps), 7 (reserved)
 				if (X==0)
 					f |= 0x10;
 				else if (X >= -255 && X <= 255)
@@ -1052,12 +1054,12 @@ SamsaGlyph.prototype.svgPath = function () {
 					pt = this.points[p];
 					pt_ = this.points[(p-startPt+1)%contourLen+startPt];
 					contour.push (pt);
-					if (pt[2] == 0 && pt_[2] == 0) // if we have 2 consecutive off-curve points...
+					if (!(pt[2] & 0x01 || pt_[2] & 0x01)) // if we have 2 consecutive off-curve points...
 						contour.push ( [ (pt[0]+pt_[0])/2, (pt[1]+pt_[1])/2, 1 ] ); // ...we insert the implied on-curve point
 				}
 
 				// ensure SVG contour starts with an on-curve point
-				if (contour[0][2] == 0) // is first point off-curve?
+				if (contour[0][2] & 0x01) // is first point off-curve?
 					contour.unshift(contour.pop()); // OPTIMIZE: unshift is slow, so maybe build two arrays, "actual" and "toAppend", where "actual" starts with an on-curve
 
 				// append this contour
@@ -1074,12 +1076,13 @@ SamsaGlyph.prototype.svgPath = function () {
 					if (p==0)
 						path += `M${pt[0]} ${pt[1]}`;
 					else {
-						if (pt[2] == 0) { // off-curve point (consumes 2 points)
+						if (pt[2] & 0x01) { // on-curve point (consume 1 point)
+							path += `L${pt[0]} ${pt[1]}`;
+						}
+						else { // off-curve point (consume 2 points)
 							pt_ = contour[(++p) % contour.length]; // increments loop variable p
 							path += `Q${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]}`;
 						}
-						else // on-curve point
-							path += `L${pt[0]} ${pt[1]}`;
 					}
 				}
 				path += "Z";
@@ -1100,11 +1103,11 @@ SamsaGlyph.prototype.svgPath = function () {
 				contourLen = endPt-startPt+1;
 
 				// find this contour’s first on-curve point: it is either startPt, startPt+1 or startPt+2 (else the contour is invalid)
-				if      (contourLen >= 1 && this.points[startPt][2] == 1)
+				if      (contourLen >= 1 && this.points[startPt][2] & 0x01)
 					firstOnPt = 0;
-				else if (contourLen >= 2 && this.points[startPt+1][2] == 1)
+				else if (contourLen >= 2 && this.points[startPt+1][2] & 0x01)
 					firstOnPt = 1;
-				else if (contourLen >= 3 && this.points[startPt+2][2] == 1)
+				else if (contourLen >= 3 && this.points[startPt+2][2] & 0x01)
 					firstOnPt = 2;
 
 				if (firstOnPt !== undefined) {
@@ -1116,13 +1119,14 @@ SamsaGlyph.prototype.svgPath = function () {
 						if (p==0)
 							path += `M${pt[0]} ${pt[1]}`;
 						else {
-							if (pt[2] == 0) { // off-curve point (consumes 3 points)
+							if (pt[2] & 0x01) { // on-curve point (consume 1 point)
+								path += `L${pt[0]} ${pt[1]}`;
+							}
+							else { // off-curve point (consume 3 points)
 								pt_ = this.points[startPt + ((++p + firstOnPt) % contourLen)]; // increments loop variable p
 								pt__ = this.points[startPt + ((++p + firstOnPt) % contourLen)]; // increments loop variable p
 								path += `C${pt[0]} ${pt[1]} ${pt_[0]} ${pt_[1]} ${pt__[0]} ${pt__[1]}`;
 							}
-							else // on-curve point
-								path += `L${pt[0]} ${pt[1]}`;
 							if (p == (contourLen+firstOnPt-1) % contourLen)
 								path += "Z";
 						}
@@ -1174,7 +1178,7 @@ SamsaGlyph.prototype.ttx = function () {
 		ttx += `    <contour>\n`;
 		for (let pt=startPt; pt <= endPt; pt++) {
 			let point = this.points[pt];
-			ttx += `        <pt x="${point[0]}" y="${point[1]}" on="${point[2]}"/>\n`;
+			ttx += `        <pt x="${point[0]}" y="${point[1]}" on="${point[2] & 0x01}"/>\n`;
 		}
 		ttx += `    </contour>\n`;
 		startPt = endPt + 1;
@@ -1215,8 +1219,8 @@ SamsaGlyph.prototype.ufo = function () {
 			let ptInContour = pt - startPt;
 			let prevPoint = this.points[startPt + (ptInContour-1+numContourPoints) % numContourPoints];
 			let typeString = "";
-			if (point[2] == 1) { // if point is on-curve
-				typeString = ` type="${ prevPoint[2] == 1 ? "line" : curveType }"`; // decide if the current point is line or qcurve/curve
+			if (point[2] & 0x01) { // if point is on-curve
+				typeString = ` type="${ prevPoint[2] & 0x01 ? "line" : curveType }"`; // decide if the current point is line or qcurve/curve
 			}
 			glif += `      <point x="${point[0]}" y="${point[1]}"${typeString}/>\n`;
 		}
@@ -1704,6 +1708,7 @@ function SamsaFont (init, config) {
 
 			case "post":
 
+				table.buffer = data;
 				font.glyphNames = []; // store the names separately because the glyph often has not been loaded
 				table.format = data.getUint32(0);
 				font.italicAngle = data.getInt32(4) / 65536;
@@ -2402,15 +2407,15 @@ function SamsaFont (init, config) {
 	//////////////////////////////////
 	//  parseGlyph()
 	//////////////////////////////////
-	this.parseGlyph = g => {
+	this.parseGlyph = (g, data, glyphSize) => {
 
 		// parse glyph g from the given font
 
 		let font = this;
 		let node = this.config.isNode;
-		let data, p;
-		let offset = font.glyphOffsets[g];
-		let size = font.glyphSizes[g];
+		//let data, p;
+		let p = 0;
+		let size = glyphSize || font.glyphSizes[g];
 		let pt;
 		let glyph = new SamsaGlyph( {
 			id: g,
@@ -2426,20 +2431,22 @@ function SamsaFont (init, config) {
 		}
 
 		// set up data and pointers
-		if (node) {
-			data = Buffer.alloc(size);
+		if (!data) {
+			const offset = font.glyphOffsets[g];
+			if (node) {
+				data = Buffer.alloc(size);
 
-			// we should compare speeds for the best optmization
-			// - reading pieces of data from file when we need it
-			// - reading a whole glyph into memory, then parsing from memory
-			// - reading a block of data from the glyf table, loading more when needed, and parsing from memory
-			// - I think it was a bit faster when we loaded all glyphs in sequence, than the present case where we load a glyph and then its tvts
-			read (fd, data, 0, size, font.tables['glyf'].offset + offset);
-			p = 0;
-		}
-		else {
-			data = font.data;
-			p = font.tables['glyf'].offset + offset;
+				// we should compare speeds for the best optmization
+				// - reading pieces of data from file when we need it
+				// - reading a whole glyph into memory, then parsing from memory
+				// - reading a block of data from the glyf table, loading more when needed, and parsing from memory
+				// - I think it was a bit faster when we loaded all glyphs in sequence, than the present case where we load a glyph and then its tvts
+				read (fd, data, 0, size, font.tables['glyf'].offset + offset);
+			}
+			else {
+				data = font.data;
+				p = font.tables['glyf'].offset + offset;
+			}
 		}
 
 		// non-printing glyph
@@ -2601,6 +2608,7 @@ function SamsaFont (init, config) {
 		let glyfBuffer;
 		let position = 0;
 		let fdw;
+		let addedTableTags = [];
 		const glyfBufSafetyMargin = 64;
 
 		// set up timer
@@ -2653,6 +2661,7 @@ function SamsaFont (init, config) {
 					if (newTables["loca"])
 						delete newTables["loca"];
 				}
+				addedTableTags.push(table.tag);
 			});
 		}
 
@@ -2694,7 +2703,7 @@ function SamsaFont (init, config) {
 			// set the new offset
 			table.offset = position;
 			let tableBuffer, newTableBuffer;
-			let originalTable = font.tables[table.tag] || newTables[table.tag];			
+			let originalTable = font.tables[table.tag] || newTables[table.tag];
 			let p; // the current data offset in glyfBuffer, where the binary glyph is being written in memory
 
 			switch (table.tag) {
@@ -2908,7 +2917,8 @@ function SamsaFont (init, config) {
 					}
 					else {
 						if (originalTable.data && originalTable.data.buffer) {
-							newTableBuffer = new DataView(originalTable.data.buffer.buffer.slice(originalTable.offset, originalTable.offset + originalTable.length)); // slice() copies an arrayBuffer
+							const srcPointer = addedTableTags.includes(table.tag) ? 0 : originalTable.offset;
+							newTableBuffer = new DataView(originalTable.data.buffer.buffer.slice(srcPointer, srcPointer + originalTable.length)); // slice() copies an arrayBuffer
 						}
 						else {
 							newTableBuffer = new DataView(fontBuffer.buffer, table.offset, table.length); // looks into new font
@@ -3078,19 +3088,13 @@ function SamsaFont (init, config) {
 			});
 		}
 
-		// should we allow instances to be added by tuple?
-		// - I think so
+		// if options.tuple has been supplied, fvs will override it if present
 		if (fvs) {
 			this.axes.forEach((axis,a) => {
-				//console.log(a, axis.tag)
 				instance.fvs[axis.tag] = (fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
-				//instance.tuple[a] = this.axisNormalize(axis, instance.fvs[axis.tag]);
 			});
+			instance.tuple = this.fvsToTuple(fvs); // handles avar1 and avar2
 		}
-
-		console.log(this.axes.length, "::::::::")
-		instance.tuple = this.fvsToTuple(fvs) // TODO: consider what happens if we are messing with normalized values
-		//instance.tuple = this.tupleToFinalTuple(instance.tuple)
 		this.instances.push(instance);
 		return instance;
 	}
@@ -3116,11 +3120,11 @@ function SamsaFont (init, config) {
 	//////////////////////////////////
 	this.fvsToTuple = fvs => {
 
-		// transform fvs into a normalized tuple including avar1 if present
+		// transform fvs into a normalized tuple
 		let tuple = [];
 		this.axes.forEach((axis,a) => {
 			let val = (!fvs || fvs[axis.tag] === undefined) ? axis.default : 1.0 * fvs[axis.tag];
-			tuple[a] = this.axisNormalize(axis, val);
+			tuple[a] = this.axisNormalize(axis, val); // perform the avar1 transformation
 		});
 
 		return this.tupleToFinalTuple(tuple); // perform the avar2 transformation
@@ -3134,39 +3138,51 @@ function SamsaFont (init, config) {
 
 		// transforms a normalized tuple into an fvs object
 		let fvs = {};
-		this.axes.forEach((axis,a) => {
-			let n = tuple[a];
+		this.axes.forEach((axis,a) => fvs[axis.tag] = this.tupleDenormalize(tuple, axis));
+		return fvs;
+	}
 
-			// avar denormalization
-			if (this.avar && this.avar[a]) {
 
-				let map = this.avar[a];
-				for (let m=0; m<map.length; m++) {
+	//////////////////////////////////
+	//  tupleDenormalize()
+	//////////////////////////////////
+	this.tupleDenormalize = (tuple, axis, toUser = true) => {
 
-					if (map[m][1] >= n) {
-						if (map[m][1] == n) {
-							n = map[m][0]; // covers the -1, 0 and +1 cases (and, I think, the many to one mappings)
-						}
-						else {
-							if (map[m][1] == map[m-1][1])
-								n = map[m-1][0];
-							else
-								n = map[m-1][0] + (map[m][0] - map[m-1][0]) * ( ( n - map[m-1][1] ) / ( map[m][1] - map[m-1][1] ) )
-						}
-						break;
+		let a = axis.id, n = tuple[a], map;
+
+		// avar1 denormalization
+		if (this.avar && this.avar.axisSegmentMaps && (map = this.avar.axisSegmentMaps[a])) {
+
+			for (let m=0; m<map.length; m++) {
+
+				if (map[m][1] >= n) {
+					if (map[m][1] == n) {
+						n = map[m][0]; // covers the -1, 0 and +1 cases (and, I think, the many to one mappings)
 					}
+					else {
+						if (map[m][1] == map[m-1][1])
+							n = map[m-1][0];
+						else
+							n = map[m-1][0] + (map[m][0] - map[m-1][0]) * ( ( n - map[m-1][1] ) / ( map[m][1] - map[m-1][1] ) );
+					}
+					break;
 				}
 			}
+		}
 
-			// basic denormalization
-			fvs[axis.tag] = axis.default;
+		// basic denormalization
+		if (toUser) {
+			let user = axis.default;
 			if (n > 0)
-			 	fvs[axis.tag] += (axis.max - axis.default) * n;
-			else if (tuple[a] < 0)
-			 	fvs[axis.tag] += (axis.default - axis.min) * n;
+				user += (axis.max - axis.default) * n;
+			else if (n < 0)
+				user += (axis.default - axis.min) * n;
 
-		});
-		return fvs;
+			return user;
+		}
+		else {
+			return n;
+		}
 	}
 
 
@@ -3188,33 +3204,36 @@ function SamsaFont (init, config) {
 		return indices;
 	}
 
+
+	//////////////////////////////////
+	//  tupleToFinalTuple()
+	//////////////////////////////////
 	this.tupleToFinalTuple = tuple => {
 		// this is a reimplementation of the variation algorithm, but only for avar2
 		// - should be generalized to work for any ItemVariationStore
 
 		if (!this.avar || !(this.avar.majorVersion == 2 && this.avar.minorVersion == 0) || !this.avar.axisIndexMap || !this.avar.ivs) {
-			console.log("No avar2")
-			return tuple
+			return tuple;
 		}
 
 		const
 			tup = [...tuple], // initialize tup as a copy of tuple
 			regions = this.avar.ivs.regions,
 			ivds = this.avar.ivs.ivds,
-			axisIndexMap = this.avar.axisIndexMap,
-			scalars = this.getVariationScalars(regions, tuple) // get the region scalars: we should only get this ONCE per instance (input is the avar1 tuple)
+			scalars = this.getVariationScalars(regions, tuple); // get the region scalars: we should only get this ONCE per instance (input is the avar1 tuple, not the avar2 tuple which we are determining here)
 
-		// each entry in the map defines how a particular axis gets influenced by the region scalars
-		// - axisId is given by index in the mapping array
+		// each entry in axisIndexMap defines how a particular axis gets influenced by the region scalars
+		// - axisId is given by index in axisIndexMap
+		// - note that some axes may not have avar2 transformations: they either have entry==[0xffff,0xffff] or their index is >= axisIndexMap.length
 		// - entry identifies the ivd and the deltaSet within the ivd
-		axisIndexMap.forEach((entry, axisId) => {
+		this.avar.axisIndexMap.forEach((entry, axisId) => {
 			if (entry[0] != 0xffff && entry[1] != 0xffff) {
 				const ivd = ivds[entry[0]], deltaSet = ivd.deltaSets[entry[1]];
-				deltaSet.forEach((delta, r) => tup[axisId] += scalars[ivd.regionIds[r]] * delta/16384); // this is where the good stuff happens!
-				tup[axisId] = clamp(Math.round(tup[axisId] * 16384) / 16384, -1, 1); // round to closest 1/16384, then clamp to [-1,1]
+				deltaSet.forEach((delta, r) => tup[axisId] += scalars[ivd.regionIds[r]] * delta); // this is where the good stuff happens!
+				tup[axisId] = clamp(Math.round(tup[axisId]), -16384, 16384) / 16384; // round, clamp to [-1,1] in int16-space, then divide by 16384
 			}
-		})
-
+		});
+		
 		return tup;
 	}
 
@@ -3222,13 +3241,12 @@ function SamsaFont (init, config) {
 	//////////////////////////////////
 	//  axisNormalize(axis, t)
 	//////////////////////////////////
-	// avarVersions controls which versions of the avar processing to use (0x01 = avar1, 0x02 = avar2)
-
-	// NOTE: we must normalize all axes before we can do the avar v2 processing
 
 	this.axisNormalize = (axis, t, avarVersions=0x03) => {
 
 		// noramalizes t into n, which is returned
+		// NOTE: we must normalize all axes before we can do the avar v2 processing
+		// - avarVersions is flags to control which versions of the avar processing to use (0x01 = avar1, 0x02 = avar2)
 
 		//Bahnschrift avar table
 		// <segment axis="wght">
@@ -3297,6 +3315,7 @@ function SamsaFont (init, config) {
 
 	// Convert from F2DOT14 internal values (-1.0 to +1.0) into user axis values
 	// TODO: include avar
+	// REMOVE THIS?
 	this.axisDenormalize = (axis, t) => {
 
 	}

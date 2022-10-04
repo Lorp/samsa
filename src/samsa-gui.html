@@ -1319,7 +1319,7 @@ function vfLoaded (font) {
 	grid.append(axisValueLabel, axisValueFormat, addInstanceEl);
 
 	// avar toggle
-	if (font.avar.length > 0) {
+	if (font.tables.avar.length > 0) {
 		let avarLabel = EL("label");
 		let avarChk = EL("input");
 		avarChk.setAttribute("type", "checkbox");
@@ -1338,12 +1338,13 @@ function vfLoaded (font) {
 	// avar ui
 	const avarDiv = EL("div");
 	avarDiv.id = "avar";
+	let avar;
 
-	if (font.avar.length > 0) {
+	if (font.tables.avar.length > 0 && (avar = font.avar) && avar.majorVersion == 1 && avar.minorVersion == 0 && avar.axisSegmentMaps) {
 		let avarSVGwidth = 340, avarSVGheight = 100;
 		let avarMapColor = "grey", avarCurrentColor = "limegreen";
-		font.avar.forEach((axisMaps, a) => {
-			if (axisMaps.length > 0) {
+		avar.axisSegmentMaps.forEach((asm, a) => {
+			if (asm.length > 0) {
 				const avarSVG = SVG("svg");
 
 				avarSVG.classList.add("avar-axis-svg");
@@ -1365,7 +1366,7 @@ function vfLoaded (font) {
 				});
 				avarSVG.append(rect);
 
-				axisMaps.forEach(map => {
+				asm.forEach(map => {
 
 					let arrowLine = SVG("line");
 					let arrowHead = SVG("path");
@@ -1891,14 +1892,16 @@ function axesUpdateValues () {
 	// update avar
 	if (font.avar) {
 
-		let avarSVGs = Qall(".avar-axis-svg");
+		const avarSVGs = Qall(".avar-axis-svg");
+		const avarSVGwidth = 340, avarSVGheight = 100;
+
 		if (avarSVGs.length > 0) {
 			avarSVGs.forEach(avarSVG => {
 
-				let avarSVGwidth = 340, avarSVGheight = 100;
 				let axis = avarSVG.data.axis;
 				let userVal = Q(`#axis-${axis.id}`).data.current, userValTrans = axis.default;
-				let initial = font.axisNormalize(axis, userVal, true); // set avarIgnore arg to true
+				//let initial = font.axisNormalize(axis, userVal, true); // set avarIgnore arg to true
+				let initial = font.axisNormalize(axis, userVal, 0x00);
 				let final = GLOBAL.tuple[axis.id]; // == font.axisNormalize(axis, userVal); // i.e. avarIgnore == undefined
 				let avarCurrentLine = avarSVG.querySelector("line.avar-current");
 				let avarCurrentHead = avarSVG.querySelector("path.avar-current");
@@ -1912,15 +1915,8 @@ function axesUpdateValues () {
 				});
 
 				// adjust the arrow’s line and head attributes
-				avarCurrentLine.attr({
-					x1: arrow.x1,
-					y1: arrow.y1,
-					x2: arrow.newX2,
-					y2: arrow.newY2,
-				});
-				avarCurrentHead.attr({
-					d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z`,
-				});
+				avarCurrentLine.attr({ x1: arrow.x1, y1: arrow.y1, x2: arrow.newX2, y2: arrow.newY2 });
+				avarCurrentHead.attr({ d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z` });
 
 				// set title tooltip
 				if (final > 0)
@@ -1930,11 +1926,6 @@ function axesUpdateValues () {
 				avarSVG.querySelector("title").textContent = `${userVal}\n→ ${initial}\n→ ${final}\n→ ${userValTrans}`;
 			});
 		}
-
-		font.axes.forEach((axis, a) => {
-			axis.id
-
-		});
 	}
 }
 
