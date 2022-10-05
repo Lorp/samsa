@@ -3313,14 +3313,6 @@ function SamsaFont (init, config) {
 	}
 
 
-	// Convert from F2DOT14 internal values (-1.0 to +1.0) into user axis values
-	// TODO: include avar
-	// REMOVE THIS?
-	this.axisDenormalize = (axis, t) => {
-
-	}
-
-
 	//////////////////////////////////
 	//  defaultGlyphId()
 	//////////////////////////////////
