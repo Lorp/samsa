@@ -1102,7 +1102,7 @@ SamsaGlyph.prototype.svgPath = function () {
 				}
 
 				// ensure SVG contour starts with an on-curve point
-				if (contour[0][2] & 0x01) // is first point off-curve?
+				if (!(contour[0][2] & 0x01)) // is first point off-curve?
 					contour.unshift(contour.pop()); // OPTIMIZE: unshift is slow, so maybe build two arrays, "actual" and "toAppend", where "actual" starts with an on-curve
 
 				// append this contour
