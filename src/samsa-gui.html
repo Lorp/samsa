@@ -118,6 +118,11 @@
 		</div>
 	</div>
 
+	<div id="panel-mvar" class="panel open">
+		<h2><span class="icon bold reveal">&#xf04b;</span> MVAR</h2>
+		<div class="panel-content"></div>
+	</div>
+
 	<div id="panel-about" class="panel open">
 		<h2><span class="icon bold reveal">&#xf04b;</span> About</h2>
 		<div class="panel-content">
@@ -957,6 +962,42 @@ function vfLoaded (font) {
 		webfontFace.load().then(webfontFace => {
 			document.fonts.add(webfontFace);
 		});
+	}
+
+
+	///////////////////////////////////////////////////////
+	// MVAR panel
+	///////////////////////////////////////////////////////
+	panel = Q("#panel-mvar>div");
+	panel.innerText = "";
+	if (font.mvar) {
+		Object.keys(font.mvar.items).forEach(key => {
+			let row = EL("li");
+			row.style.display = "grid";
+			row.style.gridTemplateColumns = "15% 15% 5% 15% 5% 15%";
+			let cells = [EL("label"), EL("input"), EL("div"), EL("input"), EL("div"), EL("input")];
+			cells[0].innerHTML = `<code>${key}</code>`;
+			cells[0].classList.add("tag");
+			cells[0].title = CONSTS.mvarLookup[key].join("."); // e.g. ["OS/2","sxHeight"] -> "OS/2.sxHeight"
+			cells[1].value = 0;
+			cells[1].disabled = true;
+			cells[1].style.textAlign = "right";
+			cells[2].innerText = "+";
+			cells[2].style.textAlign = "center";
+			cells[3].value = 0;
+			cells[3].disabled = true;
+			cells[3].style.textAlign = "right";
+			cells[4].innerText = "=";
+			cells[4].style.textAlign = "center";
+			cells[5].value = 0;
+			cells[5].disabled = true;
+			cells[5].style.textAlign = "right";
+			row.append(...cells);
+			panel.append(row);
+		})
+	}
+	else {
+		panel.innerText = "MVAR table not present";
 	}
 
 
@@ -1927,6 +1968,30 @@ function axesUpdateValues () {
 			});
 		}
 	}
+
+	// update the MVAR panel
+	if (font.mvar) {
+
+		let deltas = font.itemVariationStoreInstantiate(font.mvar.ivs, GLOBAL.tuple); // generate a new set of deltas for this tuple
+		let rows = Qall("#panel-mvar>div li"); // UI rows in the MVAR panel
+		Object.keys(font.mvar.items).forEach((key, k) => {
+			const
+				index = font.mvar.items[key],
+				keyLookup = CONSTS.mvarLookup[key],
+				original = font.tables[keyLookup[0]].data[keyLookup[1]]; // needs error-checking
+			
+			if (original !== undefined) {
+				const updated = original + deltas[index[0]][index[1]];
+
+				// update the values in the correct <li> element in the MVAR panel
+				const inputs = rows[k].querySelectorAll("input");
+				inputs[0].value = original;
+				inputs[1].value = deltas[index[0]][index[1]];
+				inputs[2].value = updated;
+			}
+		})
+	}
+
 }
 
 

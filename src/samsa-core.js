@@ -47,9 +47,52 @@ let CONFIG = {
 
 	purgeGlyphs: false, // release memory for glyphs when possible, but slower when doing multiple things with the font (only use for very large fonts)
 
-	postscriptNames: [".notdef",".null","nonmarkingreturn","space","exclam","quotedbl","numbersign","dollar","percent","ampersand","quotesingle","parenleft","parenright","asterisk","plus","comma","hyphen","period","slash","zero","one","two","three","four","five","six","seven","eight","nine","colon","semicolon","less","equal","greater","question","at","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","bracketleft","backslash","bracketright","asciicircum","underscore","grave","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","braceleft","bar","braceright","asciitilde","Adieresis","Aring","Ccedilla","Eacute","Ntilde","Odieresis","Udieresis","aacute","agrave","acircumflex","adieresis","atilde","aring","ccedilla","eacute","egrave","ecircumflex","edieresis","iacute","igrave","icircumflex","idieresis","ntilde","oacute","ograve","ocircumflex","odieresis","otilde","uacute","ugrave","ucircumflex","udieresis","dagger","degree","cent","sterling","section","bullet","paragraph","germandbls","registered","copyright","trademark","acute","dieresis","notequal","AE","Oslash","infinity","plusminus","lessequal","greaterequal","yen","mu","partialdiff","summation","product","pi","integral","ordfeminine","ordmasculine","Omega","ae","oslash","questiondown","exclamdown","logicalnot","radical","florin","approxequal","Delta","guillemotleft","guillemotright","ellipsis","nonbreakingspace","Agrave","Atilde","Otilde","OE","oe","endash","emdash","quotedblleft","quotedblright","quoteleft","quoteright","divide","lozenge","ydieresis","Ydieresis","fraction","currency","guilsinglleft","guilsinglright","fi","fl","daggerdbl","periodcentered","quotesinglbase","quotedblbase","perthousand","Acircumflex","Ecircumflex","Aacute","Edieresis","Egrave","Iacute","Icircumflex","Idieresis","Igrave","Oacute","Ocircumflex","apple","Ograve","Uacute","Ucircumflex","Ugrave","dotlessi","circumflex","tilde","macron","breve","dotaccent","ring","cedilla","hungarumlaut","ogonek","caron","Lslash","lslash","Scaron","scaron","Zcaron","zcaron","brokenbar","Eth","eth","Yacute","yacute","Thorn","thorn","minus","multiply","onesuperior","twosuperior","threesuperior","onehalf","onequarter","threequarters","franc","Gbreve","gbreve","Idotaccent","Scedilla","scedilla","Cacute","cacute","Ccaron","ccaron","dcroat"],
-
 };
+
+let CONSTS = {
+
+	postscriptNames: [".notdef",".null","nonmarkingreturn","space","exclam","quotedbl","numbersign","dollar","percent","ampersand","quotesingle","parenleft","parenright","asterisk","plus","comma","hyphen","period","slash","zero","one","two","three","four","five","six","seven","eight","nine","colon","semicolon","less","equal","greater","question","at","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z","bracketleft","backslash","bracketright","asciicircum","underscore","grave","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","braceleft","bar","braceright","asciitilde","Adieresis","Aring","Ccedilla","Eacute","Ntilde","Odieresis","Udieresis","aacute","agrave","acircumflex","adieresis","atilde","aring","ccedilla","eacute","egrave","ecircumflex","edieresis","iacute","igrave","icircumflex","idieresis","ntilde","oacute","ograve","ocircumflex","odieresis","otilde","uacute","ugrave","ucircumflex","udieresis","dagger","degree","cent","sterling","section","bullet","paragraph","germandbls","registered","copyright","trademark","acute","dieresis","notequal","AE","Oslash","infinity","plusminus","lessequal","greaterequal","yen","mu","partialdiff","summation","product","pi","integral","ordfeminine","ordmasculine","Omega","ae","oslash","questiondown","exclamdown","logicalnot","radical","florin","approxequal","Delta","guillemotleft","guillemotright","ellipsis","nonbreakingspace","Agrave","Atilde","Otilde","OE","oe","endash","emdash","quotedblleft","quotedblright","quoteleft","quoteright","divide","lozenge","ydieresis","Ydieresis","fraction","currency","guilsinglleft","guilsinglright","fi","fl","daggerdbl","periodcentered","quotesinglbase","quotedblbase","perthousand","Acircumflex","Ecircumflex","Aacute","Edieresis","Egrave","Iacute","Icircumflex","Idieresis","Igrave","Oacute","Ocircumflex","apple","Ograve","Uacute","Ucircumflex","Ugrave","dotlessi","circumflex","tilde","macron","breve","dotaccent","ring","cedilla","hungarumlaut","ogonek","caron","Lslash","lslash","Scaron","scaron","Zcaron","zcaron","brokenbar","Eth","eth","Yacute","yacute","Thorn","thorn","minus","multiply","onesuperior","twosuperior","threesuperior","onehalf","onequarter","threequarters","franc","Gbreve","gbreve","Idotaccent","Scedilla","scedilla","Cacute","cacute","Ccaron","ccaron","dcroat"],
+	mvarLookup: {
+		"hasc": ["OS/2","sTypoAscender"],
+		"hdsc": ["OS/2","sTypoDescender"],
+		"hlgp": ["OS/2","sTypoLineGap"],
+		"hcla": ["OS/2","usWinAscent"],
+		"hcld": ["OS/2","usWinDescent"],
+		"xhgt": ["OS/2","sxHeight"],
+		"cpht": ["OS/2","sCapHeight"],
+		"sbxs": ["OS/2","ySubscriptXSize"],
+		"sbys": ["OS/2","ySubscriptYSize"],
+		"sbxo": ["OS/2","ySubscriptXOffset"],
+		"sbyo": ["OS/2","ySubscriptYOffset"],
+		"spxs": ["OS/2","ySuperscriptXSize"],
+		"spys": ["OS/2","ySuperscriptYSize"],
+		"spxo": ["OS/2","ySuperscriptXOffset"],
+		"spyo": ["OS/2","ySuperscriptYOffset"],
+		"strs": ["OS/2","yStrikeoutSize"],
+		"stro": ["OS/2","yStrikeoutPosition"],
+		"hcrs": ["hhea","caretSlopeRise"],
+		"hcrn": ["hhea","caretSlopeRun"],
+		"hcof": ["hhea","caretOffset"],
+		"unds": ["post","underlineThickness"],
+		"undo": ["post","underlinePosition"],
+		"vasc": ["vhea","ascent"],
+		"vdsc": ["vhea","descent"],
+		"vlgp": ["vhea","lineGap"],
+		"vcrs": ["vhea","caretSlopeRise"],
+		"vcrn": ["vhea","caretSlopeRun"],
+		"vcof": ["vhea","caretOffset"],
+		"gsp0":	["gasp","0"],
+		"gsp1":	["gasp","1"],
+		"gsp2":	["gasp","2"],
+		"gsp3":	["gasp","3"],
+		"gsp4":	["gasp","4"],
+		"gsp5":	["gasp","5"],
+		"gsp6":	["gasp","6"],
+		"gsp7":	["gasp","7"],
+		"gsp8":	["gasp","8"],
+		"gsp9":	["gasp","9"],
+	},
+}
 
 
 // define helper functions and assign aliases
@@ -1437,8 +1480,7 @@ function SamsaFont (init, config) {
 		// - gvar isn’t short, but we only parse its header here
 
 		// NEW: avar immediately follows fvar, correcting the initial tuple values
-		//["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "avar", "fvar", "gvar", "STAT", "loca", "GSUB", "cmap"].forEach(tag => {
-		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "fvar", "avar", "gvar", "STAT", "loca", "GSUB", "cmap"].forEach(tag => {
+		["maxp", "hhea", "head", "hmtx", "OS/2", "post", "name", "fvar", "avar", "gvar", "STAT", "loca", "GSUB", "cmap", "MVAR"].forEach(tag => {
 
 			if (font.tables[tag])
 				font.parseSmallTable(tag);
@@ -1732,7 +1774,8 @@ function SamsaFont (init, config) {
 					p += 2;
 					for (let g=0; g<font.numGlyphs; g++) {
 						let gni = data.getUint16(p + g*2);
-						font.glyphNames[g] = gni < 258 ? config.postscriptNames[gni] : extraNames[gni-258];
+						//font.glyphNames[g] = gni < 258 ? config.postscriptNames[gni] : extraNames[gni-258];
+						font.glyphNames[g] = gni < 258 ? CONSTS.postscriptNames[gni] : extraNames[gni-258];
 					}
 				}
 				break; // post end
@@ -1954,14 +1997,10 @@ function SamsaFont (init, config) {
 										for (r=0; r < wordDeltaCount; r++) {
 											deltaSet.push(data.getInt16(p)), p+=2;
 										}
-										for (; r < ivd.regionIndexCount; r++) {
+										for (; r < regionCount; r++) {
 											deltaSet.push(data.getInt8(p)), p++;
 										}
 										ivd.deltaSets.push(deltaSet);
-										if (deltaSet.find(element => element !== 0) == undefined) {
-											//console.log("We have a zero deltaSet")
-											//console.log(deltaSet)
-										}
 									}
 								}
 								table.ivs.ivds.push(ivd);
@@ -2397,8 +2436,38 @@ function SamsaFont (init, config) {
 				}
 
 				font.cmap = table.cmap;
-				break;
+				break; // cmap end
 
+
+			case "MVAR":
+				// https://learn.microsoft.com/en-us/typography/opentype/spec/mvar
+				table.majorVersion = data.getUint16(0);
+				table.minorVersion = data.getUint16(2);
+				const
+					valueRecordSize = data.getUint16(6),
+					valueRecordCount = data.getUint16(8),
+					itemVariationStoreOffset = data.getUint16(10);
+				
+				// initialize MVAR object for this font, keyed by 4-letter tag
+				this.mvar = {
+					items: {},
+					ivs: null,
+				};
+
+				if (table.majorVersion == 1 && table.minorVersion == 0 && valueRecordSize == 8) {
+					p = 12;
+					for (let vr=0; vr<valueRecordCount; vr++) {
+						let tag = data.getTag(p);
+						this.mvar.items[tag] = [
+							data.getUint16(p+4), // outer
+							data.getUint16(p+6), // inner
+						];
+						p += valueRecordSize;
+					}
+					this.mvar.ivs = this.parseItemVariationStore(data, itemVariationStoreOffset);
+				}
+				break; // MVAR end
+		
 		}
 
 		font.tables[tag].data = table;
@@ -3095,6 +3164,12 @@ function SamsaFont (init, config) {
 			});
 			instance.tuple = this.fvsToTuple(fvs); // handles avar1 and avar2
 		}
+
+		// calculate a fresh set of mvarDeltas for this instance
+		if (this.mvar) {
+			instance.mvarDeltas = this.itemVariationStoreInstantiate(this.mvar.ivs, instance.tuple);
+		}
+
 		this.instances.push(instance);
 		return instance;
 	}
@@ -3151,16 +3226,18 @@ function SamsaFont (init, config) {
 		let a = axis.id, n = tuple[a], map;
 
 		// avar1 denormalization
-		if (this.avar && this.avar.axisSegmentMaps && (map = this.avar.axisSegmentMaps[a])) {
+		if (this.avar && 
+			this.avar.axisSegmentMaps && 
+			(map = this.avar.axisSegmentMaps[a])) {
 
 			for (let m=0; m<map.length; m++) {
 
 				if (map[m][1] >= n) {
 					if (map[m][1] == n) {
-						n = map[m][0]; // covers the -1, 0 and +1 cases (and, I think, the many to one mappings)
+						n = map[m][0]; // covers the -1, 0 and +1 cases, and the m=0 case
 					}
 					else {
-						if (map[m][1] == map[m-1][1])
+						if (map[m][1] == map[m-1][1]) // case where two consecutive “to” values are identical
 							n = map[m-1][0];
 						else
 							n = map[m-1][0] + (map[m][0] - map[m-1][0]) * ( ( n - map[m-1][1] ) / ( map[m][1] - map[m-1][1] ) );
@@ -3206,31 +3283,144 @@ function SamsaFont (init, config) {
 
 
 	//////////////////////////////////
+	// parseItemVariationStore()
+	//////////////////////////////////
+	this.parseItemVariationStore = (data, pStart) => {
+
+		let p = pStart,
+			ivs = {
+			ivds: [],
+			regions: [],
+			//scalars: [], // the scalars (each in the range [0.0,1.0]) are recalculated each time the instance coordinates change, derived from regions and instance coordinates via variation math; there is one scalar per region
+		};
+
+		const
+			format = data.getUint16(p),
+			regionListOffset = data.getUint32(p+2),
+			ivdCount = data.getUint16(p+6);
+
+		
+		p += 8;
+
+		// get ivd offsets
+		let ivdOffsets = [];
+		for (let i=0; i<ivdCount; i++) {
+			ivdOffsets[i] = data.getUint32(p), p+=4;
+		}
+
+		// get the Variation Regions
+		p = pStart + regionListOffset;
+		ivs.axisCount = data.getUint16(p);
+		const regionCount = data.getUint16(p+2);
+
+		p+=4;
+		for (r=0; r<regionCount; r++) {
+			let region = [];
+			for (let a=0; a<ivs.axisCount; a++) {
+				region[a] = [ data.getF2DOT14(p), data.getF2DOT14(p+2), data.getF2DOT14(p+4) ]; // startCoord, peakCoord, endCoord
+				p+=6;
+			}
+			ivs.regions.push(region); // region now contains a [start, peak, end] array for each axis
+		}
+
+		// process each ivd subtable in the ivs
+		// TODO MAYBE: facilitate making this work if we do not want to decode the whole ItemVariationStore, so diving into just one value
+		// - probably move this to the getOffsetForDataItem function, so it works simialrly to Akiem’s example
+		for (let i=0; i<ivdCount; i++) {
+			p = pStart + ivdOffsets[i]
+			let ivd = {
+				itemCount: data.getUint16(p),
+				wordDeltaCount: data.getUint16(p+2),
+				regionIds: [],
+				deltaSets: [],
+			}
+			const
+				regionCount = data.getUint16(p+4),
+				wordDeltaCount = ivd.wordDeltaCount & 0x7fff,
+				longWords = ivd.wordDeltaCount & 0x8000;
+			p += 6
+
+			// assign the regions to the ivd according their indices into the main region list
+			for (r=0; r<regionCount; r++) {
+				ivd.regionIds.push(data.getUint16(p+r*2));
+			}
+			p += 2*regionCount;
+
+			// each deltaSet needs one delta value per region
+			// long case: int32, int16 (“The LONG_WORDS flag should only be used in top-level tables that include 32-bit values that can be variable — currently, only the COLR table.”)
+			if (longWords) {
+				for (let d=0; d < ivd.itemCount; d++) {
+					let deltaSet = [];
+					for (r=0; r < wordDeltaCount; r++) {
+						deltaSet.push(data.getInt32(p)), p+=4;
+					}
+					for (; r < regionCount; r++) {
+						deltaSet.push(data.getInt16(p)), p+=2;
+					}
+					ivd.deltaSets.push(deltaSet);
+				}
+			}
+			// short case (usual): int16, int8
+			else {
+				for (let d=0; d < ivd.itemCount; d++) {
+					let deltaSet = [];
+					for (r=0; r < wordDeltaCount; r++) {
+						deltaSet.push(data.getInt16(p)), p+=2;
+					}
+					for (; r < regionCount; r++) {
+						deltaSet.push(data.getInt8(p)), p++;
+					}
+					ivd.deltaSets.push(deltaSet);
+				}
+			}
+			ivs.ivds.push(ivd);
+		}
+
+		return ivs;
+	}	
+	
+
+	//////////////////////////////////
+	// itemVariationStoreInstantiate()
+	//////////////////////////////////
+	this.itemVariationStoreInstantiate = (ivs, tuple) => {
+
+		const
+			scalars = this.getVariationScalars(ivs.regions, tuple), // get the region scalars: we should only get this ONCE per instance (input is the avar1 tuple, not the avar2 tuple which we are determining here)
+			interpolatedDeltas = []; // a 2d array made of (ivd.deltaSets.length) arrays of interpolated delta values [note that ivd.deltaSets.length is often 1]
+
+		ivs.ivds.forEach((ivd, i) => {
+			interpolatedDeltas[i] = [];
+			ivd.deltaSets.forEach(deltaSet => {
+				let d = 0;
+				deltaSet.forEach((delta, r) => d += scalars[ivd.regionIds[r]] * delta); // this is where the good stuff happens!
+				interpolatedDeltas[i].push(d);
+			})
+		})
+
+		return interpolatedDeltas; // 2d array of values that need to be added to the items they apply to
+	}
+
+
+	//////////////////////////////////
 	//  tupleToFinalTuple()
 	//////////////////////////////////
 	this.tupleToFinalTuple = tuple => {
-		// this is a reimplementation of the variation algorithm, but only for avar2
-		// - should be generalized to work for any ItemVariationStore
-
 		if (!this.avar || !(this.avar.majorVersion == 2 && this.avar.minorVersion == 0) || !this.avar.axisIndexMap || !this.avar.ivs) {
 			return tuple;
 		}
-
+		
 		const
 			tup = [...tuple], // initialize tup as a copy of tuple
-			regions = this.avar.ivs.regions,
-			ivds = this.avar.ivs.ivds,
-			scalars = this.getVariationScalars(regions, tuple); // get the region scalars: we should only get this ONCE per instance (input is the avar1 tuple, not the avar2 tuple which we are determining here)
-
+			interpolatedDeltas = this.itemVariationStoreInstantiate(this.avar.ivs, tuple); // values still need to be divided by 16384 and clamped to [-1,1]
+		
 		// each entry in axisIndexMap defines how a particular axis gets influenced by the region scalars
 		// - axisId is given by index in axisIndexMap
-		// - note that some axes may not have avar2 transformations: they either have entry==[0xffff,0xffff] or their index is >= axisIndexMap.length
-		// - entry identifies the ivd and the deltaSet within the ivd
-		this.avar.axisIndexMap.forEach((entry, axisId) => {
-			if (entry[0] != 0xffff && entry[1] != 0xffff) {
-				const ivd = ivds[entry[0]], deltaSet = ivd.deltaSets[entry[1]];
-				deltaSet.forEach((delta, r) => tup[axisId] += scalars[ivd.regionIds[r]] * delta); // this is where the good stuff happens!
-				tup[axisId] = clamp(Math.round(tup[axisId]), -16384, 16384) / 16384; // round, clamp to [-1,1] in int16-space, then divide by 16384
+		// - note that some axes may not have avar2 transformations: they either have entry==[0xffff,0xffff] or their axisId is >= axisIndexMap.length
+		// - index identifies the value in the 2d array interpolatedDeltas (the same indexing that identifies the ivd and the deltaSet within the ivd)
+		this.avar.axisIndexMap.forEach((index, axisId) => {
+			if (index[0] != 0xffff && index[1] != 0xffff) {
+				tup[axisId] += clamp(Math.round(interpolatedDeltas[index[0]][index[1]]), -16384, 16384) / 16384;
 			}
 		});
 		
@@ -3241,7 +3431,6 @@ function SamsaFont (init, config) {
 	//////////////////////////////////
 	//  axisNormalize(axis, t)
 	//////////////////////////////////
-
 	this.axisNormalize = (axis, t, avarVersions=0x03) => {
 
 		// noramalizes t into n, which is returned

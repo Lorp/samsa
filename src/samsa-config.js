@@ -101,6 +101,7 @@ CONFIG.panels = [
 	{id: "panel-designspace", side: "left"},
 	{id: "panel-font-list", side: "left"},
 	{id: "panel-media", side: "left"},
+	{id: "panel-mvar", side: "left"},
 	{id: "panel-about", side: "left"},
 	{id: "panel-glyphs", side: "right"},
 ];
