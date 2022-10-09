@@ -1912,99 +1912,11 @@ function SamsaFont (init, config) {
 
 						// avar version 2 processing
 						if (table.majorVersion === 2) {
-							
-							// TODO:
-							// - generalize indexMap processing
-							// - generalize ItemVariationStore processing
-
-							table.ivs = {
-								ivds: [],
-								regions: [],
-								scalars: [], // the scalars (each in the range [0.0,1.0]) are recalculated each time the instance coordinates change, derived from regions and instance coordinates via variation math; there is one scalar per region
-							};
-
-							const axisIdxMapOffset = data.getUint32(p);
-							const ivsOffset = data.getUint32(p+4);
-							table.axisIndexMap = this.deltaSetIndexMapDecode(data, axisIdxMapOffset);
-	
-							// ivs processing
-							p = ivsOffset;
-							const format = data.getUint16(p), regionListOffset = data.getUint32(p+2), ivdCount = data.getUint16(p+6);
-							p += 8;
-
-							// get ivd offsets
-							let ivdOffsets = [];
-							for (let i=0; i<ivdCount; i++) {
-								ivdOffsets[i] = data.getUint32(p), p+=4;
-							}
-						
-							// get the Variation Regions
-							p = ivsOffset + regionListOffset;
-							table.ivs.axisCount = data.getUint16(p);
-							const regionCount = data.getUint16(p+2);
-
-							p+=4;
-							for (r=0; r<regionCount; r++) {
-								let region = [];
-								for (let a=0; a<table.ivs.axisCount; a++) {
-									region[a] = [ data.getF2DOT14(p), data.getF2DOT14(p+2), data.getF2DOT14(p+4) ]; // startCoord, peakCoord, endCoord
-									p+=6;
-								}
-								table.ivs.regions.push(region); // region now contains a [start, peak, end] array for each axis
-							}
-	
-							// process each ivd subtable in the ivs
-							// TODO: facilitate making this work if we do not want to decode the whole ItemVariationStore, so diving into just one value
-							// - probably move this to the getOffsetForDataItem function, so it works simialrly to Akiem’s example
-							for (let i=0; i<ivdCount; i++) {
-								p = ivsOffset + ivdOffsets[i]
-								let ivd = {
-									itemCount: data.getUint16(p),
-									wordDeltaCount: data.getUint16(p+2),
-									regionIds: [],
-									deltaSets: [],
-								}
-								const
-									regionCount = data.getUint16(p+4),
-									wordDeltaCount = ivd.wordDeltaCount & 0x7fff,
-									longWords = ivd.wordDeltaCount & 0x8000;
-								p += 6
-						
-								// assign the regions to the ivd according their indices into the main region list
-								for (r=0; r<regionCount; r++) {
-									ivd.regionIds.push(data.getUint16(p+r*2));
-								}
-								p += 2*regionCount;
-						
-								// each deltaSet needs one delta value per region
-								// long case: int32, int16 (“The LONG_WORDS flag should only be used in top-level tables that include 32-bit values that can be variable — currently, only the COLR table.”)
-								if (longWords) {
-									for (let d=0; d < ivd.itemCount; d++) {
-										let deltaSet = [];
-										for (r=0; r < wordDeltaCount; r++) {
-											deltaSet.push(data.getInt32(p)), p+=4;
-										}
-										for (; r < regionCount; r++) {
-											deltaSet.push(data.getInt16(p)), p+=2;
-										}
-										ivd.deltaSets.push(deltaSet);
-									}
-								}
-								// short case (usual): int16, int8
-								else {
-									for (let d=0; d < ivd.itemCount; d++) {
-										let deltaSet = [];
-										for (r=0; r < wordDeltaCount; r++) {
-											deltaSet.push(data.getInt16(p)), p+=2;
-										}
-										for (; r < regionCount; r++) {
-											deltaSet.push(data.getInt8(p)), p++;
-										}
-										ivd.deltaSets.push(deltaSet);
-									}
-								}
-								table.ivs.ivds.push(ivd);
-							}
+							const
+								axisIdxMapOffset = data.getUint32(p),
+								ivsOffset = data.getUint32(p+4);
+							table.axisIndexMap = this.deltaSetIndexMapDecode(data, axisIdxMapOffset); // get axisIndexMap
+							table.ivs = this.parseItemVariationStore(data, ivsOffset); // get the itemVariationStore
 						}
 					}
 
@@ -3348,31 +3260,33 @@ function SamsaFont (init, config) {
 
 			// each deltaSet needs one delta value per region
 			// long case: int32, int16 (“The LONG_WORDS flag should only be used in top-level tables that include 32-bit values that can be variable — currently, only the COLR table.”)
+			let inc;
+
+			// define long and short getters, depending on longWords
 			if (longWords) {
-				for (let d=0; d < ivd.itemCount; d++) {
-					let deltaSet = [];
-					for (r=0; r < wordDeltaCount; r++) {
-						deltaSet.push(data.getInt32(p)), p+=4;
-					}
-					for (; r < regionCount; r++) {
-						deltaSet.push(data.getInt16(p)), p+=2;
-					}
-					ivd.deltaSets.push(deltaSet);
-				}
+				data.getLONG = data.getInt32;
+				data.getSHORT = data.getInt16;
+				inc = 4;
 			}
-			// short case (usual): int16, int8
 			else {
-				for (let d=0; d < ivd.itemCount; d++) {
-					let deltaSet = [];
-					for (r=0; r < wordDeltaCount; r++) {
-						deltaSet.push(data.getInt16(p)), p+=2;
-					}
-					for (; r < regionCount; r++) {
-						deltaSet.push(data.getInt8(p)), p++;
-					}
-					ivd.deltaSets.push(deltaSet);
-				}
+				data.getLONG = data.getInt16;
+				data.getSHORT = data.getInt8;
+				inc = 2;
 			}
+
+			// delta set reader works for long and short versions
+			for (let d=0; d < ivd.itemCount; d++) {
+				let deltaSet = [], r=0;
+				while (r++ < wordDeltaCount) {
+					deltaSet.push(data.getLONG(p)), p+=inc;
+				}
+				while (r++ < regionCount) {
+					deltaSet.push(data.getSHORT(p)), p+=inc/2;
+				}
+				ivd.deltaSets.push(deltaSet);
+			}
+
+			// now we can add the ivd
 			ivs.ivds.push(ivd);
 		}
 
