@@ -925,13 +925,15 @@ function vfLoaded (font) {
 		});
 		uiModeHTML += `</select><br>`;
 		panel.innerHTML += uiModeHTML;
-		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">Split deltas</label>`;
+		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">δ₀…δₙ₋₁</label>`;
 		panel.innerHTML += "&nbsp;";
-		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">Total deltas</label>`;
+		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">Σ(δ₀…δₙ₋₁)</label>`;
 		panel.innerHTML += "&nbsp;";
-		panel.innerHTML += `<input id="point-numbers" class="ui-arrows" type="checkbox"><label for="point-numbers">Point numbers</label>`;
+		panel.innerHTML += `<input id="point-numbers" class="ui-arrows" type="checkbox"><label for="point-numbers"><em>p</em>₀…<em>p</em>ₙ₋₁</label>`;
 		panel.innerHTML += "&nbsp;";
 		panel.innerHTML += `<input id="point-tangents" class="ui-arrows" type="checkbox" checked><label for="point-tangents">Tangents</label>`;
+		panel.innerHTML += "&nbsp;";
+		panel.innerHTML += `<input id="metrics" class="ui-arrows" type="checkbox" checked><label for="metrics">Metrics</label>`;
 
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
 		Q("#ui-mode").value = font.config.ui.name;
@@ -1360,7 +1362,8 @@ function vfLoaded (font) {
 	grid.append(axisValueLabel, axisValueFormat, addInstanceEl);
 
 	// avar toggle
-	if (font.tables.avar.length > 0) {
+	const avar = font.avar;
+	if (avar) {
 		let avarLabel = EL("label");
 		let avarChk = EL("input");
 		avarChk.setAttribute("type", "checkbox");
@@ -1379,9 +1382,8 @@ function vfLoaded (font) {
 	// avar ui
 	const avarDiv = EL("div");
 	avarDiv.id = "avar";
-	let avar;
 
-	if (font.tables.avar.length > 0 && (avar = font.avar) && avar.majorVersion == 1 && avar.minorVersion == 0 && avar.axisSegmentMaps) {
+	if (avar && avar.majorVersion == 1 && avar.minorVersion == 0 && avar.axisSegmentMaps.length > 0) {
 		let avarSVGwidth = 340, avarSVGheight = 100;
 		let avarMapColor = "grey", avarCurrentColor = "limegreen";
 		avar.axisSegmentMaps.forEach((asm, a) => {
@@ -2827,6 +2829,11 @@ function updateGlyphSVG (g, instance) {
 		svgEl.append(svgDefs);
 	}
 
+	// get mvar interpolated deltas (only if mvar exists)
+	let mvarDeltas;
+	if (font.mvar) {
+		mvarDeltas = font.itemVariationStoreInstantiate(font.mvar.ivs, GLOBAL.tuple);
+	}
 
 	// draw each layer in the order it was specified in font.config.ui.layers
 	ui.layers.forEach(layer => {
@@ -2856,8 +2863,10 @@ function updateGlyphSVG (g, instance) {
 					svgg.append(svgPath);
 				}
 
-				// draw advance width
+				// draw metrics
 				if (ui.metrics.strokeWidth > 0 || ui.metrics.stroke != "none") {
+
+					// advance width
 					svgPath = SVG("path");
 					svgPath.attr({
 						d: `M${iglyph.points[glyph.points.length-3][0]} -10000V10000`, // glyph.points.length works for simple, composite and empty
@@ -2874,10 +2883,38 @@ function updateGlyphSVG (g, instance) {
 						});
 					}
 					svgg.append(svgPath);
+
+					// sxHeight, sTypoAscender, sTypoDescender, sCapHeight, yStrikeoutPosition
+					// TODO: add UI toggles to switch these on/off individually
+					["xhgt", "hasc", "hdsc", "cpht", "stro"].forEach(tag => {
+						const lookup = CONSTS.mvarLookup[tag];
+						const metric = font.tables[lookup[0]].data[lookup[1]]; // all fonts should have these values (if they have OS/2, hhea, vhea, post)
+						let delta=0, mvarItem;
+
+						if (font.mvar && (mvarItem = font.mvar.items[tag])) {
+							delta = mvarDeltas[mvarItem[0]][mvarItem[1]]; // get the interpolated MVAR delta from the array we generated above
+						}
+
+						svgPath = SVG("path");
+						svgPath.attr({
+							d: `M-10000 ${metric + delta} H10000`,
+							stroke: ui.metrics.stroke,
+							"stroke-width": ui.metrics.strokeWidth * uiScale,
+						});
+						if (ui.metrics.dashArray) {
+							let dashStr = "";
+							ui.metrics.dashArray.forEach(dash => {
+								dashStr += `${dash*uiScale} `;
+							});
+							svgPath.attr({
+								"stroke-dasharray": dashStr,
+							});
+						}
+						svgg.append(svgPath);
+					});
 				}
-
 				break;
-
+				
 
 			case "layer-default":
 
@@ -3462,8 +3499,8 @@ document.onclick = function (event) {
 				return response.text();
 			}, 
 			error => {
-				return "## No response from server\n\nHelp files are only available when Samsa is installed on a web server.";
 				console.log ("No response from server: Samsa was probably run by double-clicking the html file, so under file:// instead of https://");
+				return "## No response from server\n\nHelp files are only available when Samsa is installed on a web server.";
 			}
 		)
 		.then(doc => {
