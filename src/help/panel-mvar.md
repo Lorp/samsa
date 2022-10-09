@@ -4,7 +4,7 @@ In static fonts, various font-wide metrics — including cap height, x-height, 
 
 Samsa’s MVAR panel displays those variations numerically, updating them as the user changes designspace location using the axis controls or selecting instances.
 
-The full list of 38 metrics (17 from `OS/2`, 3 from `hhea`, 2 from `post`, 6 from `vhea`, 10 from `gasp`) can be found in the MVAR specification linked above.
+The full list of 38 metrics (17 from `OS/2`, 3 from `hhea`, 2 from `post`, 6 from `vhea`, 10 from `gasp`) is given in the MVAR specification linked above.
 
 For each metric having MVAR variations, Samsa displays:
 * the **4-letter tag** that is stored in the font (e.g. `xhgt`),
