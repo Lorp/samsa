@@ -14,7 +14,7 @@ For each metric having MVAR variations, Samsa displays:
 
 The table and field represented by the tag may be revealed by hovering the pointer over the tag (e.g. hover over `xhgt` to reveal “OS/2.sxHeight”).
 
-Typically, only a subset of a font’s metrics have variations defined in MVAR, so it is normal to see only a small number of metrics in the panel.
+Typically, only a subset of a font’s metrics have variations defined in MVAR, so it is normal to see only a small number of metrics in the panel. A variable font without an MVAR table is valid, and implies all metrics are constant throughout the designspace.
 
 ### Limitations
 
