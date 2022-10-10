@@ -622,7 +622,7 @@ function SVG (tag) {
 }
 
 SVGElement.prototype.attr = function (attrs) {
-// attach multiple SVG attributes
+// set multiple SVG attributes using the attrs array
 // - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
 	for (const prop in attrs) {
 		this.setAttributeNS(null, prop, attrs[prop]);
@@ -703,8 +703,8 @@ function appendInstanceEl(instance, select) {
 		let svgg = SVG("g");
 		let scale = 20 / font.unitsPerEm;
 		svg.attr({width: 30, height: 30});
-		svgg.setAttributeNS(null, "transform", `translate(4,20) scale(${scale},-${scale})`);
- 		svgPath.setAttributeNS(null, "d", iglyph.svgPath());
+		svgg.attr({ transform: `translate(4,20) scale(${scale},-${scale})` });
+ 		svgPath.attr({ d: iglyph.svgPath() });
 		svgg.append(svgPath);
 		svg.append(svgg);
 	}
@@ -975,27 +975,38 @@ function vfLoaded (font) {
 	if (font.mvar) {
 		Object.keys(font.mvar.items).forEach(key => {
 			let row = EL("li");
+			row.dataset.tag = key; // allows us to identify this row easily
 			row.style.display = "grid";
-			row.style.gridTemplateColumns = "15% 15% 5% 15% 5% 15%";
-			let cells = [EL("label"), EL("input"), EL("div"), EL("input"), EL("div"), EL("input")];
-			cells[0].innerHTML = `<code>${key}</code>`;
-			cells[0].classList.add("tag");
-			cells[0].title = CONSTS.mvarLookup[key].join("."); // e.g. ["OS/2","sxHeight"] -> "OS/2.sxHeight"
-			cells[1].value = 0;
-			cells[1].disabled = true;
-			cells[1].style.textAlign = "right";
-			cells[2].innerText = "+";
-			cells[2].style.textAlign = "center";
-			cells[3].value = 0;
-			cells[3].disabled = true;
-			cells[3].style.textAlign = "right";
-			cells[4].innerText = "=";
-			cells[4].style.textAlign = "center";
-			cells[5].value = 0;
-			cells[5].disabled = true;
-			cells[5].style.textAlign = "right";
+			row.style.gridTemplateColumns = "5% 15% 15% 5% 15% 5% 15%";
+			let cells = [EL("input"), EL("label"), EL("input"), EL("div"), EL("input"), EL("div"), EL("input")];
+			cells[0].type = "checkbox";
+			cells[0].checked = true;
+			cells[1].innerHTML = `<code>${key}</code>`;
+			cells[1].classList.add("tag");
+			cells[1].title = CONSTS.mvarLookup[key].join("."); // e.g. ["OS/2","sxHeight"] -> "OS/2.sxHeight"
+			cells[2].value = 0;
+			cells[2].disabled = true;
+			cells[2].style.textAlign = "right";
+			cells[2].classList.add("numeric");
+			cells[3].innerText = "+";
+			cells[3].style.textAlign = "center";
+			cells[4].value = 0;
+			cells[4].disabled = true;
+			cells[4].style.textAlign = "right";
+			cells[4].classList.add("numeric");
+			cells[5].innerText = "=";
+			cells[5].style.textAlign = "center";
+			cells[6].value = 0;
+			cells[6].disabled = true;
+			cells[6].style.textAlign = "right";
+			cells[6].classList.add("numeric");
 			row.append(...cells);
 			panel.append(row);
+
+			// checkbox toggle
+			cells[0].onchange = e => {
+				updateGlyphSVG(GLOBAL.currentGlyphId);
+			}
 		})
 	}
 	else {
@@ -1845,8 +1856,8 @@ function updateDesignSpaceMoved(e) {
 	y = 1-y/180;
 
 	// update the visual designspace location lines
-	Q("#svgXVal").setAttributeNS(null, "d", `M${x} -1 V1`);
-	Q("#svgYVal").setAttributeNS(null, "d", `M-1 ${y} H1`);
+	Q("#svgXVal").attr({ d: `M${x} -1 V1` });
+	Q("#svgYVal").attr({ d: `M-1 ${y} H1` });
 
 	// initialize tuple
 	let tuple = [];
@@ -1979,14 +1990,14 @@ function axesUpdateValues () {
 		Object.keys(font.mvar.items).forEach((key, k) => {
 			const
 				index = font.mvar.items[key],
-				keyLookup = CONSTS.mvarLookup[key],
-				original = font.tables[keyLookup[0]].data[keyLookup[1]]; // needs error-checking
+				[tableName, fieldName] = CONSTS.mvarLookup[key],
+				original = font.tables[tableName].data[fieldName]; // needs error-checking
 			
 			if (original !== undefined) {
 				const updated = original + deltas[index[0]][index[1]];
 
 				// update the values in the correct <li> element in the MVAR panel
-				const inputs = rows[k].querySelectorAll("input");
+				const inputs = rows[k].querySelectorAll("input.numeric");
 				inputs[0].value = original;
 				inputs[1].value = deltas[index[0]][index[1]];
 				inputs[2].value = updated;
@@ -2045,7 +2056,7 @@ function buildDesignspace() {
 	let svgXYAxes, svgXVal, svgYVal;
 	let scale = 360/2; // 360 is the width & height of the cartesian space in px, 2 is the width & height of the cartesian space in normalized units (-1 to +1)
 	svg.attr({width: 360, height: 360});
-	svgg.setAttributeNS(null, "transform", `translate(180,180) scale(${scale},-${scale})`); // TODO: rewrite this with a viewBox on the parent SVG
+	svgg.attr({ transform: `translate(180,180) scale(${scale},-${scale})` }); // TODO: rewrite this with a viewBox on the parent SVG
 
 	// feature variations layer
 	let svgFV = SVG("g");
@@ -2118,8 +2129,8 @@ function updateDesignspace() {
 	if (yAxes.length == 1)
 		y = GLOBAL.tuple[yAxes[0].value * 1]; // yAxes[0] is the only one checked
 
-	Q("#svgXVal").setAttributeNS(null, "d", `M${x} -1 V1`);
-	Q("#svgYVal").setAttributeNS(null, "d", `M-1 ${y} H1`);
+	Q("#svgXVal").attr({ d: `M${x} -1 V1` });
+	Q("#svgYVal").attr({ d: `M-1 ${y} H1` });
 }
 
 function panelSTAT_handleChange(fvs) {
@@ -2279,7 +2290,7 @@ function updateGlyphsPanel(instance) {
 
 			let svgg = SVG("g");
 			svgg.id = `g${glyph.id}`;
-			svgg.setAttributeNS(null, "transform", `translate(20,60) scale(${scale},-${scale})`);
+			svgg.attr({ transform: `translate(20,60) scale(${scale},-${scale})` });
 			
 			// decompose/instantiate this glyph
 			let iglyph;
@@ -2498,7 +2509,7 @@ function updateTvts (glyph, iglyph) {
 			let svgg = SVG("g");
 
 			tvtGraph.attr({width: 50, height: 21});
-			svgg.setAttributeNS(null, "transform", `translate(20,20) scale(1,-1)`);
+			svgg.attr({ transform: `translate(20,20) scale(1,-1)` });
 
 			// draw a graph through start, peak, end for each axis
 			let Sx = 20, Sy = 20; // x and y scales
@@ -2761,16 +2772,11 @@ function updateGlyphSVG (g, instance) {
 		g = 0;
 	g *= 1;
 
-	GLOBAL.currentGlyphId = g; // hmm, should be part of the font, not GLOBAL … TODO: check g < numGlyphs
+	GLOBAL.currentGlyphId = g;
 	let glyph = font.glyphs[g];
 
-
 	if (instance) {
-		GLOBAL.tuple = [];
-		instance.tuple.forEach((v,i) => {
-			GLOBAL.tuple[i] = v; // deep copy
-		})
-		//GLOBAL.tuple = instance.tuple; // hmm, shallow copy should be ok, because it won’t be garbage collected
+		GLOBAL.tuple = [...instance.tuple];
 	}
 
 	// FeatureVariations?
@@ -2781,7 +2787,6 @@ function updateGlyphSVG (g, instance) {
 		if (substituteGlyphId !== undefined)
 			glyph = font.glyphs[substituteGlyphId];		
 	}
-
 
 
 	let iglyph = glyph.instantiate(GLOBAL.tuple);
@@ -2807,7 +2812,7 @@ function updateGlyphSVG (g, instance) {
 		height: drawingEl.clientHeight,
 		style: `background-color: ${ui.glyphDefault.backgroundColor};`,
 	});
-	svgg.setAttributeNS(null, "transform", `translate(130,500) scale(${scale},-${scale})`);
+	svgg.attr({ transform: `translate(130,500) scale(${scale},-${scale})` });
 
 	// define radial gradient for quadratic tangents (only if tangents are active)
 	if (Q("#point-tangents").checked && ui.tangent && ui.tangent.color) {
@@ -2875,42 +2880,37 @@ function updateGlyphSVG (g, instance) {
 					});
 					if (ui.metrics.dashArray) {
 						let dashStr = "";
-						ui.metrics.dashArray.forEach(dash => {
-							dashStr += `${dash*uiScale} `;
-						});
-						svgPath.attr({
-							"stroke-dasharray": dashStr,
-						});
+						ui.metrics.dashArray.forEach(dash => dashStr += `${dash*uiScale} ` );
+						svgPath.attr({ "stroke-dasharray": dashStr });
 					}
 					svgg.append(svgPath);
 
 					// sxHeight, sTypoAscender, sTypoDescender, sCapHeight, yStrikeoutPosition
-					// TODO: add UI toggles to switch these on/off individually
 					["xhgt", "hasc", "hdsc", "cpht", "stro"].forEach(tag => {
-						const lookup = CONSTS.mvarLookup[tag];
-						const metric = font.tables[lookup[0]].data[lookup[1]]; // all fonts should have these values (if they have OS/2, hhea, vhea, post)
-						let delta=0, mvarItem;
+						const
+							lookup = CONSTS.mvarLookup[tag],
+							metric = font.tables[lookup[0]].data[lookup[1]]; // all fonts should have these values (if they have OS/2, hhea, vhea, post)
 
+						let delta=0, mvarItem;
 						if (font.mvar && (mvarItem = font.mvar.items[tag])) {
 							delta = mvarDeltas[mvarItem[0]][mvarItem[1]]; // get the interpolated MVAR delta from the array we generated above
-						}
 
-						svgPath = SVG("path");
-						svgPath.attr({
-							d: `M-10000 ${metric + delta} H10000`,
-							stroke: ui.metrics.stroke,
-							"stroke-width": ui.metrics.strokeWidth * uiScale,
-						});
-						if (ui.metrics.dashArray) {
-							let dashStr = "";
-							ui.metrics.dashArray.forEach(dash => {
-								dashStr += `${dash*uiScale} `;
-							});
-							svgPath.attr({
-								"stroke-dasharray": dashStr,
-							});
+							let checkbox = Q(`#panel-mvar li[data-tag=${tag}] input[type=checkbox]`); // only draw the metric if its checkbox is checked
+							if (checkbox.checked) {
+								svgPath = SVG("path");
+								svgPath.attr({
+									d: `M-10000 ${metric + delta} H10000`,
+									stroke: ui.metrics.stroke,
+									"stroke-width": ui.metrics.strokeWidth * uiScale,
+								});
+								if (ui.metrics.dashArray) {
+									let dashStr = "";
+									ui.metrics.dashArray.forEach(dash => dashStr += `${dash*uiScale} ` );
+									svgPath.attr({ "stroke-dasharray": dashStr });
+								}
+								svgg.append(svgPath);
+							}
 						}
-						svgg.append(svgPath);
 					});
 				}
 				break;
