@@ -3203,7 +3203,6 @@ function SamsaFont (init, config) {
 			ivs = {
 			ivds: [],
 			regions: [],
-			//scalars: [], // the scalars (each in the range [0.0,1.0]) are recalculated each time the instance coordinates change, derived from regions and instance coordinates via variation math; there is one scalar per region
 		};
 
 		const
@@ -3211,7 +3210,6 @@ function SamsaFont (init, config) {
 			regionListOffset = data.getUint32(p+2),
 			ivdCount = data.getUint16(p+6);
 
-		
 		p += 8;
 
 		// get ivd offsets
@@ -3236,8 +3234,6 @@ function SamsaFont (init, config) {
 		}
 
 		// process each ivd subtable in the ivs
-		// TODO MAYBE: facilitate making this work if we do not want to decode the whole ItemVariationStore, so diving into just one value
-		// - probably move this to the getOffsetForDataItem function, so it works simialrly to Akiem’s example
 		for (let i=0; i<ivdCount; i++) {
 			p = pStart + ivdOffsets[i]
 			let ivd = {
@@ -3250,7 +3246,7 @@ function SamsaFont (init, config) {
 				regionCount = data.getUint16(p+4),
 				wordDeltaCount = ivd.wordDeltaCount & 0x7fff,
 				longWords = ivd.wordDeltaCount & 0x8000;
-			p += 6
+			p += 6;
 
 			// assign the regions to the ivd according their indices into the main region list
 			for (r=0; r<regionCount; r++) {
@@ -3259,7 +3255,7 @@ function SamsaFont (init, config) {
 			p += 2*regionCount;
 
 			// each deltaSet needs one delta value per region
-			// long case: int32, int16 (“The LONG_WORDS flag should only be used in top-level tables that include 32-bit values that can be variable — currently, only the COLR table.”)
+			// “The LONG_WORDS flag should only be used in top-level tables that include 32-bit values that can be variable — currently, only the COLR table.”
 			let inc;
 
 			// define long and short getters, depending on longWords
