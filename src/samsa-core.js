@@ -1915,7 +1915,7 @@ function SamsaFont (init, config) {
 							const
 								axisIdxMapOffset = data.getUint32(p),
 								ivsOffset = data.getUint32(p+4);
-							table.axisIndexMap = this.deltaSetIndexMapDecode(data, axisIdxMapOffset); // get axisIndexMap
+							table.axisIndexMap = this.parseDeltaSetIndexMap(data, axisIdxMapOffset); // get axisIndexMap
 							table.ivs = this.parseItemVariationStore(data, ivsOffset); // get the itemVariationStore
 						}
 					}
@@ -3559,8 +3559,7 @@ function SamsaFont (init, config) {
 
 
 	// process ItemVariationStore to get scalars for an instance (including avar2)
-	// - the scalars[n]  array contains a scalar for each region, and regions.length == scalars.length
-	// - we should therefore keep the indirection, thus use regionId in ivd pointing into the ivs regionList, then we can just look up scalars[regionId]
+	// - the returned scalars[n] array contains a scalar for each region (therefore regions.length == scalars.length)
 	this.getVariationScalars = (regions, tuple) => {
 		const scalars = [], axisCount = regions[0].length;
 	
@@ -3596,11 +3595,11 @@ function SamsaFont (init, config) {
 		return scalars;
 	}
 	
-	// decoder for variationIndexMap
+	// parser for variationIndexMap
 	// - converts a compressed binary into an array of outer and inner values
 	// - each element in the returned array is an array of 2 elements made of [outer, inner]
 	// - deltaSetIndexMaps are always 0-based, so do not omit any items
-	this.deltaSetIndexMapDecode = (buf, p=0) => {
+	this.parseDeltaSetIndexMap = (buf, p=0) => {
 
 		let mapping = [];
 		let format, entryFormat, mapCount, itemSize, innerBitCount;
