@@ -925,15 +925,17 @@ function vfLoaded (font) {
 		});
 		uiModeHTML += `</select><br>`;
 		panel.innerHTML += uiModeHTML;
-		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">δ₀…δₙ₋₁</label>`;
+		panel.innerHTML += `<input id="arrows-split" class="ui-arrows" type="checkbox" checked><label for="arrows-split">Split deltas</label>`; // I prefer δ₀…δₙ₋₁ but was outvoted https://twitter.com/axis_praxis/status/1579470938667876352
 		panel.innerHTML += "&nbsp;";
-		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">Σ(δ₀…δₙ₋₁)</label>`;
+		panel.innerHTML += `<input id="arrows-total" class="ui-arrows" type="checkbox"><label for="arrows-total">Total deltas</label>`; // I prefer Σ(δ₀…δₙ₋₁)
 		panel.innerHTML += "&nbsp;";
-		panel.innerHTML += `<input id="point-numbers" class="ui-arrows" type="checkbox"><label for="point-numbers"><em>p</em>₀…<em>p</em>ₙ₋₁</label>`;
+		panel.innerHTML += `<input id="point-numbers" class="ui-arrows" type="checkbox"><label for="point-numbers">Point numbers</label>`; // I prefer p₀…pₙ₋₁
 		panel.innerHTML += "&nbsp;";
 		panel.innerHTML += `<input id="point-tangents" class="ui-arrows" type="checkbox" checked><label for="point-tangents">Tangents</label>`;
+		/*
 		panel.innerHTML += "&nbsp;";
 		panel.innerHTML += `<input id="metrics" class="ui-arrows" type="checkbox" checked><label for="metrics">Metrics</label>`;
+		*/
 
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
 		Q("#ui-mode").value = font.config.ui.name;
