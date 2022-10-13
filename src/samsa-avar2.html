@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+<title>avar2 inspector: visualizing what happens inside the avar table, version 2.0</title>
+<link rel="shortcut icon" href="images/favicon.png">
+
+<script src="samsa-core.js"></script>
+
+<style>
+	@font-face {
+		font-family: IBMPlexVariable;
+		src: url(fonts/ui/IBMPlexSansVar-Roman.woff2) format("woff2");
+		font-weight: 100 700;
+		font-stretch: 85 100;
+	}
+
+	@font-face {
+		font-family: IBMPlexVariable;
+		src: url(fonts/ui/IBMPlexSansVar-Italic.woff2) format("woff2");
+		font-style: italic;
+		font-weight: 100 700;
+		font-stretch: 85 100;
+	}
+
+	:root {
+		font-family: IBMPlexVariable;
+		font-size: 17px;
+	}
+
+	#axes input[type=range] {
+		width: 98%; /* helps it line up with the SVG range UI */
+	}
+
+	#axes input[type=range] .polyfill {
+		
+	}
+
+	main {
+		display: grid;
+		grid-template-columns: 450px 1fr;
+	}
+
+	#drag-drop-zone {
+		position: relative;
+		_background-color: lightgreen;
+		height: 4em;
+		border-radius: 4px;
+		margin-bottom: 10px;
+	}
+
+	#file-upload-input {
+		_font-size: 60px;
+	}
+
+	#drag-drop-zone00>#file-upload-input {
+		position: absolute;
+		left: 0;
+		top: 0;
+		_width: 100%;
+		_height: 100%;
+		width: 100%;
+		height: 16em; /* weird, if I use 100% and the browser is zoomed out, I cannot drop the file) */
+		height: 100%;
+		opacity: 0.5;		
+		background-color: green;
+		_z-index: 100;
+	}
+	
+	#axes {
+		display: grid;
+		grid-template-rows: 1fr;
+		gap: 10px;
+	}
+	
+	.axis {
+		border: 1px solid #111;
+		background-color: #eee;
+		border-radius: 4px;
+	}
+
+	.axis h2 {
+		grid-column: 1 / 4;
+		margin: 0px !important;
+	}
+
+	.axis {
+		display: grid;
+		grid-template-columns: 50px 50px 1fr;
+	}
+
+	.axis>*:nth-child(3n+4) {
+		text-align: center;
+		width: 100%;
+	}
+
+	#axes>div:nth-child(3n+2) {
+		background-color: #eee;
+	}
+
+	.norm-graph {
+		_border: 1px solid red;
+	}
+
+	.render-test {
+		border: 1px solid black;
+	}
+
+	.rendering {
+		font-size: 360px;
+		color: lightgrey;
+	}
+
+</style>
+
+</head>
+
+<body>
+
+	<header>
+		<h1>Samsa inspector/polyfill for avar v2</h1>
+	</header>
+
+	<main>
+
+	<div id="left-column">
+		<input id="file-upload-input" type="file">
+		<div id="ui-control">
+			<label for="show-normalized">show normalized</label><input type="checkbox" id="show-normalized" class="ui-toggle">&nbsp;
+			<label for="show-avar1">show avar1</label><input type="checkbox" id="show-avar1" class="ui-toggle">
+		</div>
+		<div id="axes"></div>
+	</div>
+
+	<div id="rendering-area">
+
+		<button id="reset-axes">Reset all axes to default</button>
+		<button id="about">About</button>
+
+		<div class="render-test with-polyfill">
+			<h2>With polyfill</h2>
+			<div>font-variation-settings: <span class="font-variation-settings"></span></div>			
+			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
+		</div>
+
+		<div class="render-test without-polyfill">
+			<h2>Without polyfill</h2>
+			<div>font-variation-settings: <span class="font-variation-settings"></span></div>
+			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
+		</div>
+
+	</div>
+
+	</main>
+</body>
+
+<script>
+
+	// global
+	let GLOBAL = {}
+
+	// shorthands
+	function Q (selector) {
+		return document.querySelector(selector)
+	}
+
+	function Qall (selector) {
+		return document.querySelectorAll(selector)
+	}
+
+	function EL (tag, attrs) {
+		let el = document.createElement(tag)
+		el.attr(attrs)
+		return el
+	}
+
+	function SVG (tag, attrs) {
+		let el = document.createElementNS("http://www.w3.org/2000/svg", tag)
+		el.attr(attrs)
+		return el
+	}
+
+	Element.prototype.attr = function (attrs) {
+		for (const prop in attrs) {
+			this.setAttributeNS(null, prop, attrs[prop])
+		}
+	}
+
+	function setNeedle(needle, value) {
+		needle.attr({transform: "translate(-0.5 0)"})
+	}
+
+
+	function addUIAxis (axis) {
+		const axesDiv = Q("#axes")
+
+		// create axis div
+		const axisDiv = EL("div")
+		axisDiv.classList.add("axis")
+		axisDiv.dataset.axisId = axis.id
+		const heading = EL("h2")
+		heading.textContent = axis.tag
+		axisDiv.append(heading)
+		const normClasses = ["initial", "avar1", "avar2", "polyfill"]
+		const rows = []
+		
+		// input slider
+		rows.push({
+			label: "input",
+			visual: EL("input", {type: "range", min: axis.min, max: axis.max, value: axis.default, step: 0.00001}),
+			numeric: EL("input"),
+			class: "axis-input",
+		})
+		
+		normClasses.forEach(normClass => {
+			const
+				svgEl = SVG("svg", {
+					width: "100%",
+					height: "10",
+					viewBox: "-1.025 0 2.05 1",
+					preserveAspectRatio: "none",
+					transform: "scale(1, -1)",
+				}),
+				g = SVG("g", {transform: "translate(0 1), scale(1 -1)"}),
+				needle = SVG("path", {d: "M0 1L0.02 0 L-0.02 0Z", fill: "red", class: `needle ${normClass}`}),
+				grid = SVG("path", {d: "M0 0 L0 1 L1 1 L1 0 L-1 0 L-1 1 L0 1", fill: "none", stroke: "grey", "vector-effect": "non-scaling-stroke"})
+
+			g.append(grid, needle)
+			svgEl.append(g)
+
+			rows.push({
+				label: normClass,
+				visual: svgEl,
+				numeric: EL("input", {disabled: "disabled", class: normClass}),
+				class: normClass,
+			})
+		})
+
+		// polyfill slider
+		rows.push({
+			label: "polyfill",
+			visual: EL("input", {type: "range", min: axis.min, max: axis.max, value: 0, step: 0.00001, disabled: "disabled"}),
+			numeric: EL("input", {disabled: "disabled"}),
+			class: "axis-polyfill",
+		})
+
+		// now we have all the rows, set up defaults and add event listeners
+		rows.forEach(row => {
+			let labelEl = EL("label")
+			labelEl.textContent = row.label
+			labelEl.classList.add(row.class)
+
+			if (row.class) {
+				row.numeric.classList.add(row.class)
+				row.visual.classList.add(row.class)
+			}
+
+			if (row.class == "axis-input") {
+				row.visual.addEventListener("input", e => {
+					const uiAxis = e.target.closest(".axis")
+					let axisId = parseInt(uiAxis.dataset.axisId)
+					uiAxis.querySelector("input.axis-input:not([type=range])").value = e.target.value
+					GLOBAL.tuples.user[axisId] = parseFloat(e.target.value)
+					updateFVS()
+				})
+				row.numeric.addEventListener("input", e => {
+					const uiAxis = e.target.closest(".axis")
+					let axisId = parseInt(uiAxis.dataset.axisId)
+					uiAxis.querySelector("input.axis-input[type=range]").value = e.target.value
+					GLOBAL.tuples.user[axisId] = parseFloat(e.target.value)
+					updateFVS()
+				})
+			}
+
+			if (row.label == "input")
+				row.numeric.value = axis.default
+			const visualDiv = EL("div")
+			visualDiv.classList.add(row.class)
+			visualDiv.append(row.visual)
+			axisDiv.append(labelEl, row.numeric, visualDiv)
+		})
+
+		axesDiv.append(axisDiv)
+	}
+
+	function updateFVS() {
+
+		const
+			fvs = [],
+			fvsPolyfill = [],
+			uiAxes = Qall(".axis")
+
+		GLOBAL.vf.axes.forEach((axis, a) => {
+
+			const value = GLOBAL.tuples.user[a]
+			fvs.push(`'${axis.tag}' ${value}`)
+
+			GLOBAL.tuples.initial[a] = GLOBAL.vf.axisNormalize(axis, value, 0x00) // simple normalization without avar
+			GLOBAL.tuples.avar1[a] = GLOBAL.vf.axisNormalize(axis, value, 0x01) // avar1 normalization
+		})
+
+		// get avar2 tuple
+		GLOBAL.tuples.avar2 = GLOBAL.vf.tupleToFinalTuple(GLOBAL.tuples.avar1)
+
+		// get inverse of the avar2 tuple
+		GLOBAL.vf.axes.forEach((axis, a) => {
+			GLOBAL.tuples.polyfill[a] = denormTupleValue (GLOBAL.tuples.avar2, GLOBAL.vf, axis, false)
+			GLOBAL.tuples.userPolyfill[a] = denormTupleValue (GLOBAL.tuples.avar2, GLOBAL.vf, axis, true)
+		})
+
+		GLOBAL.vf.axes.forEach((axis, a) => {
+			const uiAxis = uiAxes[a]
+
+			// the 4 needles
+			;["initial", "avar1", "avar2", "polyfill"].forEach(row => { // the ";" is necessary to separate program lines
+			 	uiAxis.querySelector(`.needle.${row}`).attr({transform: `translate(${GLOBAL.tuples[row][a]} 0)`})
+			 	uiAxis.querySelector(`.axis input.${row}`).value = GLOBAL.tuples[row][a]
+			})
+
+			// the input sliders
+			uiAxis.querySelectorAll(".axis input.axis-input").forEach(el => el.value = GLOBAL.tuples.user[a]) // this potentially sets something that has just been dragged, but that’s ok
+
+			// the final output sliders
+			uiAxis.querySelectorAll(".axis input.axis-polyfill").forEach(el => el.value = GLOBAL.tuples.userPolyfill[a])
+			fvsPolyfill.push(`'${axis.tag}' ${GLOBAL.tuples.userPolyfill[a]}`)
+		})
+
+		// update renderings
+		Q(".without-polyfill .rendering").style.fontVariationSettings = 
+		Q(".without-polyfill .font-variation-settings").textContent = fvs.join() + ";"
+
+		Q(".with-polyfill .rendering").style.fontVariationSettings = 
+		Q(".with-polyfill .font-variation-settings").textContent = fvsPolyfill.join() + ";"	
+
+	}
+
+    Q("#file-upload-input").onchange = e => {
+		console.log(".drag-drop-zone: e.target = ", e.target)
+		const file = e.target.files[0]
+	    const reader = new FileReader()
+
+		// update UI
+		Q("#axes").innerHTML = ""
+		GLOBAL.vf = null
+		// would be polite to reset the font-family of the renderings		
+
+		// load the new thing
+	    reader.onload = function (e) {
+			console.log("onload!")
+
+			// webfont
+	    	const
+				family = `DRAGDROP-${file.name}`,
+	    		name = file.name.replace(/\.ttf$/, "")
+			newFont({name: name, family: family, src: this.result, filename: file.name})
+
+			//samsa stuff
+			let samsaFont = new SamsaFont({
+				arrayBuffer: this.result,
+				callback: vfLoaded,
+			})			
+		}
+
+		reader.readAsArrayBuffer(file)
+	}
+
+	Qall(".ui-toggle").forEach(el => el.onchange = e => {
+		console.log(e.target.id)
+		updateUIVisibility()
+	})
+
+	function updateUIVisibility() {
+		let visibilityA = Q("#show-avar1").checked
+		let visibilityN = Q("#show-normalized").checked
+		
+		console.log (visibilityN)
+
+		if (visibilityN) {
+			Q("#show-avar1").disabled = false
+			if (visibilityA) {
+				Qall(".initial, .avar1, .avar2, .polyfill").forEach(el => el.style.display = "inline")
+			}
+			else {
+				Qall(".initial, .avar2").forEach(el => el.style.display = "inline")
+				Qall(".avar1, .polyfill").forEach(el => el.style.display = "none")
+			}
+		}
+		else {
+			Qall(".initial, .avar1, .avar2, .polyfill").forEach(el => el.style.display = "none")
+			Q("#show-avar1").disabled = true
+		}
+	}
+
+	function vfLoaded(font) {
+		console.log("vfLoaded")
+		console.log(font.axes)
+
+		// assign globals
+		GLOBAL.vf = font
+		GLOBAL.tuples = {
+			user: [],
+			initial: [],
+			avar1: [],
+			avar2: [],
+			polyfill: [],
+			userPolyfill: [],
+		}
+
+		// add the UI axes
+		font.axes.forEach((axis,a) => {
+			addUIAxis(axis)
+			GLOBAL.tuples.user[a] = axis.default
+		})
+
+		console.log(font.avar)
+		updateFVS()
+		updateUIVisibility()
+	}
+
+	function newFont(font) {
+
+		let filename = font.filename || "";
+		if (typeof font.src == "string") {
+			let match = font.src.match(/(\/|\()([^/(]+)\)$/)
+			filename = match[2]
+		}
+
+		console.log("typeof font.src: ", typeof font.src)
+		
+
+		// set up the webfont
+		//let family = font.family || "DEFAULT-" + font.name
+		let family = font.family || "DEFAULT" + font.name
+		let webfontFace = new FontFace(family, font.src)
+
+		console.log("-------------------------------------------------------------")
+		console.log(filename)
+		console.log(webfontFace.family)
+		console.log(font.src)
+		webfontFace.load().then(webfontFace => {
+			document.fonts.add(webfontFace)
+			Qall("#rendering-area .rendering").forEach(el => {
+				el.style.fontFamily = `"${webfontFace.family}", AdobeBlank`
+				el.style.color = "black"
+			})
+		})
+	}
+
+	function denormTupleValue (tuple, font, axis, toUser = true) {
+
+		let tup = []
+		let a = axis.id
+		let n = tuple[a]
+
+		// avar1 denormalization
+		if (font.avar && font.avar.axisSegmentMaps && font.avar.axisSegmentMaps[a]) {
+
+			const map = font.avar.axisSegmentMaps[a]
+			
+			for (let m=0; m<map.length; m++) {
+
+				if (map[m][1] >= n) {
+					if (map[m][1] == n) {
+						n = map[m][0]; // covers the -1, 0 and +1 cases (and, I think, the many to one mappings)
+					}
+					else {
+						if (map[m][1] == map[m-1][1])
+							n = map[m-1][0];
+						else
+							n = map[m-1][0] + (map[m][0] - map[m-1][0]) * ( ( n - map[m-1][1] ) / ( map[m][1] - map[m-1][1] ) )
+					}
+					break;
+				}
+			}
+		}
+
+		// basic denormalization
+		if (toUser) {
+			let user = axis.default
+			if (n > 0)
+				user += (axis.max - axis.default) * n;
+			else if (n < 0)
+				user += (axis.default - axis.min) * n;
+
+			return user
+		}
+		else {
+			return n
+		}
+	}
+
+	function resetAllAxes () {
+		if (GLOBAL.vf) {
+			GLOBAL.vf.axes.forEach((axis,a) => {
+				GLOBAL.tuples.user[a] = axis.default
+			})
+		}
+		updateFVS()
+	}
+
+	// press a button button 
+	Q("#reset-axes").onclick = () => resetAllAxes()
+	Q("#about").onclick = () => alert("samsa-avar2 is an app for testing fonts with an avar 2.0 table.\n\nEach variation axis in the font is shown with 2 sliders, both initially set to the default axis value. The upper axis is the input controlled by the user. The lower axis is the effective axis value after transformation by structures in the avar 2.0 table. Each updated (lower) axis value is potentially affected by the input (upper) positions of all axes (including itself). In this way, one axis can update the locations of multiple axes, and axes can work together to make easy journeys through designspace that were previously almost impossible.\n\nTo see the intermediate steps in the transformation of axis values, click the “show normalized” checkbox.\n\nThe font samples on the right show the same font with modified axis values (top) and unmodified axis values (bottom) — this therefore constitutes a polyfill for avar 2.0 in current [2022-10] browsers.\n\n[In browsers supporting avar 2.0 (none exist as of 2022-10), the lower sample will show the correct instance, and the upper one will be useless.]\n\nThe app is preloaded with a special build of Amstelvar, where the wght, wdth and opsz axes drive the parametric axes — so try those three and see how the other axes change values. Try the app on your own font with the “Choose font” button.\n\nWritten by Laurence Penney in 2022 using new avar 2.0-related methods added to Samsa (2019–2022).")
+
+
+	// main program
+
+	// load Amstelvar
+	const defaultFont = {
+		name: "Amstelvar-avar2",
+		url: "fonts/avar2/Amstelvar-avar2.ttf",
+	}
+
+	let samsaFont = new SamsaFont({
+		fontFamily: defaultFont.name,
+		url: defaultFont.url,
+		filename: defaultFont.url.split(/\//g).pop(),
+		callback: vfLoaded,
+	})
+
+	// this is sort of the same as newFont()
+	let webfontFace = new FontFace(defaultFont.name, "url(fonts/avar2/Amstelvar-avar2.ttf)")
+	webfontFace.load().then(webfontFace => {
+		document.fonts.add(webfontFace)
+		Qall("#rendering-area .rendering").forEach(el => {
+			el.style.fontFamily = `"${webfontFace.family}", AdobeBlank`
+			el.style.color = "black"
+		})
+	})
+
+</script>
+
+
+</html>
