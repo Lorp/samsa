@@ -327,11 +327,11 @@
 		})
 
 		// update renderings
-		Q(".without-polyfill .rendering").style.fontVariationSettings = 
-		Q(".without-polyfill .font-variation-settings").textContent = fvs.join() + ";"
+		Q(".without-polyfill .font-variation-settings").textContent =
+		(Q(".without-polyfill .rendering").style.fontVariationSettings = fvs.join()) + ";"
 
-		Q(".with-polyfill .rendering").style.fontVariationSettings = 
-		Q(".with-polyfill .font-variation-settings").textContent = fvsPolyfill.join() + ";"	
+		Q(".with-polyfill .font-variation-settings").textContent = 
+		(Q(".with-polyfill .rendering").style.fontVariationSettings = fvsPolyfill.join()) + ";"
 
 	}
 
