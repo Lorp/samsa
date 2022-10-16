@@ -140,13 +140,13 @@
 
 		<div class="render-test with-polyfill">
 			<h2>With polyfill</h2>
-			<div>font-variation-settings: <span class="font-variation-settings"></span></div>			
+			<div>font-variation-settings: <span class="font-variation-settings"></span>;</div>
 			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
 		</div>
 
 		<div class="render-test without-polyfill">
 			<h2>Without polyfill</h2>
-			<div>font-variation-settings: <span class="font-variation-settings"></span></div>
+			<div>font-variation-settings: <span class="font-variation-settings"></span>;</div>
 			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
 		</div>
 
@@ -334,10 +334,10 @@
 
 		// update renderings
 		Q(".without-polyfill .font-variation-settings").textContent =
-		(Q(".without-polyfill .rendering").style.fontVariationSettings = fvs.join()) + ";"
+		Q(".without-polyfill .rendering").style.fontVariationSettings = fvs.join()
 
 		Q(".with-polyfill .font-variation-settings").textContent = 
-		(Q(".with-polyfill .rendering").style.fontVariationSettings = fvsPolyfill.join()) + ";"
+		Q(".with-polyfill .rendering").style.fontVariationSettings = fvsPolyfill.join()
 
 	}
 
