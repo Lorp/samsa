@@ -45,6 +45,11 @@ There are many open source variable fonts to try in Samsa, including:
 * [Decovar](https://github.com/TypeNetwork/Decovar/) (1 VF, 15 axes)
 * many open source and trial fonts at [Axis-Praxis](https://www.axis-praxis.org) and [V-Fonts.com](https://v-fonts.com/)
 
+## Related apps & demps
+
+* [Samsa Polyfill Demo](https://lorp.github.io/samsa/src/samsa-polyfill.html) — [_documentation_](docs/samsa-polyfill.md)
+* [avar2 demo](https://lorp.github.io/samsa/src/samsa-avar2.html) — [_documentation_](docs/samsa-avar2.md)
+
 ## Background
 
 The Samsa project grew out of:

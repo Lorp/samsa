@@ -138,14 +138,14 @@
 		<button id="reset-axes">Reset all axes to default</button>
 		<button id="about">About</button>
 
-		<div class="render-test with-polyfill">
-			<h2>With polyfill</h2>
+		<div class="render-test without-polyfill">
+			<h2>Untransformed axis values</h2>
 			<div>font-variation-settings: <span class="font-variation-settings"></span>;</div>
 			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
 		</div>
 
-		<div class="render-test without-polyfill">
-			<h2>Without polyfill</h2>
+		<div class="render-test with-polyfill">
+			<h2>Transformed axis values (avar2 polyfill)</h2>
 			<div>font-variation-settings: <span class="font-variation-settings"></span>;</div>
 			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
 		</div>
@@ -507,7 +507,7 @@
 
 	// press a button button 
 	Q("#reset-axes").onclick = () => resetAllAxes()
-	Q("#about").onclick = () => alert("samsa-avar2 is an app for testing fonts with an avar 2.0 table.\n\nEach variation axis in the font is shown with 2 sliders, both initially set to the default axis value. The upper axis is the input controlled by the user. The lower axis is the effective axis value after transformation by structures in the avar 2.0 table. Each updated (lower) axis value is potentially affected by the input (upper) positions of all axes (including itself). In this way, one axis can update the locations of multiple axes, and axes can work together to make easy journeys through designspace that were previously almost impossible.\n\nTo see the intermediate steps in the transformation of axis values, click the “show normalized” checkbox.\n\nThe font samples on the right show the same font with modified axis values (top) and unmodified axis values (bottom) — this therefore constitutes a polyfill for avar 2.0 in current [2022-10] browsers.\n\n[In browsers supporting avar 2.0 (none exist as of 2022-10), the lower sample will show the correct instance, and the upper one will be useless.]\n\nThe app is preloaded with a special build of Amstelvar, where the wght, wdth and opsz axes drive the parametric axes — so try those three and see how the other axes change values. Try the app on your own font with the “Choose font” button.\n\nWritten by Laurence Penney in 2022 using new avar 2.0-related methods added to Samsa (2019–2022).")
+	Q("#about").onclick = () => alert("samsa-avar2 is an app for testing fonts with an avar 2.0 table.\n\nEach variation axis in the font is shown with 2 sliders, both initially set to the default axis value. The upper slider shows the input axis value controlled by the user. The lower slider is the effective axis value after transformation by structures in the avar 2.0 table. Each updated (lower) axis value is potentially affected by the input (upper) positions of all axes (including itself). In this way, one axis can update the locations of multiple axes, and axes can work together to make easy journeys through designspace that were previously almost impossible.\n\nTo see the intermediate steps in the transformation of axis values, click the “show normalized” checkbox.\n\nThe font samples on the right show the same font with unmodified axis values (top) and modified axis values (bottom) — this therefore constitutes a polyfill for avar 2.0 in current [2022-10] browsers.\n\n[In browsers supporting avar 2.0 (none exist as of 2022-10), the upper sample will show the correct instance, and the lower one will be useless.]\n\nThe app is preloaded with a special build of Amstelvar, where the wght, wdth and opsz axes drive the parametric axes — so try those three and see how the other axes change values. Try the app on your own font with the “Choose font” button.\n\nWritten by Laurence Penney in 2022 using new avar 2.0-related methods added to Samsa (2019–2022).")
 
 
 	// main program
