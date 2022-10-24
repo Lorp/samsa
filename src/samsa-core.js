@@ -3328,9 +3328,9 @@ function SamsaFont (init, config) {
 		// - axisId is given by index in axisIndexMap
 		// - note that some axes may not have avar2 transformations: they either have entry==[0xffff,0xffff] or their axisId is >= axisIndexMap.length
 		// - index identifies the value in the 2d array interpolatedDeltas (the same indexing that identifies the ivd and the deltaSet within the ivd)
-		this.avar.axisIndexMap.forEach((index, axisId) => {
-			if (index[0] != 0xffff && index[1] != 0xffff) {
-				tup[axisId] += clamp(Math.round(interpolatedDeltas[index[0]][index[1]]), -16384, 16384) / 16384;
+		this.avar.axisIndexMap.forEach((index, axisId) => { // remember axisIndexMap.length <= axisCount
+			if (index[0] != 0xffff && index[1] != 0xffff) { // if this entry is non-null... (hmm, might be nicer to have created a sparse array in the first place, skipping nulls and thus avoiding this check)
+				tup[axisId] = clamp(tup[axisId] + Math.round(interpolatedDeltas[index[0]][index[1]]) / 16384, -1, 1); // add the interpolated delta to tup[axisId], and clamp the result to [-1,1]
 			}
 		});
 		
