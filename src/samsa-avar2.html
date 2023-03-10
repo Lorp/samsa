@@ -128,12 +128,14 @@
 
 		<div class="render-test without-polyfill">
 			<h2>Untransformed axis values</h2>
+			<div><i>In avar2-supporting systems, this will appear as intended. In other systems it will look bad.</i></div>
 			<div>font-variation-settings: <span class="font-variation-settings"></span>;</div>
 			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
 		</div>
 
 		<div class="render-test with-polyfill">
 			<h2>Transformed axis values (avar2 polyfill)</h2>
+			<div><i>In all systems, this should appear as intended. The font’s avar2 table (if any) has been disabled and the JS polyfill is transforming the axes.</i></div>
 			<div>font-variation-settings: <span class="font-variation-settings"></span>;</div>
 			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
 		</div>
@@ -410,6 +412,7 @@
 		console.log(font.avar)
 		updateFVS()
 		updateUIVisibility()
+
 	}
 
 	function newFont(font) {
@@ -499,6 +502,7 @@
 
 
 	// main program
+	console.log("a")
 
 	// load Amstelvar
 	const defaultFont = {
@@ -517,11 +521,50 @@
 	let webfontFace = new FontFace(defaultFont.name, "url(fonts/avar2/Amstelvar-avar2.ttf)")
 	webfontFace.load().then(webfontFace => {
 		document.fonts.add(webfontFace)
-		Qall("#rendering-area .rendering").forEach(el => {
-			el.style.fontFamily = `"${webfontFace.family}", AdobeBlank`
-			el.style.color = "black"
-		})
+
+		let el = Q(".render-test.without-polyfill .rendering")
+		el.style.fontFamily = `"${webfontFace.family}", AdobeBlank`
+		el.style.color = "black"
+
+		// Qall("#rendering-area .rendering").forEach(el => {
+		// 	el.style.fontFamily = `"${webfontFace.family}", AdobeBlank`
+		// 	el.style.color = "black"
+		// })
+		console.log(`${webfontFace.family} loaded`)
 	})
+
+	// add the font again, this time with its avar table disabled!
+	
+	// load the url using fetch
+	fetch(defaultFont.url)
+		.then(response => response.arrayBuffer())
+		.then(arrayBuffer => {
+			// hack the avar table
+			let offset = 12 + samsaFont.tables.avar.id * 16 // this gets us to the 4-byte tag "avar" (we already parsed the identical font, so we know where the tag is)
+			let avarTableBuf = new DataView(arrayBuffer, offset)
+			avarTableBuf.setChar(avarTableBuf+3, "_") // replace the "avar" tag with "ava_"
+
+			// create a new font object
+			let font = new SamsaFont({
+				fontFamily: defaultFont.name + "-no-avar",
+				arrayBuffer: arrayBuffer,
+				callback: function () {
+
+					console.log ("in callback having loaded the font and disabled its avar table ")
+					let webfontFace = new FontFace("no-avar", arrayBuffer)
+					webfontFace.load().then(webfontFace => {
+						document.fonts.add(webfontFace)
+						let el = Q(".render-test.with-polyfill .rendering")
+						el.style.fontFamily = `"${webfontFace.family}", AdobeBlank`
+						//el.style.fontFamily = `Helvetica`
+						el.style.color = "black"
+						console.log ("loaded no-avar font")
+					})
+				},
+			})
+		})
+
+
 
 </script>
 
