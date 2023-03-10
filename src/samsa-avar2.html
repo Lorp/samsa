@@ -539,10 +539,13 @@
 	fetch(defaultFont.url)
 		.then(response => response.arrayBuffer())
 		.then(arrayBuffer => {
+
 			// hack the avar table
-			let offset = 12 + samsaFont.tables.avar.id * 16 // this gets us to the 4-byte tag "avar" (we already parsed the identical font, so we know where the tag is)
-			let avarTableBuf = new DataView(arrayBuffer, offset)
-			avarTableBuf.setChar(avarTableBuf+3, "_") // replace the "avar" tag with "ava_"
+			if (samsaFont.tables.avar) {
+				let offset = 12 + samsaFont.tables.avar.id * 16 // this gets us to the 4-byte tag "avar" (we already parsed the identical font, so we know where the tag is)
+				let avarTableBuf = new DataView(arrayBuffer, offset)
+				avarTableBuf.setChar(avarTableBuf+3, "_") // replace the "avar" tag with "ava_"
+			}
 
 			// create a new font object
 			let font = new SamsaFont({
