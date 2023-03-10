@@ -127,14 +127,14 @@
 		<button id="about">About</button>
 
 		<div class="render-test without-polyfill">
-			<h2>Untransformed axis values</h2>
-			<div><i>In avar2-supporting systems, this will appear as intended. In other systems it will look bad.</i></div>
+			<h2>Without avar2 polyfill</h2>
+			<div><i>In avar2-supporting systems, this will appear as intended thanks to system transformation of axis values. In other systems it will look bad.</i></div>
 			<div>font-variation-settings: <span class="font-variation-settings"></span>;</div>
 			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
 		</div>
 
 		<div class="render-test with-polyfill">
-			<h2>Transformed axis values (avar2 polyfill)</h2>
+			<h2>With avar2 polyfill</h2>
 			<div><i>In all systems, this should appear as intended. The font’s avar2 table (if any) has been disabled and the JS polyfill is transforming the axes.</i></div>
 			<div>font-variation-settings: <span class="font-variation-settings"></span>;</div>
 			<div class="rendering" contentEditable="true">Hamburgerfonts</div>
