@@ -519,6 +519,7 @@
 
 	// this is sort of the same as newFont()
 	let webfontFace = new FontFace(defaultFont.name, "url(fonts/avar2/Amstelvar-avar2.ttf)")
+
 	webfontFace.load().then(webfontFace => {
 		document.fonts.add(webfontFace)
 
@@ -535,8 +536,16 @@
 
 	// add the font again, this time with its avar table disabled!
 	
-	// load the url using fetch
-	fetch(defaultFont.url)
+	// load the url using fetch, first ensuring no-cache
+	let myHeaders = new Headers();
+	myHeaders.append('pragma', 'no-cache');
+	myHeaders.append('cache-control', 'no-cache');
+	let myInit = {
+  		method: 'GET',
+  		headers: myHeaders,
+	};
+
+	fetch(defaultFont.url, myInit)
 		.then(response => response.arrayBuffer())
 		.then(arrayBuffer => {
 
