@@ -147,11 +147,10 @@
 
 <script>
 
-	// Firefox warning
-	if (navigator.userAgent.includes("Firefox")) {
-		alert ("WARNING: This app does not work in Firefox. The Chrome, Safari and Edge browsers should work fine.\n\nFirefox has an issue with fonts that contain a non-standard avar table. Click OK to proceed anyyway.")
+	// non-Chrome warning
+	if (!navigator.userAgent.includes("Chrome")) {
+		alert ("WARNING: This app does not work in Firefox and has issues in Safari. Chrome and Edge should work fine.\n\nClick OK to proceed anyyway.")
 	}
-
 
 	// global
 	let GLOBAL = {}
