@@ -3853,9 +3853,15 @@ Q("#string-filter").addEventListener("input", e => {
 	let filter = Q("#string-filter").value;
 	let glyphIds = [];
 
-	for (let c=0; c<filter.length; c++){
+	// replace "U+NNNN", "uNNNN", "&#xNNNN;" (hex), "&#NNNN;" (dec)  with actual characters
+	filter = filter.replace(/U\+([0-9a-fA-F]{4,5})/g, (match, p1) => String.fromCodePoint(parseInt(p1, 16))); // U+20ac
+	filter = filter.replace(/u([0-9a-fA-F]{4,5})/g, (match, p1) => String.fromCodePoint(parseInt(p1, 16))); // u20ac
+	filter = filter.replace(/\&#x([0-9a-fA-F]{1,5});/g, (match, p1) => String.fromCodePoint(parseInt(p1, 16))); // &#x20ac;
+	filter = filter.replace(/\&#([0-9]{1,5});/g, (match, p1) => String.fromCodePoint(parseInt(p1))); // &#8364;
+
+	for (let c=0; c<filter.length; c++) {
 		let uni = filter.charCodeAt(c);
-		glyphIds.push(GLOBAL.vf.cmap[uni]);
+		glyphIds.push(GLOBAL.vf.cmap[uni]); // this is not 21-bit safe
 	}
 
 	for (let g=0; g<glyphThumbs.length; g++) {
