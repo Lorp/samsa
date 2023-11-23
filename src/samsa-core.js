@@ -1202,7 +1202,7 @@ SamsaGlyph.prototype.svg = function (style={}) {
 	          + (style.fill ? ` fill="${style.fill}"` : "")
 	          + (style.stroke ? ` stroke="${style.stroke}"` : "")
 	          + (style.strokeWidth ? ` stroke-width="${style.strokeWidth}"` : "");
-	return `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="1000" height="1000">
+	return `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="${this.font.unitsPerEm}" height="${this.font.unitsPerEm}">
 	<g${style.transform ? ` transform="${style.transform}"` : ""}>
 		<path d="${this.svgPath()}"${extra}></path>
 	</g>
