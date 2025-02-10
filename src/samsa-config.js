@@ -11,6 +11,8 @@
 // - data URLs need a filename parameter
 // - on optional preload parameter forces that font to be loaded when the app starts (only one font can be preloaded)
 
+const CONFIG = {};
+
 CONFIG.fontList = [
 
 	{
@@ -105,3 +107,5 @@ CONFIG.panels = [
 	{id: "panel-about", side: "left"},
 	{id: "panel-glyphs", side: "right"},
 ];
+
+export { CONFIG };

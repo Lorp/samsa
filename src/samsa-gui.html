@@ -5,9 +5,6 @@
 <meta charset="utf-8">
 <title>Samsa: Variable Font Inspector</title>
 <link rel="shortcut icon" href="images/favicon.png">
-
-<script src="samsa-core.js"></script>
-
 <link rel="stylesheet" type="text/css" href="samsa-gui.css"/>
 </head>
 
@@ -161,13 +158,18 @@
 </div>
 
 
-<script>
+<script type="module">
 
+import { SamsaFont, SamsaInstance, SamsaGlyph, SamsaBuffer, SAMSAGLOBAL } from  "./samsa-core.js";
+import { CONFIG } from  "./samsa-config.js";
 
-let GLOBAL = {
+const GLOBAL = {
 	vf: null, // maybe allow an array of fonts... select them with a drop down in info panel
 	currentGlyphId: null,
+	instances: [],
+	fvs: {},
 };
+
 
 CONFIG.visualization = true;
 CONFIG.uiModes = {
@@ -621,6 +623,14 @@ function SVG (tag) {
     return document.createElementNS("http://www.w3.org/2000/svg", tag);
 }
 
+function clamp (num, min, max) {
+	if (num < min)
+		num = min;
+	else if (num > max)
+		num = max;
+	return num;
+}
+
 SVGElement.prototype.attr = function (attrs) {
 // set multiple SVG attributes using the attrs array
 // - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
@@ -636,21 +646,27 @@ function htmlEntities(str) {
 
 // TODO: specify that this gets the current fvs from sliders
 function getCurrentFvs() {
+	return {...GLOBAL.fvs};
+}
 
-	// TODO: store the current values separately from the axes’ value to avoid conversions
+function fvsToCSS(fvs) {
 
-	let fvs = {};
-	Qall(".slider").forEach(slider => {
-		let axis = slider.data.axis;
-		fvs[axis.tag] = axis.min + slider.value * (axis.max - axis.min);
+	// transforms an fvs object into a string suitable for font-variation-settings
+	// - simple transormation, it doesn’t perform any checks to see if the axes are in a font or if settings are beyond axis ranges
+	// - examples:
+	//   {"wght": 655, "wdth": 77, "FOOB": 12345} => '"wght" 655,"wdth" 77,"FOOB" 12345'
+	//   {} => 'normal'
+	let fvsCSS = [];
+	Object.keys(fvs).forEach(tag => {
+		fvsCSS.push(`"${tag}" ${fvs[tag]}`);
 	});
-	return fvs;
+	return fvsCSS.length ? fvsCSS.join() : "normal";
 }
 
 
 // TODO: this is needless duplication of what SamsaFont.addInstance() already does
 // - we can assign the ui object in the options argument
-function appendInstanceEl(instance, select) {
+function appendInstanceEl(instance, instanceType, select) {
 
 	const font = GLOBAL.vf;
 	const panel = Q("#panel-instances>div");
@@ -659,12 +675,8 @@ function appendInstanceEl(instance, select) {
 
 	// create the instance DOM element
 	let li = EL("div"); // not li?
-	let icon = "-", title;
-
-	// initialize instance if necessary
-	if (instance === undefined) {
-		instance = font.addInstance(getCurrentFvs(), { name: "Custom", ui: li }); // { name: "Custom", tuple: [] };
-	}
+	
+	let icon = "-";
 
 	// list view
 	// - items are: bookmark icon, name, n axis settings
@@ -674,11 +686,13 @@ function appendInstanceEl(instance, select) {
 
 	li.classList.add("instance");
 	li.style.display = "grid";
-	li.style.gridTemplateColumns = font.axes.length > 0 ? `30px 30px 100px 30px repeat(${GLOBAL.vf.axisCount}, 70px)`
-														: `30px 30px 100px 30px`;
+	li.style.gridTemplateColumns = font.fvar.axes.length > 0 ? `30px 30px 100px 30px repeat(${GLOBAL.vf.fvar.axisCount}, 70px)`
+														     : `30px 30px 100px 30px`;
 
 	// instance type
-	switch (instance.type) {
+	li.dataset.type = instanceType;
+	let title;
+	switch (instanceType) {
 		case "default": icon = "\uf015"; title = "Default"; break; // FontAwesome home
 		case "named": icon = "\uf02e"; title = "Named instance"; break; // FontAwesome bookmark
 		case "custom": icon = "\uf1de"; title = "Custom instance"; break; // FontAwesome sliders
@@ -690,18 +704,21 @@ function appendInstanceEl(instance, select) {
 	cell0.style.fontFamily = "FontAwesome";
 	cell0.innerHTML = `<strong title="${title}">${icon}</strong>`;
 
+
 	// SVG of the A glyph
 	// - would current glyph be better? ... the image serves as a kind of visual label, but...
 	cell1.classList.add("preview");
 	let svg = SVG("svg");
-	let glyph = font.glyphs[font.defaultGlyphId()];
-	let iglyph = glyph.numContours < 0 ? glyph.decompose(instance.tuple) : glyph.instantiate(null, instance);
-	if (iglyph && iglyph.numContours > 0) {
+
+	GLOBAL.currentGlyphId = font.glyphIdFromUnicode("A".codePointAt(0));
+	const glyph = font.glyphs[GLOBAL.currentGlyphId];
+	let iglyph = glyph.instantiate(instance);
+	if (iglyph && iglyph.numberOfContours > 0) {
 
 		// simple glyph
 		let svgPath = SVG("path");
 		let svgg = SVG("g");
-		let scale = 20 / font.unitsPerEm;
+		let scale = 20 / font.head.unitsPerEm;
 		svg.attr({width: 30, height: 30});
 		svgg.attr({ transform: `translate(4,20) scale(${scale},-${scale})` });
  		svgPath.attr({ d: iglyph.svgPath() });
@@ -735,11 +752,11 @@ function appendInstanceEl(instance, select) {
 	li.append(cell0, cell1, cell2, cell4);
 
 	// all the axis settings
-	GLOBAL.vf.axes.forEach((axis, a) => {
+	GLOBAL.vf.fvar.axes.forEach((axis, a) => {
 		let axisCell = EL("div");
 		axisCell.style.fontSize = "75%";
 		axisCell.style.textAlign = "right";
-		axisCell.innerText = instance.fvs[axis.tag];
+		axisCell.innerText = instance.coordinates[a];
 		li.append(axisCell);
 	});
 
@@ -866,14 +883,21 @@ function vfLoaded (font) {
 	loadingAnimationEnd();
 
 	GLOBAL.vf = font;
+	GLOBAL.fvs = {};
+	GLOBAL.currentGlyphId = font.glyphIdFromUnicode("A".codePointAt(0));
+	GLOBAL.tvtToggles = [];
 	let panel, panelPart;
 
-	GLOBAL.currentGlyphId = 0;
-	GLOBAL.tvtToggles = [];
+	// create instances
+	GLOBAL.instances.length = 0; // reset the instances (the client keeps track of them, not the SamsaFont object)
+	GLOBAL.instances.push(new SamsaInstance(font, undefined, {name: "Default"})); // default instance
+	for (const inst of font.fvar.instances) {
+		GLOBAL.instances.push(new SamsaInstance(font, font.fvsFromCoordinates(inst.coordinates), {name: inst.name}));
+	}
 
 	// set up initial global tuple, the default designspace location
 	GLOBAL.tuple = [];
-	font.axes.forEach(() => {
+	font.fvar.axes.forEach(() => {
 		GLOBAL.tuple.push(0);
 	});
 
@@ -889,7 +913,7 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Filename box
 	///////////////////////////////////////////////////////
-	Q("#font-file").innerText = font.filename; // or font.names[6];
+	Q("#font-file").innerText = font.names[16] || font.names[1];
 
 
 	///////////////////////////////////////////////////////
@@ -900,8 +924,8 @@ function vfLoaded (font) {
 	panelPart.style.fontSize = "75%";
 	panelPart.style.wordBreak = "break-all";
 	[
-		["File", font.filename],
-		["Size", `${font.filesize} bytes, ${font.numGlyphs} glyph${font.numGlyphs==1?"":"s"}`],
+		["File", font.metadata.filename],
+		["Size", `${font.metadata.size} bytes, ${font.maxp.numGlyphs} glyph${font.maxp.numGlyphs==1?"":"s"}`],
 		["Full name", font.names[4]],
 		["Version", font.names[5]],
 	].forEach(item => {
@@ -919,8 +943,8 @@ function vfLoaded (font) {
 		// ui options select
 		let uiModeHTML = "";
 		uiModeHTML += `<select id="ui-mode">`;
-		Object.keys(font.config.uiModes).forEach(modeId => {
-			let mode = font.config.uiModes[modeId];
+		Object.keys(CONFIG.uiModes).forEach(modeId => {
+			let mode = CONFIG.uiModes[modeId];
 			uiModeHTML += `<option value="${modeId}">${mode.name || modeId}</option>`;
 		});
 		uiModeHTML += `</select><br>`;
@@ -938,33 +962,15 @@ function vfLoaded (font) {
 		*/
 
 		// set the value for the select (for some reason it doesn’t work if this code comes any earlier)
-		Q("#ui-mode").value = font.config.ui.name;
+		Q("#ui-mode").value = CONFIG.ui.name;
 
 		// UI checkbox click
 		Qall(".ui-arrows").forEach(el => {
 			el.addEventListener("change", e => {
-				let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+				const instance = new SamsaInstance(font, getCurrentFvs());
 				let glyph = font.glyphs[GLOBAL.currentGlyphId];
-				iglyph = glyph.instantiate(instance.tuple);
 				setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-				font.instances.pop();
 			});
-		});
-	}
-
-
-	///////////////////////////////////////////////////////
-	// Webfont panel
-	///////////////////////////////////////////////////////
-	panel = Q("#panel-webfont>div");
-	panel.innerText = "AaBbCc";
-	panel.setAttribute("contentEditable", true);
-
-	// add the webfont (not experimental CUBE fonts though)
-	if (font.flavor != "CUBE") {	
-		let webfontFace = new FontFace("Webfont", font.data.buffer)
-		webfontFace.load().then(webfontFace => {
-			document.fonts.add(webfontFace);
 		});
 	}
 
@@ -974,19 +980,20 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	panel = Q("#panel-mvar>div");
 	panel.innerText = "";
-	if (font.mvar) {
-		Object.keys(font.mvar.items).forEach(key => {
-			let row = EL("li");
+	if (font.MVAR) {
+		for (const key of Object.keys(font.MVAR.valueRecords)) {
+			const [tableName, fieldName] = SAMSAGLOBAL.mvarLookup[key];
+			const row = EL("li");
 			row.dataset.tag = key; // allows us to identify this row easily
 			row.style.display = "grid";
 			row.style.gridTemplateColumns = "5% 15% 15% 5% 15% 5% 15%";
-			let cells = [EL("input"), EL("label"), EL("input"), EL("div"), EL("input"), EL("div"), EL("input")];
+			const cells = [EL("input"), EL("label"), EL("input"), EL("div"), EL("input"), EL("div"), EL("input")];
 			cells[0].type = "checkbox";
 			cells[0].checked = true;
 			cells[1].innerHTML = `<code>${key}</code>`;
 			cells[1].classList.add("tag");
-			cells[1].title = CONSTS.mvarLookup[key].join("."); // e.g. ["OS/2","sxHeight"] -> "OS/2.sxHeight"
-			cells[2].value = 0;
+			cells[1].title = `${tableName}.${fieldName}`; // e.g. ["OS/2","sxHeight"] -> "OS/2.sxHeight"
+			cells[2].value = font[tableName][fieldName]; // e.g. font["OS/2"]["sxHeight"]
 			cells[2].disabled = true;
 			cells[2].style.textAlign = "right";
 			cells[2].classList.add("numeric");
@@ -1009,7 +1016,7 @@ function vfLoaded (font) {
 			cells[0].onchange = e => {
 				updateGlyphSVG(GLOBAL.currentGlyphId);
 			}
-		})
+		}
 	}
 	else {
 		panel.innerText = "MVAR table not present";
@@ -1032,10 +1039,10 @@ function vfLoaded (font) {
 	// axis selector
 	let mediaAxisSelect = EL("select");
 	mediaAxisSelect.id = "svg-animation-axis";
-	font.axes.forEach(axis => {
+	font.fvar.axes.forEach(axis => {
 		let option = EL("option");
-		option.setAttribute("value", axis.id);
-		option.innerText = `${axis.tag} (${axis.id})`;
+		option.setAttribute("value", axis.axisId);
+		option.innerText = `${axis.axisTag} (${axis.axisId})`;
 		mediaAxisSelect.append(option);
 	});
 	svgAxisSel.append(mediaAxisSelect);
@@ -1062,73 +1069,31 @@ function vfLoaded (font) {
 		// let’s build fvs, not tuple, so we don’t need to worry about avar or whether default is at min or max
 		// - hmm, are you sure? we’re using normalized values because we parse tvts
 
+		// TODO: this needs all tvt extents, since those are the places where the animation structurally changes
+		const glyph = font.glyphs[GLOBAL.currentGlyphId];
+		const axisKeyFrames = new Set();
+		const axisId = parseInt(Q("#panel-media #svg-animation-axis").value);
+		const axis = font.fvar.axes[axisId];
+		const keyPaths = [];
+		axisKeyFrames.add(axis.minValue).add(axis.defaultValue).add(axis.maxValue);
 
-		let fvs = {};
-		let glyph = font.glyphs[GLOBAL.currentGlyphId];
-		let keyTimesSet = new Set();
-		let thisAxis = Q("#panel-media #svg-animation-axis").value;
-		let svgAnimation;
+		for (const v of axisKeyFrames) {
+			const fvs = {};
+			fvs[axis.axisTag] = v;
 
-		// find the tvts that only affect the chosen axis, then record their start, peak, end
-		glyph.tvts.forEach(tvt => {
-
-			// check it’s just axis 0 that is non-zero
-			if (tvt.peak[thisAxis] != 0.0) {
-
-				let valid = true;
-				for (let a=0; a<font.axes.length; a++) {
-					if (tvt.peak[a] != 0.0 && a != thisAxis) {
-						valid = false;
-						break;
-					}
-				}
-				if (valid) {
-					keyTimesSet.add(tvt.start[thisAxis]).add(tvt.peak[thisAxis]).add(tvt.end[thisAxis]);
-				}
-			}
-		});
-
-		if (keyTimesSet.size > 0) {
-
-			// create a sorted keyTimes array from the set of unique values
-			let keyTimes = Array.from(keyTimesSet).sort((a, b) => a - b);
-			let keyTimesZeroOne; // normalized on a scale from 0 to 1
-			let keyPaths = [];
-			keyTimes.forEach(T => {
-
-				let animInstance, iglyph;
-				let frameTuple = []; // create tuple for this frame’s instance
-				for (let a=0; a < font.axes.length; a++) {
-					frameTuple[a] = a==thisAxis ? T : 0; // animate the <thisAxis> axis
-				}
-				
-				animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
-				iglyph = glyph.instantiate(animInstance.tuple);
-				keyPaths.push(iglyph.decompose(frameTuple).svgPath());
-
-				font.instances.pop(); // pop instance
-			});
-
-			// create keyTimesZeroOne array, normalized onto range [0,1]
-			let kMin=keyTimes[0], kMax=keyTimes[keyTimes.length-1];
-			if (kMin == 0.0 && kMax == 1.0)
-				keyTimesZeroOne = keyTimes;
-			else {
-				keyTimesZeroOne = [];
-				keyTimes.forEach(T => {
-					keyTimesZeroOne.push((T-kMin) / (kMax-kMin));
-				});
-			}
-
-			// build svg using keyPaths and keyTimes
-			svgAnimation = {
-				attributeName: "d",
-				dur: "5s",
-				values: keyPaths.join(";"),
-				keyTimes: keyTimesZeroOne.join(";"),
-				repeatCount: "indefinite",
-			};
+			const instance = new SamsaInstance(font, fvs);
+			const iglyph = glyph.instantiate(instance).decompose();
+			keyPaths.push(iglyph.svgPath());
 		}
+
+		const svgAnimation = {
+			attributeName: "d",
+			dur: "5s",
+			values: keyPaths.join(";"),
+			keyTimes: [...axisKeyFrames].map(v => (v - axis.minValue) / (axis.maxValue - axis.minValue) ).join(";"),
+			repeatCount: "indefinite",
+		};
+
 		if (svgAnimation)
 			exportImage ("svg-animation", "samsa-animation", svgAnimation);
 	});
@@ -1151,15 +1116,15 @@ function vfLoaded (font) {
 				if (GLOBAL.animCurrent < GLOBAL.animSteps) {
 
 					let animInstance, iglyph;
-					let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
-					let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
+					let Tmin = font.fvar.axes[0].min < font.fvar.axes[0].default ? -1.0 : 0.0;
+					let Tmax = font.fvar.axes[0].max > font.fvar.axes[0].default ? 1.0 : 0.0;
 					let T = Tmin + GLOBAL.animCurrent/(GLOBAL.animSteps-1) * (Tmax-Tmin);
 					let frameNumberStr = GLOBAL.animCurrent.toString();
 					while (frameNumberStr.length < 3)
 						frameNumberStr = `0${frameNumberStr}`;
 
 					let frameTuple = []; // create tuple for this frame’s instance
-					for (let a=0; a < font.axes.length; a++) {
+					for (let a=0; a < font.fvar.axes.length; a++) {
 						frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
 					}
 					
@@ -1189,21 +1154,21 @@ function vfLoaded (font) {
 			for (let s=0; s<steps; s++) {
 
 				let animInstance, glyph, iglyph;
-				let Tmin = font.axes[0].min < font.axes[0].default ? -1.0 : 0.0;
-				let Tmax = font.axes[0].max > font.axes[0].default ? 1.0 : 0.0;
+				let Tmin = font.fvar.axes[0].min < font.fvar.axes[0].default ? -1.0 : 0.0;
+				let Tmax = font.fvar.axes[0].max > font.fvar.axes[0].default ? 1.0 : 0.0;
 				let T = Tmin + s/(steps-1) * (Tmax-Tmin);
 				let frameNumberStr = s.toString();
 				while (frameNumberStr.length < 3) // generate frame number string (TODO: write padWithZeroes() function)
 					frameNumberStr = `0${frameNumberStr}`;
 
 				let frameTuple = []; // create tuple for this frame’s instance
-				for (let a=0; a < font.axes.length; a++) {
+				for (let a=0; a < font.fvar.axes.length; a++) {
 					frameTuple[a] = a==0 ? T : 0; // animate only axis 0 for now
 				}
 				
 				animInstance = font.addInstance(null, {tuple: frameTuple}); // make instance
 				glyph = font.glyphs[GLOBAL.currentGlyphId];
-				iglyph = glyph.numContours < 0 ? glyph.decompose(animInstance.tuple) : glyph.instantiate(null, animInstance);
+				iglyph = glyph.numberOfContours < 0 ? glyph.decompose(animInstance.tuple) : glyph.instantiate(null, animInstance);
 				setActiveGlyph (GLOBAL.currentGlyphId, animInstance); // make SVG of instance glyph
 				exportImage ("png", `samsa-frame${frameNumberStr}`, {frameNumbers: false}); // place SVG on canvas, export canvas as PNG
 				font.instances.pop(); // pop instance
@@ -1238,7 +1203,7 @@ function vfLoaded (font) {
 	panel.append(liH);
 
 	// add each axis
-	font.axes.forEach((axis, a) => {
+	font.fvar.axes.forEach((axis, a) => {
 
 		let li = EL("li");
 		li.id = `axis-${a}`;
@@ -1246,25 +1211,23 @@ function vfLoaded (font) {
 		li.style.display = "grid";
 		li.style.gridTemplateColumns = liH.style.gridTemplateColumns;
 		li.style.listStyleType = "none";
-
-		li.innerHTML = `<label class="tag"><code>${axis.tag}</code></label>`;
-
-		let docStr = "", docUrl = font.config.docs.axes[axis.tag.toLowerCase()];
+		li.innerHTML = `<label class="tag"><code>${axis.axisTag}</code></label>`;
+		let docStr = "", docUrl = CONFIG.docs.axes[axis.axisTag.toLowerCase()];
 		if (docUrl) {
 			let docParts = docUrl.split(/:(.+)/)
 			if (docUrl && docParts[0] == "regex") {
-				docUrl = font.config.docs.regex[docParts[1]].replace("$1", axis.tag.toLowerCase()); // handles microsoft and typenetwork
+				docUrl = CONFIG.docs.regex[docParts[1]].replace("$1", axis.axisTag.toLowerCase()); // handles microsoft and typenetwork
 			}
-			docStr = `<a href="${docUrl}" class="icon bold" title="‘${axis.tag}’ axis specification" target="_blank">\uf05a</a>`; // info icon, links to the specification of this axis
+			docStr = `<a href="${docUrl}" class="icon bold" title="‘${axis.axisTag}’ axis specification" target="_blank">\uf05a</a>`; // info icon, links to the specification of this axis
 		}
 		li.innerHTML += `<div>${docStr}</div>`;
 
 		li.innerHTML += `<label>${axis.name}</label>`;
 
-		li.innerHTML += `<input class="axis-min" value="${axis.min}" readonly style="text-align:right;">`;
-		li.innerHTML += `<input class="axis-default" value="${axis.default}" readonly style="text-align:right;">`;
-		li.innerHTML += `<input class="axis-max" value="${axis.max}" readonly style="text-align:right;">`;
-		li.innerHTML += `<input class="axis-current active" value="${axis.default}" style="text-align:right; font-weight: 900;">`; // current
+		li.innerHTML += `<input class="axis-min" value="${axis.minValue}" readonly style="text-align:right;">`;
+		li.innerHTML += `<input class="axis-default" value="${axis.defaultValue}" readonly style="text-align:right;">`;
+		li.innerHTML += `<input class="axis-max" value="${axis.maxValue}" readonly style="text-align:right;">`;
+		li.innerHTML += `<input class="axis-current active" value="${axis.defaultValue}" style="text-align:right; font-weight: 900;">`; // current
 
 		let nudger = EL("div");
 		nudger.style.height = "1rem";
@@ -1277,20 +1240,20 @@ function vfLoaded (font) {
 		panel.append(li);
 
 		// handle text input
-		li.querySelector(".axis-current").addEventListener("change", ev => {
+		li.querySelector(".axis-current").onchange = e => {
 
 			const font = GLOBAL.vf;
-			const axis = ev.target.closest("li").data.axis;
+			const axis = e.target.closest("li").data.axis;		
+			const numFormat = Q("#axis-value-format").value;
 
 			// parse the number in base 10 or base 16
-			const numFormat = Q("#axis-value-format").value;
 			let number;
 			switch (numFormat) {
 				case "user": case "norm":
-					number = parseFloat(ev.target.value);
+					number = parseFloat(e.target.value);
 					break;
 				case "userhex": case "normhex":
-					number = parseInt(ev.target.value, 16);
+					number = parseInt(e.target.value, 16);
 					if (numFormat == "userhex") {
 						if (number >= 0x80000000)
 							number -= 0x100000000;
@@ -1308,18 +1271,22 @@ function vfLoaded (font) {
 				number = GLOBAL.vf.axisNormalize(axis, number);
 			}
 
+
+			// TODO we need to be careful about avar2 here
+			// - any value in an axis that is ever affected by avar2, cannot be user-editable
+
 			if (number>1) number = 1;
 			if (number<-1) number = -1;
 			GLOBAL.tuple[axis.id] = number;
-			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+			const instance = new SamsaInstance(font.addInstance(null, {tuple: GLOBAL.tuple}));
 			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 			setAxes (font, font.tupleToFvs(GLOBAL.tuple));
-			axesUpdateValues();
+			axesUpdateValues(instance);
 			panelSTAT_handleChange();
 			panelWebfont_handleChange();
 			updateDesignspace();
 			font.instances.pop();
-		});
+		};
 
 		let slider = EL("input");
 		slider.classList.add("slider");
@@ -1332,26 +1299,23 @@ function vfLoaded (font) {
 
 		slider.data = li.data = {axis: axis, current: axis.default};
 
-		slider.addEventListener("input", axisInput);
+		slider.oninput = axisInput;
 
 		// double-click sets the axis to default
 		li.querySelector(".tag").addEventListener("dblclick", ev => {
 
-			let fvsFromSliders = getCurrentFvs();
-			let fvs = font.tupleToFvs(GLOBAL.tuple);
+			const fvs = getCurrentFvs();
 			let tag = ev.target.innerText;
-			fvs[tag] = axis.default;
+			GLOBAL.fvs[tag] = axis.defaultValue;
 
-			setAxes (font, fvs);
-			let instance = font.addInstance(fvs);
+			setAxes (font, GLOBAL.fvs);
+			const instance = new SamsaInstance(font, GLOBAL.fvs);
 			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-			axesUpdateValues();
+			axesUpdateValues(instance);
 			panelSTAT_handleChange();
 			panelWebfont_handleChange();
 			updateDesignspace();
-			font.instances.pop();
 		});
-
 	});
 
 	// create grid layout
@@ -1390,13 +1354,18 @@ function vfLoaded (font) {
 		});
 	}
 
+	// set the axes to default
+	setAxes (font, {});
+
 	panel.append(grid);
 
 	// avar ui
 	const avarDiv = EL("div");
 	avarDiv.id = "avar";
 
-	if (avar && avar.majorVersion == 1 && avar.minorVersion == 0 && avar.axisSegmentMaps.length > 0) {
+	// avar 1 mappings
+	if (avar && (avar.version[0] === 1 || avar.version[0] === 2) && avar.version[1] == 0 && avar.axisSegmentMaps.length > 0) {
+		console.log("avar mappings")
 		let avarSVGwidth = 340, avarSVGheight = 100;
 		let avarMapColor = "grey", avarCurrentColor = "limegreen";
 		avar.axisSegmentMaps.forEach((asm, a) => {
@@ -1404,7 +1373,7 @@ function vfLoaded (font) {
 				const avarSVG = SVG("svg");
 
 				avarSVG.classList.add("avar-axis-svg");
-				avarSVG.data = {axis: font.axes[a]};
+				avarSVG.data = {axis: font.fvar.axes[a]};
 				avarSVG.attr({
 					width: 360,
 					height: 116,
@@ -1430,7 +1399,7 @@ function vfLoaded (font) {
 						x1: 10 + (map[0]+1)/2 * avarSVGwidth,
 						y1: 10,
 						x2: 10 + (map[1]+1)/2 * avarSVGwidth,
-						y2: 10 + avarSVGheight,
+						y2: 10 + avarSVGheight/2,
 						tipWid: 5,
 						tipLen: 10,
 					});
@@ -1480,11 +1449,39 @@ function vfLoaded (font) {
 
 				avarCurrentLine.classList.add("avar-current");
 				avarCurrentHead.classList.add("avar-current");
-
 				avarSVG.append(avarCurrentLine, avarCurrentHead);
 
+				let avar2CurrentLine = SVG("line");
+				let avar2CurrentHead = SVG("path");
+				let arrow2 = getArrowParams({
+					x1: 10 + 1/2 * avarSVGwidth,
+					y1: 10+avarSVGheight/2,
+					x2: 10 + 1/2 * avarSVGwidth,
+					y2: 10+avarSVGheight,
+					tipWid: 10,
+					tipLen: 20,
+				});
+				avar2CurrentLine.attr({
+					stroke: avarCurrentColor,
+					"stroke-width": 3,
+					x1: arrow2.x1,
+					y1: arrow2.y1,
+					x2: arrow2.newX2,
+					y2: arrow2.newY2,
+				});
+
+				avar2CurrentHead.attr({
+					d: `M${arrow2.x2} ${arrow2.y2}L${arrow2.arrowX1} ${arrow2.arrowY1}L${arrow2.arrowX2} ${arrow2.arrowY2}Z`,
+					fill: avarCurrentColor,
+				});
+
+				avar2CurrentLine.classList.add("avar2-current");
+				avar2CurrentHead.classList.add("avar2-current");
+
+				avarSVG.append(avar2CurrentLine, avar2CurrentHead);
+
 				let titleEl = SVG("title");
-				titleEl.textContent = `${font.axes[a].default}\n→ ${0}\n → ${0}\n${font.axes[a].default}`;
+				titleEl.textContent = `${font.fvar.axes[a].default}\n→ ${0}\n → ${0}\n${font.fvar.axes[a].default}`;
 				avarSVG.append(titleEl);
 
 				avarDiv.append(avarSVG);
@@ -1492,31 +1489,57 @@ function vfLoaded (font) {
 
 		});
 	}
+	console.log("avarDiv")
+	console.log(avarDiv)
 	panel.append(avarDiv);
+
+
+	///////////////////////////////////////////////////////
+	// Webfont panel
+	///////////////////////////////////////////////////////
+	panel = Q("#panel-webfont>div");
+	panel.innerText = "AaBbCc";
+	panel.setAttribute("contentEditable", true);
+
+	// add the webfont (not experimental CUBE fonts though)
+	if (font.flavor != "CUBE") {	
+		let webfontFace = new FontFace("Webfont", font.buf.buffer)
+		webfontFace.load().then(webfontFace => {
+			document.fonts.add(webfontFace);
+		});
+	}
+	panelWebfont_handleChange();
+
+
 
 	// handle events
 
 	// event: click
-	addInstanceEl.addEventListener("click", ()=>{
-		appendInstanceEl(undefined, true);
-	});
+	addInstanceEl.onclick = () => {
+		const instance = new SamsaInstance(font, getCurrentFvs(), {name: "Custom"});
+		GLOBAL.instances.push(instance);
+		appendInstanceEl(instance, "custom", true);
+	};
 
 	// event: change format
-	Q("#axis-value-format").addEventListener("change", ()=>{
+	Q("#axis-value-format").onchange = () => {
 
-		let fvs = font.tupleToFvs(GLOBAL.tuple);
-		font.axes.forEach((axis,a) => {
-			Q(`#axis-${a}>.axis-min`).value = numberFormat(axis.min, axis);
-			Q(`#axis-${a}>.axis-default`).value = numberFormat(axis.default, axis);
-			Q(`#axis-${a}>.axis-max`).value = numberFormat(axis.max, axis);
-			let currentVal = fvs[axis.tag] === undefined ? axis.default : fvs[axis.tag];
-			Q(`#axis-${a}>.axis-current`).value = numberFormat(currentVal, axis);
-		});
-
-	});
+		// let fvs = font.tupleToFvs(GLOBAL.tuple);
+		// font.fvar.axes.forEach((axis,a) => {
+		// 	Q(`#axis-${a}>.axis-min`).value = numberFormat(axis.minValue, axis);
+		// 	Q(`#axis-${a}>.axis-default`).value = numberFormat(axis.defaultValue, axis);
+		// 	Q(`#axis-${a}>.axis-max`).value = numberFormat(axis.maxValue, axis);
+		// 	let currentVal = fvs[axis.axisTag] === undefined ? axis.defaultValue : fvs[axis.axisTag];
+		// 	Q(`#axis-${a}>.axis-current`).value = numberFormat(currentVal, axis);
+		// });
 
 
-	if (font.axes.length == 0) {
+		populateNumericValues(Q("#axis-value-format").value);
+
+	};
+
+
+	if (font.fvar.axes.length == 0) {
 		panel.innerHTML = "This font does not contain variation axes.";
 	}
 
@@ -1536,8 +1559,9 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	panel = Q("#panel-stat>div");
 	panel.innerText = "";
-	if (font.tables.STAT) {
-		const STAT = font.tables.STAT.data;
+	if (font.STAT) {
+		//const STAT = font.tables.STAT.data;
+		const STAT = font.STAT;
 
 		// create grid layout
 		let grid = EL("div");
@@ -1552,7 +1576,7 @@ function vfLoaded (font) {
 		const versionCol0 = EL("label");
 		const versionCol1 = EL("label");
 		versionCol0.innerText = "STAT version";
-		versionCol1.innerText = `${STAT.majorVersion}.${STAT.minorVersion}`;
+		versionCol1.innerText = `${STAT.version[0]}.${STAT.version[1]}`;
 		grid.append(versionCol0, versionCol1, new EL("div")); // last cell is blank
 
 		// for each STAT designAxis create a <select>; plus a <select> for multiaxis axisValueTables
@@ -1571,6 +1595,7 @@ function vfLoaded (font) {
 
 			selects.push(select);
 		}
+
 		
 		// go thru all axisValueTables, assigning them to their correct <select>
 		STAT.axisValueTables.forEach((avt, a) => {
@@ -1586,7 +1611,7 @@ function vfLoaded (font) {
 			switch (avt.format) {
 
 				case 1: case 2: case 3:
-					let designAxis = STAT.designAxes[avt.axisIndex];
+					let designAxis = STAT.designAxes[avt.axisIndices[0]];
 					selects[designAxis.axisOrdering].append(option); // TODO: vulnerability when axisOrdering values are not well formed, zero-indexed ids
 					break;
 
@@ -1611,35 +1636,24 @@ function vfLoaded (font) {
 			else {
 				// handle changes in this <select>
 				select.addEventListener("change", ev => {
-
-					const STAT = font.tables.STAT.data;
-					if (ev.target.value != -1) {
-
-						const STAT = GLOBAL.vf.tables.STAT.data;
-						let avt = STAT.axisValueTables[ev.target.value];
-						let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
-						let axisIndices = avt.axisIndex;
-						let values = avt.value;
-						if (avt.format != 4) { // for format 4, they are already arrays
-							axisIndices = [axisIndices];
-							values = [values];
-						}
+					if (ev.target.value !== -1) {
 
 						// upadte the fvs from the axisValueTable
-						axisIndices.forEach((axisIndex, a) => {
-							fvs[STAT.designAxes[axisIndex].tag] = values[a];
+						let avt = STAT.axisValueTables[ev.target.value];
+						const fvs = getCurrentFvs();
+						avt.axisIndices.forEach((axisIndex, a) => {
+							console.log("Setting fvs. axisIndex", axisIndex, "tag", STAT.designAxes[axisIndex].tag, "value", avt.values[a]);
+							fvs[STAT.designAxes[axisIndex].tag] = avt.values[a];
 						});
 
 						// update the rest of the Samsa UI
 						setAxes (font, fvs);
-						let instance = font.addInstance(fvs, {type: "custom"});
+						const instance = new SamsaInstance(font, fvs);
 						setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-						axesUpdateValues();
+						axesUpdateValues(instance);
 						panelSTAT_handleChange(fvs); // TODO: add another parameter NOT to update the select selection when false
 						panelWebfont_handleChange();
 						updateDesignspace();
-						font.instances.pop();
-
 					}
 				});
 			}
@@ -1665,22 +1679,10 @@ function vfLoaded (font) {
 		input.readOnly = true;
 		label.innerText = "Composed name";
 
-		// "Add instance" button
-		let addInstanceEl = EL("button");
-		addInstanceEl.innerText = "Add instance";
-		addInstanceEl.class = "instance-add";
-
 		// add grid to the panel
-		grid.append(label, input, addInstanceEl);
+		grid.append(label, input);
 		panel.append(grid);
 
-		// set current STAT instance and add it to the Instances panel
-		addInstanceEl.addEventListener("click", () => {
-
-			let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
-			let instance = font.addInstance(fvs, { type: "stat", name: Q("#stat-composed-name").value });
-			appendInstanceEl(instance, true);
-		});
 	}
 
 	else {
@@ -1700,10 +1702,11 @@ function vfLoaded (font) {
 	let fvsString = "";
 
 	// add each instance
-	font.instances.forEach((instance, i) => {
-		appendInstanceEl(instance);
+	GLOBAL.instances.forEach((instance, i) => {
+		const instanceType = i===0 ? "default" : "named";
+		appendInstanceEl(instance, instanceType, instanceType==="default"); // the last parameter is whether it’s selected or not
 	});
-	setActiveInstance(GLOBAL.vf); // without an instance parameter, it sets it to the default
+	setActiveInstance(font); // without an instance parameter, it sets it to the default
 
 
 	///////////////////////////////////////////////////////
@@ -1723,9 +1726,9 @@ function vfLoaded (font) {
 	let htmlX, htmlY;
 	htmlX = `<div id="xSelect" class="ds-axis-group">`;
 	htmlY = `<div id="ySelect" class="ds-axis-group">`;
-	GLOBAL.vf.axes.forEach((axis,a) => {
-		htmlX += `<div><input type="checkbox" id="x-${a}" value="${a}"${a==0 ? " checked" : ""}><label for="x-${a}">${axis.tag}</label></div>`;
-		htmlY += `<div><input type="checkbox" id="y-${a}" value="${a}"${a==1 ? " checked" : ""}><label for="y-${a}">${axis.tag}</label></div>`;
+	GLOBAL.vf.fvar.axes.forEach((axis,a) => {
+		htmlX += `<div><input type="checkbox" id="x-${a}" value="${a}"${a==0 ? " checked" : ""}><label for="x-${a}">${axis.axisTag}</label></div>`;
+		htmlY += `<div><input type="checkbox" id="y-${a}" value="${a}"${a==1 ? " checked" : ""}><label for="y-${a}">${axis.axisTag}</label></div>`;
 	});
 	htmlX += `</div>`;
 	htmlY += `</div>`;
@@ -1757,56 +1760,6 @@ function vfLoaded (font) {
 	buildDesignspace();
 
 
-	// TODO: .designspace export - is this useful?
-	if (false) {
-
-		let exportEl = EL("button");
-		exportEl.innerText = "Export as .designspace";
-		exportEl.id = "instance-add";
-		panel.append(exportEl);
-
-		/*
-		<designspace format="3">
-			<axes>
-				<!-- define axes here -->
-				<axis../>
-				</axes>
-			<sources>
-				<!-- define masters here -->
-				<source../>
-			</sources>
-			<instances>
-				<!-- define instances here -->
-				<instance../>
-			</instances>
-		</designspace>
-		*/
-
-		let designspace = EL("designspace");
-		designspace.setAttribute("format", 3);
-		let dsAxes = EL("axes");
-		let dsSources = EL("sources");
-		let dsInstances = EL("instances");
-		GLOBAL.vf.axes.forEach(axis => {
-			let dsAxis = EL("axis");
-			dsAxis.setAttribute("name", axis.name);
-			dsAxis.setAttribute("tag", axis.tag);
-			dsAxis.setAttribute("minimum", axis.min);
-			dsAxis.setAttribute("default", axis.default);
-			dsAxis.setAttribute("maximum", axis.max);
-			dsAxes.append(dsAxis);
-		})
-		// what to do about sources?
-		GLOBAL.vf.instances.forEach(instance => {
-			let dsInst = EL("instance");
-			//dsInstances.appendChild(dsInst);
-		})
-		designspace.append(dsAxes, dsSources, dsInstances);
-		console.log ("<?xml version='1.0' encoding='utf-8'?>\n" + designspace.outerHTML);
-	}
-
-
-
 	if (!panel.parentNode.classList.contains("open"))
 		panel.style.display = "none";
 
@@ -1814,8 +1767,8 @@ function vfLoaded (font) {
 	///////////////////////////////////////////////////////
 	// Glyphs panel
 	///////////////////////////////////////////////////////
-	GLOBAL.currentGlyphId = font.defaultGlyphId();
-	updateGlyphsPanel (font.instances[0]); // instances[0] is always the default instance
+	//GLOBAL.currentGlyphId = font.defaultGlyphId();
+	updateGlyphsPanel (GLOBAL.instances[0]); // instances[0] is always the default instance
 
 
 	Q("body").style.cursor = "default";
@@ -1827,10 +1780,9 @@ function vfLoaded (font) {
 
 	// ui: handle change of mode
 	Q("#ui-mode").addEventListener("change", () => {
-		font.config.ui = font.config.uiModes[Q("#ui-mode").value]; // set the config variable to the current selection in #ui-mode
-		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		CONFIG.ui = CONFIG.uiModes[Q("#ui-mode").value]; // set the config variable to the current selection in #ui-mode
+		let instance = new SamsaInstance(font, getCurrentFvs());
 		setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-		font.instances.pop();
 	});
 
 	// designspace: handle mousemove and mousedown (late event handler)
@@ -1844,6 +1796,60 @@ function vfLoaded (font) {
 		updateDesignSpaceMoved(e);
 	});
 
+}
+
+function populateNumericValues(format) {
+	const font = GLOBAL.vf;
+	const fvs = getCurrentFvs();
+	const instance = new SamsaInstance(font, fvs);
+	font.fvar.axes.forEach((axis, a) => {
+		let strings;
+		if (["norm", "normhex"].includes(format)) {
+			const values = [
+				axis.minValue === axis.defaultValue ? 0 : -1, // min
+				0, // default
+				axis.maxValue === axis.defaultValue ? 0 : 1, // max
+				Math.round(instance.tuple[a] * 0x4000) / 0x4000, // current
+			];
+			strings = values.map(v => {
+				if (format === "normhex") {
+					if (v < 0) v += 4;
+					v *= 0x4000;
+					return v.toString(16).padStart(4, "0");
+				}
+				else
+					return v.toString();
+			});
+		}
+		else { // user or userhex
+
+			// console.log("user or userhex")
+			const values = [
+				axis.minValue, // min
+				axis.defaultValue, // default
+				axis.maxValue, // max
+				fvs[axis.axisTag], // current
+			];
+
+			// console.log(values)
+			strings = values.map(v => {
+				if (format === "userhex") {
+					if (v < 0) v += 0x10000;
+					v = Math.round(v);
+					return v.toString(16).padStart(8, "0");
+				}
+				else
+					return v.toString();
+			});
+		}
+
+		Q(`#axis-${a}>.axis-min`).value = strings[0];
+		Q(`#axis-${a}>.axis-default`).value = strings[1];
+		Q(`#axis-${a}>.axis-max`).value= strings[2];
+		Q(`#axis-${a}>.axis-current`).value = strings[3];
+
+		// console.log(strings[3])
+	});
 }
 
 
@@ -1863,7 +1869,7 @@ function updateDesignSpaceMoved(e) {
 
 	// initialize tuple
 	let tuple = [];
-	for (let a=0; a < font.axes.length; a++) {
+	for (let a=0; a < font.fvar.axes.length; a++) {
 		tuple.push(0); // default is 0 by definition
 	}
 	
@@ -1893,7 +1899,7 @@ function updateDesignSpaceMoved(e) {
 
 	font.instances.pop();
 
-	axesUpdateValues();
+	axesUpdateValues(instance);
 	panelWebfont_handleChange();
 
 	Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
@@ -1912,9 +1918,7 @@ function numberFormat(val, axis) {
 			V = Math.round(val * 0x10000);
 			if (V<0)
 				V += 0x100000000;
-			V = V.toString(16);
-			for (let p=V.length; p<8; p++)
-				V = `0${V}`;
+			V = V.toString(16).padStart(8, "0");;
 			break;
 
 		case "norm":
@@ -1926,9 +1930,7 @@ function numberFormat(val, axis) {
 			V = Math.round(V * 0x4000);
 			if (V<0)
 				V += 0x10000;
-			V = V.toString(16);
-			for (let p=V.length; p<4; p++)
-				V = `0${V}`;
+			V = V.toString(16).padStart(4, "0");
 			break;
 
 	}
@@ -1936,110 +1938,115 @@ function numberFormat(val, axis) {
 }
 
 
-function axesUpdateValues () {
+function axesUpdateValues (instance) {
 	// update axis values
 	const font = GLOBAL.vf;
-	let fvs = font.tupleToFvs(GLOBAL.tuple);
-	font.axes.forEach((axis,a) => {
-		let currentVal = fvs[axis.tag] === undefined ? axis.default : fvs[axis.tag];
-		Q(`#axis-${a}>.axis-current`).value = numberFormat(currentVal, axis);
-	});
+	const fvs = instance.axisSettings;
 
-	// update avar
+	populateNumericValues(Q("#axis-value-format").value);	
+
+	// update avar graph
 	if (font.avar) {
 
 		const avarSVGs = Qall(".avar-axis-svg");
 		const avarSVGwidth = 340, avarSVGheight = 100;
+		//const fvs = getCurrentFvs();
 
 		if (avarSVGs.length > 0) {
-			avarSVGs.forEach(avarSVG => {
 
-				let axis = avarSVG.data.axis;
-				let userVal = Q(`#axis-${axis.id}`).data.current, userValTrans = axis.default;
-				//let initial = font.axisNormalize(axis, userVal, true); // set avarIgnore arg to true
-				let initial = font.axisNormalize(axis, userVal, 0x00);
-				let final = GLOBAL.tuple[axis.id]; // == font.axisNormalize(axis, userVal); // i.e. avarIgnore == undefined
-				let avarCurrentLine = avarSVG.querySelector("line.avar-current");
-				let avarCurrentHead = avarSVG.querySelector("path.avar-current");
-				let arrow = getArrowParams({
-					x1: 10 + (initial+1)/2 * avarSVGwidth,
+			avarSVGs.forEach((avarSVG, axisId) => {
+
+				let axis = font.fvar.axes[axisId];
+				let userVal = fvs[axis.axisTag];
+
+				const values = [ // normaliazed value pre-avar
+					instance.userTuple[axisId], // avar1 normaliazed value
+					instance.avar1Tuple[axisId],instance.tuple[axisId], // avar2 normaliazed value
+				];
+
+				// avar1 arrow
+				let avarLine = avarSVG.querySelector("line.avar-current");
+				let avarHead = avarSVG.querySelector("path.avar-current");
+				let arrow1 = getArrowParams({
+					x1: 10 + (values[0]+1)/2 * avarSVGwidth,
 					y1: 10,
-					x2: 10 + (final+1)/2 * avarSVGwidth,
-					y2: 10 + avarSVGheight,
+					x2: 10 + (values[1]+1)/2 * avarSVGwidth,
+					y2: 10 + avarSVGheight/2,
 					tipWid: 10,
 					tipLen: 20,
 				});
 
 				// adjust the arrow’s line and head attributes
-				avarCurrentLine.attr({ x1: arrow.x1, y1: arrow.y1, x2: arrow.newX2, y2: arrow.newY2 });
-				avarCurrentHead.attr({ d: `M${arrow.x2} ${arrow.y2}L${arrow.arrowX1} ${arrow.arrowY1}L${arrow.arrowX2} ${arrow.arrowY2}Z` });
+				avarLine.attr({ x1: arrow1.x1, y1: arrow1.y1, x2: arrow1.newX2, y2: arrow1.newY2 });
+				avarHead.attr({ d: `M${arrow1.x2} ${arrow1.y2}L${arrow1.arrowX1} ${arrow1.arrowY1}L${arrow1.arrowX2} ${arrow1.arrowY2}Z` });
+
+				// avar2 arrow
+				let avar2Line = avarSVG.querySelector("line.avar2-current");
+				let avar2Head = avarSVG.querySelector("path.avar2-current");
+				let arrow2 = getArrowParams({
+					x1: 10 + (values[1]+1)/2 * avarSVGwidth,
+					y1: 10 + avarSVGheight/2,
+					x2: 10 + (values[2]+1)/2 * avarSVGwidth,
+					y2: 10 + avarSVGheight,
+					tipWid: 10,
+					tipLen: 20,
+				});
+				avar2Line.attr({ x1: arrow2.x1, y1: arrow2.y1, x2: arrow2.newX2, y2: arrow2.newY2 });
+				avar2Head.attr({ d: `M${arrow2.x2} ${arrow2.y2}L${arrow2.arrowX1} ${arrow2.arrowY1}L${arrow2.arrowX2} ${arrow2.arrowY2}Z` });
 
 				// set title tooltip
-				if (final > 0)
-					userValTrans += final * (axis.max - axis.default);
-				else if (final < 0)
-					userValTrans += final * (axis.default - axis.min);
-				avarSVG.querySelector("title").textContent = `${userVal}\n→ ${initial}\n→ ${final}\n→ ${userValTrans}`;
+				let userValTrans = axis.defaultValue;
+				if (values[2] > 0)
+					userValTrans += values[2] * (axis.maxValue - axis.defaultValue);
+				else if (values[2] < 0)
+					userValTrans += values[2] * (axis.defaultValue - axis.minValue);
+				avarSVG.querySelector("title").textContent = `${userVal}\n→ ${values[0]}\n→ ${values[1]}\n→ ${values[2]}\n${userValTrans}`;
 			});
 		}
 	}
 
-	// update the MVAR panel
-	if (font.mvar) {
-
-		let deltas = font.itemVariationStoreInstantiate(font.mvar.ivs, GLOBAL.tuple); // generate a new set of deltas for this tuple
-		let rows = Qall("#panel-mvar>div li"); // UI rows in the MVAR panel
-		Object.keys(font.mvar.items).forEach((key, k) => {
-			const
-				index = font.mvar.items[key],
-				[tableName, fieldName] = CONSTS.mvarLookup[key],
-				original = font.tables[tableName].data[fieldName]; // needs error-checking
-			
-			if (original !== undefined) {
-				const updated = original + deltas[index[0]][index[1]];
-
-				// update the values in the correct <li> element in the MVAR panel
-				const inputs = rows[k].querySelectorAll("input.numeric");
-				inputs[0].value = original;
-				inputs[1].value = deltas[index[0]][index[1]];
-				inputs[2].value = updated;
-			}
-		})
-	}
 
 }
 
 
 function panelWebfont_handleChange() {
-	let fvs = GLOBAL.vf.tupleToFvs(GLOBAL.tuple);
+	const fvs = getCurrentFvs();
 	Q("#panel-webfont.panel>div").style.fontVariationSettings = fvsToCSS(fvs);
 }
 
 
-function axisInput(ev) {
+function axisInput(e) {
 
+	const font = GLOBAL.vf;
 	const saveScrollY = Q("#panels-left").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
-	let font = GLOBAL.vf;
-	let fvsFromSliders = getCurrentFvs();
-	let fvs = font.tupleToFvs(GLOBAL.tuple);
-	let tag = ev.target.data.axis.tag;
-	fvs[tag] = fvsFromSliders[tag];
-	ev.target.data.current = fvs[tag];
+	const slider = e.target;
+	const axis = e.target.data.axis;
+	GLOBAL.fvs[axis.axisTag] = axis.minValue + parseFloat(slider.value) * (axis.maxValue - axis.minValue); // sets global fvs
+	const instance = new SamsaInstance(font, GLOBAL.fvs); // create instance
 
-	// create instance
-	let instance = font.addInstance(fvs); // { name: "Custom", tuple: [] };
-
-	let glyph = font.glyphs[GLOBAL.currentGlyphId];
 	setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
 	
-	axesUpdateValues();
+	axesUpdateValues(instance);
 	panelSTAT_handleChange();
 	panelWebfont_handleChange();
 	updateDesignspace();
 
-	// delete instance
-	font.instances.pop();
 	Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
+
+	// update the MVAR panel
+	if (font.MVAR && instance.MVAR) {
+		for (const row of Qall("#panel-mvar>div li")) { // for each <li>, update the MVAR values
+			const [tableName, fieldName] = SAMSAGLOBAL.mvarLookup[row.dataset.tag];
+			const defaultValue = font[tableName][fieldName]; // needs error-checking
+			if (defaultValue !== undefined) {
+				const inputs = row.querySelectorAll("input.numeric");
+				const delta = Math.round(instance.MVAR[row.dataset.tag]);
+				inputs[1].value = delta;
+				inputs[2].value = defaultValue + delta;
+			}
+		}
+	}
+
 }
 
 function buildDesignspace() {
@@ -2135,15 +2142,11 @@ function updateDesignspace() {
 	Q("#svgYVal").attr({ d: `M-1 ${y} H1` });
 }
 
-function panelSTAT_handleChange(fvs) {
+function panelSTAT_handleChange(fvs = getCurrentFvs()) {
 
 	const font = GLOBAL.vf;
-	if (!font.tables["STAT"])
-		return;
-
-	const STAT = font.tables["STAT"].data;
-	if (fvs === undefined)
-		fvs = font.tupleToFvs(GLOBAL.tuple);
+	if (!font.STAT) return;
+	const STAT = font.STAT;
 	let selectValues = {};
 	const axisTags = Object.keys(fvs);
 	let statName, elidable = true, statNamesStrs = [];
@@ -2157,19 +2160,21 @@ function panelSTAT_handleChange(fvs) {
 			// TODO: are we sure rounding is ok here? If not we can roud-trip through tuple representation
 
 			// do we have a match?
-			if (avt.format < 4 && 
-				selectValues[tag] === undefined && 
-				(fvs[tag] == avt.value || (avt.format == 2 && fvs[tag] >= avt.min && fvs[tag] <= avt.max)) && 
-				tag == STAT.designAxes[avt.axisIndex].tag) {
+			if (avt.format < 4) {
+				const axisIndex = avt.axisIndices[0];
+				if (selectValues[tag] === undefined && 
+				(fvs[tag] === avt.values[0] || (avt.format === 2 && fvs[tag] >= avt.values[1] && fvs[tag] <= avt.values[2])) && 
+				tag == STAT.designAxes[axisIndex].tag) {
 
-				selectValues[tag] = {};
-				selectValues[tag].avtIndex = a; // index of this axisValueTable in STAT.axisValueTables
-				selectValues[tag].note = "";
+					selectValues[tag] = {};
+					selectValues[tag].avtIndex = a; // index of this axisValueTable in STAT.axisValueTables
+					selectValues[tag].note = "";
+				}
 			}
-			else if (avt.format == 4 && avtIndexMulti == -1) {
+			else if (avt.format === 4 && avtIndexMulti == -1) {
 				let match = true;
-				avt.axisIndex.forEach((axisIndex, a) => { // axisIndex is an array because format 4
-					if (avt.value[a] != fvs[STAT.designAxes[axisIndex].tag])
+				avt.axisIndices.forEach((axisIndex, a) => { // axisIndex is an array because format 4
+					if (avt.values[a] != fvs[STAT.designAxes[axisIndex].tag])
 						match = false;
 				});
 				if (match)
@@ -2201,19 +2206,15 @@ function panelSTAT_handleChange(fvs) {
 			if (select.value != -1) {
 
 				let avt = STAT.axisValueTables[select.value];
-				axisIndices = avt.axisIndex;
-				let values = avt.value;
-				if (avt.format != 4) {
-					axisIndices = [axisIndices];
-					values = [values];
-					note = avt.value;
+				if (avt.format !== 4) {
+					note = avt.values[0];
 				}
 
 				// get stat name component
 				let name = font.names[avt.nameID];
 				let thisElidable = avt.flags & 0x0002;
 
-				if (avt.format == 2 && fvs[tag] != values[0]) {
+				if (avt.format === 2 && fvs[tag] !== avt.values[0]) {
 					name += `[${Math.round(fvs[tag]*100)/100}]`;
 					thisElidable = false; // make "Regular" no longer elidable if we’ve appended a value
 				}
@@ -2228,13 +2229,13 @@ function panelSTAT_handleChange(fvs) {
 
 				// determine the fvs
 				axisIndices.forEach((axisIndex, a) => {
-					fvs[STAT.designAxes[axisIndex].tag] = values[a];
+					fvs[STAT.designAxes[axisIndex].tag] = avt.values[a];
 				});
 
 				// augment the note
 				switch (avt.format) {
-					case 2: note += ` [${avt.min},${avt.max}]`; break;
-					case 3: note += ` (→ ${avt.linkedValue})`; break;
+					case 2: note += ` [${avt.values[1]},${avt.values[2]}]`; break; // min, max
+					case 3: note += ` (→ ${avt.values[1]})`; break; // linkedValue
 					case 4: note = JSON.stringify(fvs); break;
 				}
 			}
@@ -2272,14 +2273,14 @@ function updateGlyphsPanel(instance) {
 	panel.append(panelHeader); // restore the header
 
 
-	const scale = 50 / font.unitsPerEm;
+	const scale = 50 / font.head.unitsPerEm;
 	const showGlyphIds = Q("#panel-glyphs>h2 #glyphs-ids").classList.contains("active");
 
-	for (let g=0; g < font.numGlyphs; g++) {
+	for (let g=0; g < font.maxp.numGlyphs; g++) {
 
-		let glyph = font.glyphs[g];
-		let glyphName = font.glyphs[g].name || "undefined";
-		let glyphThumb = EL("div");
+		const glyph = font.glyphs[g];
+		const glyphName = font.getGlyphName(g) || "undefined";;
+		const glyphThumb = EL("div");
 		glyphThumb.classList.add("glyph-thumb");
 		glyphThumb.setAttribute("id", `g-${g}`);
 		glyphThumb.setAttribute("title", `${g}: ${glyphName}`);
@@ -2295,17 +2296,14 @@ function updateGlyphsPanel(instance) {
 			svgg.attr({ transform: `translate(20,60) scale(${scale},-${scale})` });
 			
 			// decompose/instantiate this glyph
-			let iglyph;
-			if (glyph.numContours < 0)
-				iglyph = glyph.decompose(instance.tuple);
-			else
-				iglyph = glyph.instantiate(null, instance);
+			const iglyph = glyph.instantiate(instance).decompose();
+		
 			let svgPath = SVG("path");
 			svgPath.attr({
 				d: iglyph.svgPath(),
-				stroke: GLOBAL.vf.config.ui.glyphThumb.stroke,
-				"stroke-width": `${GLOBAL.vf.config.ui.glyphThumb.strokeWidth}px`,
-				fill: GLOBAL.vf.config.ui.glyphThumb.fill,
+				stroke: CONFIG.ui.glyphThumb.stroke,
+				"stroke-width": `${CONFIG.ui.glyphThumb.strokeWidth}px`,
+				fill: CONFIG.ui.glyphThumb.fill,
 			});
 			svgg.append(svgPath);
 			svg.append(svgg);
@@ -2334,24 +2332,35 @@ function updateGlyphsPanel(instance) {
 	setActiveGlyph(GLOBAL.currentGlyphId, instance);
 }
 
+// TODO: I think we have to regard the numeric box as source of truth, and update the sliders from that (since the sliders are 0..1 based)
 function setAxes (font, fvs) {
 	
+	GLOBAL.fvs = {...fvs};
+	const sliders = Qall(".slider");
+	if (sliders.length === font.fvar.axes.length) {
 
-	let sliders = Qall(".slider");
-	font.axes.forEach((axis, a) => {
+		// Q("#panel-axes .axis-row").forEach((el, a) => {
+		// 	const axis = font.fvar.axes[a];
+		// 	const tag = axis.axisTag;
+		// 	const val = fvs[tag];
+		// 	sliders[a].value = (val - axis.minValue) / (axis.maxValue - axis.minValue);
+		// 	sliders[a].data.current = val;
+		// });
 
-		if (axis.min > axis.max)
-			return;
-
-		let val = fvs[axis.tag];
-		if (val < axis.min)
-			val = axis.min;
-		if (val > axis.max)
-			val = axis.max;
-
-		sliders[a].value = (val - axis.min) / (axis.max - axis.min);
-		sliders[a].data.current = val;
-	});
+		font.fvar.axes.forEach((axis, a) => {
+			let val;
+			if (fvs[axis.axisTag] === undefined)
+				val = axis.defaultValue;
+			else {
+				val = clamp (fvs[axis.axisTag], axis.minValue, axis.maxValue);
+			}
+			sliders[a].value = (val - axis.minValue) / (axis.maxValue - axis.minValue);
+			sliders[a].data.current = val;
+		});
+	}
+	else {
+		console.log("Error: number of sliders does not match number of axes");
+	}
 }
 
 function getActiveInstance (font) {
@@ -2372,22 +2381,19 @@ function setActiveInstance (font, target) {
 
 	Qall(".instance").forEach((el, i) => {
 
-		let instance = font.instances[i]; // font.instances[0] is the default "instance"
+		const instance = GLOBAL.instances[i]; // font.instances[0] is the default "instance"
 
 		// update instance ui
-		if (el == target || (!target && instance.type == "default")) { // allows for future reordering
-			
+		if (el === target || (!target && el.dataset.type === "default")) { // allows for future reordering
 			el.classList.add("active");
-			setAxes (font, instance.fvs);
-			instanceApplyVariations (font, instance);
+			setAxes (font, font.fvsFromCoordinates(instance.coordinates));
 			updateGlyphsPanel (instance);
-			axesUpdateValues();
+			axesUpdateValues(instance);
 			panelSTAT_handleChange();
 			panelWebfont_handleChange();
 		}
 		else {
 			el.classList.remove("active");
-			//target.data.selected = true;
 		}
 	});
 }
@@ -2400,6 +2406,7 @@ function getActiveGlyph () {
 		let comps = el.id.split("-");
 		g = 1*comps[1];
 	}
+	console.log(`getActiveGlyph: ${g}`);
 	return g;
 
 	// TODO: it would be simpler just to store the active glyph somewhere
@@ -2485,8 +2492,13 @@ function updateTvts (glyph, iglyph) {
 
 	// TODO: we shouldn’t be doing all this for each glyph refresh
 	let font = GLOBAL.vf;
-	let ui = font.config.ui;
+	let ui = CONFIG.ui;
 	let panel = Q("#panel-tvts>div");
+
+	if (!iglyph.viz || iglyph.viz.length !== glyph.tvts.length) {
+		console.log("TVTs problem")
+		return;
+	}
 
 	// display the tvts
 	// - each tvt gets a <li> info row followed by an <ol> (initially hidden) containing the list of point deltas (each as point delta as <li>)
@@ -2495,7 +2507,7 @@ function updateTvts (glyph, iglyph) {
 		// show id, numPoints, scalar, order, and an SVG graph for each axis
 		let axisGraphs = [], ASarray = [];
 		let tvtOrder = 0; // the number of axes involved in this tuple (i.e. with peak != 0); tvtOrder=1 (linear), tvtOrder=2 (quadratic), tvtOrder=3 (cubic), etc.
-		let sValue = iglyph.tvtsVisualization[t].S; // get S value to draw as bar graph
+		let sValue = iglyph.viz[t].S; // get S value to draw as bar graph
 		let numDeltas = 0;
 		for (let p=0; p<tvt.deltas.length; p++) {
 			if (tvt.deltas[p] !== null)
@@ -2505,7 +2517,7 @@ function updateTvts (glyph, iglyph) {
 		// add a graph for each axis
 		// - each graph is a single SVG element with descendants
 		// - each tuple contains <font.numAxes> graphs representing how this tuple responds to each axis
-		for (let a=0; a<font.axisCount; a++) {
+		for (let a=0; a<font.fvar.axisCount; a++) {
 			let tvtGraphEl = EL("div");
 			let tvtGraph = SVG("svg");
 			let svgg = SVG("g");
@@ -2626,7 +2638,7 @@ function updateTvts (glyph, iglyph) {
 		tvt.deltas.forEach((delta, p) => {
 
 			let li_ = EL("li");
-			const scaledDelta = iglyph.tvtsVisualization[t].scaledDeltas[p];
+			const scaledDelta = iglyph.viz[t].scaledDeltas[p];
 			li_.innerText = `${Math.round(scaledDelta[0])},${Math.round(scaledDelta[1])}`;
 			if (delta === null)
 				li_.style.color = "grey";
@@ -2706,7 +2718,7 @@ function redrawFeatureVariationsBoxes(g) {
 function setActiveGlyph (g, instance) {
 
 	let font = GLOBAL.vf;
-	let ui = font.config.ui;
+	let ui = CONFIG.ui;
 	if (g === undefined)
 		g = 0;
 	g *= 1;
@@ -2715,14 +2727,15 @@ function setActiveGlyph (g, instance) {
 	let glyph = font.glyphs[g];
 
 	// highlight active glyph thumbnail (first, unhighlight all of them)
-	Qall(".glyph-thumb").forEach(el => {
+	Qall(".glyph-thumb.active").forEach(el => {
 		el.classList.remove("active");
 	});
+
 	Q(`#g-${g}`).classList.add("active");
 
 	// empty the tvts panel and insert header row
 	let panelTvts = Q("#panel-tvts>div");
-	if (font.axes.length == 0)
+	if (font.fvar.axes.length == 0)
 		panelTvts.classList.add("static");
 	else {
 		panelTvts.classList.add("variations");
@@ -2730,28 +2743,31 @@ function setActiveGlyph (g, instance) {
 		const lh = EL("li"), axesHeader = EL("div");
 		lh.classList.add("tvt-item", "header");
 		lh.innerHTML = `<div title="Delta set index">#</div><div>Points</div><div title="Points"></div><div title="Scalar">Scalar</div><div title="Order">Order</div>`;
-		for (let axis of font.axes)
-			axesHeader.innerHTML += `<div style="display:inline-block;width:50px;"><code>${axis.tag}</code></div>`;
+		for (let axis of font.fvar.axes)
+			axesHeader.innerHTML += `<div style="display:inline-block;width:50px;"><code>${axis.axisTag}</code></div>`;
 
 		lh.append(axesHeader);
 		panelTvts.append(lh);
 	}
 
-
 	// display the feature variations for this glyph on the designspace svg
-	redrawFeatureVariationsBoxes(g);
+	//redrawFeatureVariationsBoxes(g);
+
+	// get data size from loca table
+	const locaBuf = font.tables["loca"].buffer;
+	const glyphDataSize = font.head.indexToLocFormat ? locaBuf.getUint32((g+1) * 4) - locaBuf.getUint32(g * 4) : locaBuf.getUint16((g+1) * 2) - locaBuf.getUint16(g * 2);
+	// TODO: reflect actual compiled size by compiling the glyph data, so without the pad byte
 
 	// Glyph info panel is display:none for now
 	let glyphInfo = {
 		id: glyph.id,
 		name: glyph.name,
 		"curve-order": glyph.curveOrder,
-		"num-contours": glyph.numContours,
+		"num-contours": glyph.numberOfContours,
 		"num-points": glyph.numPoints,
 		"num-components": glyph.components.length,
-		"glyph-size": font.glyphOffsets[g+1] - font.glyphOffsets[g],
+		"glyph-size": glyphDataSize,
 		"num-tuples": glyph.tvts.length,
-		"tuple-size": font.tupleSizes[g],
 	};
 
 	let panel = Q("#glyph-info");
@@ -2767,15 +2783,16 @@ function updateGlyphSVG (g, instance) {
 
 	// instance may be undefined
 
-	let font = GLOBAL.vf;
-	let ui = font.config.ui;
-	const uiScale = font.unitsPerEm/1000
+	const font = GLOBAL.vf;
+	const ui = CONFIG.ui;
+	const uiScale = font.head.unitsPerEm/1000;
 	if (g === undefined)
 		g = 0;
 	g *= 1;
 
+	const gGSUB = instance.glyphRunGSUB([g])[0];
 	GLOBAL.currentGlyphId = g;
-	let glyph = font.glyphs[g];
+	let glyph = font.glyphs[gGSUB];
 
 	if (instance) {
 		GLOBAL.tuple = [...instance.tuple];
@@ -2790,12 +2807,8 @@ function updateGlyphSVG (g, instance) {
 			glyph = font.glyphs[substituteGlyphId];		
 	}
 
-
-	let iglyph = glyph.instantiate(GLOBAL.tuple);
-
-
+	let iglyph = glyph.instantiate(instance, {visualization: true});
 	updateTvts (glyph, iglyph);
-
 
 	// clear main window and tvts panel
 	let drawingEl = Q("#drawing");
@@ -2838,11 +2851,11 @@ function updateGlyphSVG (g, instance) {
 
 	// get mvar interpolated deltas (only if mvar exists)
 	let mvarDeltas;
-	if (font.mvar) {
-		mvarDeltas = font.itemVariationStoreInstantiate(font.mvar.ivs, GLOBAL.tuple);
+	if (instance.MVAR) {
+		//mvarDeltas = font.itemVariationStoreInstantiate(font.mvar.ivs, GLOBAL.tuple);
 	}
 
-	// draw each layer in the order it was specified in font.config.ui.layers
+	// draw each layer in the order it was specified in CONFIG.ui.layers
 	ui.layers.forEach(layer => {
 
 		let svgPath, svgg2, svgg3, paths, path;
@@ -2889,30 +2902,22 @@ function updateGlyphSVG (g, instance) {
 
 					// sxHeight, sTypoAscender, sTypoDescender, sCapHeight, yStrikeoutPosition
 					["xhgt", "hasc", "hdsc", "cpht", "stro"].forEach(tag => {
-						const
-							lookup = CONSTS.mvarLookup[tag],
-							metric = font.tables[lookup[0]].data[lookup[1]]; // all fonts should have these values (if they have OS/2, hhea, vhea, post)
-
-						let delta=0, mvarItem;
-						if (font.mvar && (mvarItem = font.mvar.items[tag])) {
-							delta = mvarDeltas[mvarItem[0]][mvarItem[1]]; // get the interpolated MVAR delta from the array we generated above
-
-							let checkbox = Q(`#panel-mvar li[data-tag=${tag}] input[type=checkbox]`); // only draw the metric if its checkbox is checked
-							if (checkbox.checked) {
-								svgPath = SVG("path");
-								svgPath.attr({
-									d: `M-10000 ${metric + delta} H10000`,
-									stroke: ui.metrics.stroke,
-									"stroke-width": ui.metrics.strokeWidth * uiScale,
-								});
-								if (ui.metrics.dashArray) {
-									let dashStr = "";
-									ui.metrics.dashArray.forEach(dash => dashStr += `${dash*uiScale} ` );
-									svgPath.attr({ "stroke-dasharray": dashStr });
-								}
-								svgg.append(svgPath);
-							}
+						const [tableName, fieldName] = SAMSAGLOBAL.mvarLookup[tag];
+						const metric = font[tableName][fieldName]; // all fonts should have these values (if they have OS/2, hhea, vhea, post)
+						const delta = instance.MVAR && instance.MVAR[tag] ? instance.MVAR[tag] : 0;
+						
+						svgPath = SVG("path");
+						svgPath.attr({
+							d: `M-10000 ${metric + delta} H10000`,
+							stroke: ui.metrics.stroke,
+							"stroke-width": ui.metrics.strokeWidth * uiScale,
+						});
+						if (ui.metrics.dashArray) {
+							let dashStr = "";
+							ui.metrics.dashArray.forEach(dash => dashStr += `${dash*uiScale} ` );
+							svgPath.attr({ "stroke-dasharray": dashStr });
 						}
+						svgg.append(svgPath);
 					});
 				}
 				break;
@@ -3127,7 +3132,7 @@ function updateGlyphSVG (g, instance) {
 					}
 					else {
 						// get the arrow parameters so we can draw a truncated line (maybe dotted) plus arrow head
-						let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000});
+						let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.head.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.head.unitsPerEm/1000});
 						let svgLine = SVG("line");
 						let svgArrowHead = SVG("path");
 						svgLine.attr({ x1: x1, y1: y1, x2: arrow.newX2, y2: arrow.newY2 });
@@ -3171,14 +3176,14 @@ function updateGlyphSVG (g, instance) {
 
 					// make an arrow for each tvt
 					glyph.tvts.forEach((tvt, t) => {
-						let sValue = iglyph.tvtsVisualization[t].S;
+						let sValue = iglyph.viz[t].S;
 						let delta = tvt.deltas[pt];
 						let iup = (delta === null);
 						let lineColor = ui.tuple.colors[t % ui.tuple.colors.length]; // get the t’th colour in the array, wrapping round to the start when we run out of colours
 
 						if (iup) {
-							x2 = x1 + iglyph.tvtsVisualization[t].scaledDeltas[pt][0];
-							y2 = y1 + iglyph.tvtsVisualization[t].scaledDeltas[pt][1];
+							x2 = x1 + iglyph.viz[t].scaledDeltas[pt][0];
+							y2 = y1 + iglyph.viz[t].scaledDeltas[pt][1];
 						}
 						else {							
 							x2 = x1 + delta[0] * sValue;
@@ -3193,7 +3198,7 @@ function updateGlyphSVG (g, instance) {
 							// It might be more efficient to draw each tuple’s lines as one path
 							// - but the resulting SVG would be ugly to edit
 							// - and we’d also have to make separate paths for IUP and non-IUP arrows
-							let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.unitsPerEm/1000});
+							let arrow = getArrowParams ({x1: x1, y1: y1, x2: x2, y2: y2, tipWid: ui.arrow.tipWidth * GLOBAL.vf.head.unitsPerEm/1000, tipLen: ui.arrow.tipLength * GLOBAL.vf.head.unitsPerEm/1000});
 
 							// make the line
 							let svgLine = SVG("line");
@@ -3264,7 +3269,7 @@ function updateGlyphSVG (g, instance) {
 
 					// initialize tuple
 					let tupleX = [], tupleY = [];
-					for (let a=0; a < font.axes.length; a++) {
+					for (let a=0; a < font.fvar.axes.length; a++) {
 						tupleX[a] = tupleY[a] = GLOBAL.tuple[a];
 					}
 
@@ -3282,8 +3287,8 @@ function updateGlyphSVG (g, instance) {
 					lociInstanceY = font.addInstance(null, {tuple: tupleY});
 
 					// TODO: fix composites or decide not to handle them (currently they are still rounded, and the loci only work on the first component)
-					iglyphX = glyph.numContours < 0 ? glyph.decompose(lociInstanceX.tuple) : glyph.instantiate(null, lociInstanceX, {roundDeltas: false});
-					iglyphY = glyph.numContours < 0 ? glyph.decompose(lociInstanceY.tuple) : glyph.instantiate(null, lociInstanceY, {roundDeltas: false});
+					iglyphX = glyph.numberOfContours < 0 ? glyph.decompose(lociInstanceX.tuple) : glyph.instantiate(null, lociInstanceX, {roundDeltas: false});
+					iglyphY = glyph.numberOfContours < 0 ? glyph.decompose(lociInstanceY.tuple) : glyph.instantiate(null, lociInstanceY, {roundDeltas: false});
 
 					// build the SVG polylines in parallel
 					for (let p=0; p<glyph.points.length; p++) {
@@ -3363,7 +3368,8 @@ function updateGlyphSVG (g, instance) {
 				});
 				svgg2.style.fontSize = `${24*uiScale}px`;
 
-				let xOffset = yOffset = ui.pointNumbers.offset || 0;
+				let xOffset = ui.pointNumbers.offset || 0;
+				let yOffset = xOffset;
 				let angle = ui.pointNumbers.angle * Math.PI/180 || 0;
 				angle = Math.PI - angle;
 				xOffset *= Math.sin(angle) * uiScale;
@@ -3405,10 +3411,12 @@ function updateGlyphSVG (g, instance) {
 
 
 function playGlyphs() {
-	let g = (getActiveGlyph()+1) % GLOBAL.vf.numGlyphs;
-	let instance = GLOBAL.vf.addInstance(null, {tuple: GLOBAL.tuple});
+
+	const font = GLOBAL.vf;
+	const g = GLOBAL.currentGlyphId = (GLOBAL.currentGlyphId + 1 + font.maxp.numGlyphs) % font.maxp.numGlyphs;
+
+	const instance = new SamsaInstance(font, getCurrentFvs());
 	setActiveGlyph (g, instance);
-	GLOBAL.vf.instances.pop();
 	GLOBAL.vf.timerGlyphPlayer = setTimeout (playGlyphs, 500);
 }
 
@@ -3429,20 +3437,30 @@ document.onclick = function (event) {
 	if (target = event.target.closest("#panels-left .panel .instantiate")) {
 
 		// create and download the instance
-		let instanceEl = target.closest(".instance");
-		let instance = instanceEl.data.instance;
+		const instanceEl = target.closest(".instance");
 
-		GLOBAL.vf.makeInstance(instance); // creates instance.static
+		// which numeric index is this instance
+		const instanceEls = Qall(".instance");
+		let instanceId = -1;
+		instanceEls.forEach((el, i) => { if (el === instanceEl) instanceId = i;} );
+		if (instanceId !== -1) {
+			const instance = GLOBAL.instances[instanceId];
 
-		let fauxLink = EL("a");
-		fauxLink.download = GLOBAL.vf.filename;
-		fauxLink.href = "data:font/ttf;base64," + uint8ToBase64(instance.static);
+			// instantiate the font!
+			const buf = new SamsaBuffer(new ArrayBuffer(1000000)); // 1 MB memory buffer
+			const bufLength = buf.encodeInstance(instance, {checkSums: true}); // use the 2nd argument {checkSums: true} to perform checksums
+			const bytes = new Uint8Array(buf.buffer.slice(0, bufLength));
+			const binary = bytes.reduce((binary, byte) => binary + String.fromCharCode(byte), "");
 
-		document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
-		fauxLink.click();
-		fauxLink.remove();
+			// download the instance
+			const fauxLink = EL("a");
+			fauxLink.download = `instance-${instanceId}.ttf`;
+			fauxLink.href = "data:font/ttf;base64," + btoa(binary); // btoa creates a base64 string
+			document.body.append(fauxLink); // needed for Firefox, not Chrome or Safari
+			fauxLink.click();
+			fauxLink.remove();
 
-		handled = true;
+		}
 	}
 
 	else if (target = event.target.closest(".instance")) {
@@ -3455,28 +3473,27 @@ document.onclick = function (event) {
 
 		let fvs = {}, redraw = true;
 		if (target.classList.contains("default")) {
-			GLOBAL.vf.axes.forEach((axis,a) => {
-				fvs[axis.tag] = axis.default;
+			GLOBAL.vf.fvar.axes.forEach((axis,a) => {
+				GLOBAL.fvs[axis.axisTag] = axis.defaultValue;
 			});
 		}
 		else if (target.classList.contains("min")) {
-			GLOBAL.vf.axes.forEach((axis,a) => {
-				fvs[axis.tag] = axis.min;
+			GLOBAL.vf.fvar.axes.forEach((axis,a) => {
+				GLOBAL.fvs[axis.axisTag] = axis.minValue;
 			});
 		}
 		else if (target.classList.contains("max")) {
-			GLOBAL.vf.axes.forEach((axis,a) => {
-				fvs[axis.tag] = axis.max;
+			GLOBAL.vf.fvar.axes.forEach((axis,a) => {
+				GLOBAL.fvs[axis.axisTag] = axis.maxValue;
 			});
 		}
 		else
 			redraw = false;
 
 		if (redraw) {
-			let instance = font.addInstance(fvs);
+			const instance = new SamsaInstance(font, fvs);
 			setActiveGlyph (GLOBAL.currentGlyphId, instance); // update the SVG
-			font.instances.pop();
-			axesUpdateValues();
+			axesUpdateValues(instance);
 			panelSTAT_handleChange();
 			panelWebfont_handleChange();
 			updateDesignspace();
@@ -3587,7 +3604,7 @@ document.onclick = function (event) {
 				step = true;
 				break;
 			case "glyphs-stepback":
-				g = getActiveGlyph()-1+font.numGlyphs;
+				g = getActiveGlyph()-1+font.maxp.numGlyphs;
 				step = true;
 				break;
 			case "glyphs-play":
@@ -3600,11 +3617,13 @@ document.onclick = function (event) {
 		}
 
 		if (step) {
-			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
-			g %= font.numGlyphs;
+			g %= font.maxp.numGlyphs;
 			clearTimeout(font.timerGlyphPlayer);
+
+
+						
+			const instance = new SamsaInstance(font, getCurrentFvs());
 			setActiveGlyph (g, instance);
-			font.instances.pop();
 		}
 
 		handled = true;
@@ -3641,9 +3660,12 @@ document.onclick = function (event) {
 		let g = comps[1];
 		event.preventDefault(); // stops the <a href...> having an effect?
 
-		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		let instance = new SamsaInstance(font, getCurrentFvs());
+		console.log("I", g)
+		console.log(instance);
 		setActiveGlyph(g, instance);
-		font.instances.pop();
+		// font.instances.pop();
+		
 		handled = true;
 	}
 
@@ -3667,7 +3689,7 @@ document.onclick = function (event) {
 
 		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
 		setActiveGlyph(GLOBAL.currentGlyphId, instance);
-		axesUpdateValues();
+		axesUpdateValues(instance);
 		panelSTAT_handleChange();
 		panelWebfont_handleChange();
 		updateDesignspace();
@@ -3713,18 +3735,10 @@ Q("#file-upload-input").onchange = e => {
     const reader = new FileReader();
     reader.__file__ = file;
     reader.onload = function (event) {
-
-		let vf = new SamsaFont({
-			arrayBuffer: this.result,
-			inFile: this.__file__.name,
-			filesize: this.__file__.size,
-			date: this.__file__.lastModified,  // doesn't retrieve the real file date
-			callback: vfLoaded,
-		});
+		const font = new SamsaFont(new SamsaBuffer(this.result), {allGlyphs: true, allTVTs: true, metadata: {filename: this.__file__.name, size: this.__file__.size}});
+		vfLoaded (font);
 	};
-
 	reader.readAsArrayBuffer(file); // https://stackoverflow.com/questions/22659164/read-a-drag-and-dropped-file
-
 };
 
 
@@ -3774,11 +3788,10 @@ document.onkeydown = e => {
 		e.preventDefault();
 		if (Q("#ui-mode").value != "preview") {
 			const saveScrollY = Q("#panels-left").scrollTop; // fixes Safari macOS 10.14 bug where controls panel scrolls to top on most interactions
-			GLOBAL.quickPreviewSaved = font.config.ui.name;
-			font.config.ui = font.config.uiModes["preview"];
-			let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+			GLOBAL.quickPreviewSaved = CONFIG.ui.name;
+			CONFIG.ui = CONFIG.uiModes["preview"];
+			const instance = new SamsaInstance(font, getCurrentFvs());
 			setActiveGlyph (GLOBAL.currentGlyphId, instance);
-			font.instances.pop();
 			Q("#panels-left").scrollTop = saveScrollY; // for the macOS 10.14 bug referenced at the start of this click handler
 		}
 		return false;
@@ -3793,11 +3806,9 @@ document.onkeydown = e => {
 	if ((e.keyCode == 37 || e.keyCode == 39) && e.altKey) {
 		e.preventDefault();
 		let increment = e.keyCode == 37 ? -1 : 1;
-		GLOBAL.currentGlyphId = (GLOBAL.currentGlyphId + increment + font.numGlyphs) % font.numGlyphs;
-
-		let instance = font.addInstance(null, {tuple: GLOBAL.tuple});
+		GLOBAL.currentGlyphId = (GLOBAL.currentGlyphId + increment + font.maxp.numGlyphs) % font.maxp.numGlyphs;
+		const instance = new SamsaInstance(font, getCurrentFvs());
 		setActiveGlyph (GLOBAL.currentGlyphId, instance);
-		font.instances.pop();
 	}
 
 };
@@ -3809,11 +3820,10 @@ document.onkeyup = e => {
 		// switch from preview UI mode back to the saved UI mode
 		if (GLOBAL.quickPreviewSaved) {
 			e.preventDefault();
-			GLOBAL.vf.config.ui = GLOBAL.vf.config.uiModes[GLOBAL.quickPreviewSaved];
+			CONFIG.ui = CONFIG.uiModes[GLOBAL.quickPreviewSaved];
 			GLOBAL.quickPreviewSaved = null;
-			let instance = GLOBAL.vf.addInstance(null, {tuple: GLOBAL.tuple});
+			const instance = new SamsaInstance(GLOBAL.vf, getCurrentFvs());
 			setActiveGlyph (GLOBAL.currentGlyphId, instance);
-			GLOBAL.vf.instances.pop();
 		}
 		return false;
 	}
@@ -3822,7 +3832,7 @@ document.onkeyup = e => {
 
 
 // Glyphs panel: filter by glyph name or glyph id
-Q("#glyph-filter").addEventListener("input", e => {
+Q("#glyph-filter").oninput = e => {
 
 	Q("#string-filter").value = "";
 	const glyphThumbs = Qall(".glyph-thumb");
@@ -3842,7 +3852,7 @@ Q("#glyph-filter").addEventListener("input", e => {
 		let id = thumbEl.querySelector(".id").textContent;
 		thumbEl.style.display = filter == "" || (numeric ? g >= min && g <= max : name.match(reg)) || id == filter ? "block" : "none";
 	}
-});
+};
 
 
 // Glyphs panel: filter by string
@@ -3878,7 +3888,7 @@ function filterGlyphs(el) {
 	const simple = Q("#filter-simple").checked, composite = Q("#filter-composite").checked, blank = Q("#filter-blank").checked;
 
 	for (let g=0; g<glyphThumbs.length; g++) {
-		const numContours = GLOBAL.vf.glyphs[g].numContours;
+		const numContours = GLOBAL.vf.glyphs[g].numberOfContours;
 		if (numContours > 0)
 			glyphThumbs[g].style.display = simple ? "block" : "none";
 		else if (numContours < 0)
@@ -3893,29 +3903,29 @@ Qall("#filter-simple, #filter-composite, #filter-blank").forEach(el => el.addEve
 // Fonts panel menu: handle selection
 Q("#panel-fonts .font-selector").addEventListener("change", e => {
 
-	let target = e.target; //this.querySelector("option:selected");
+	if (e.target.selectedIndex > 0) {
 
-	if (target.selectedIndex > 0) {
-
-		let option = target[target.selectedIndex];
-		let fontData, url;
-
+		const option = e.target[e.target.selectedIndex];
 		const isDataUrl = option.data.url.indexOf("data:") === 0;
 
 		// if the app is running in file: protocol, skip any fonts that are not data: protocol
-		if (location.protocol == "file:" && !isDataUrl) {
-			
-			alert ("Cannot load font files from disk if application is on file: protocol. You must embed the fonts as base64 in samsa-config.js or install Samsa on a web server such as localhost.");			
+		if (location.protocol === "file:" && !isDataUrl) {		
+			alert ("Cannot load font files from disk if application is on file: protocol. You must embed the fonts as base64 in samsa-config.js or install Samsa on a web server such as localhost.");
 		}
 		else {
-			// load the font
+			// load the binary from the URL into an arraybuffer with fetch()
 			loadingAnimationStart();
-			let vf = new SamsaFont({
-				fontFamily: "FontNameShouldGoHere",
-				filename: option.data.filename,
-				url: option.data.url,
-				callback: vfLoaded,
-			});
+			fetch(option.data.url)
+			.then(response => {
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				return response.arrayBuffer();
+			})
+			.then(arrayBuffer => {
+				const font = new SamsaFont(new SamsaBuffer(arrayBuffer), {allGlyphs: true, allTVTs: true, metadata: {filename: option.data.url, size: arrayBuffer.byteLength}});
+				vfLoaded (font);
+			})
 		}
 	}
 });
@@ -3966,47 +3976,51 @@ window.onload = () => {
 	option.value = -1;
 	option.innerText = "[no font selected]";
 	panelPart.append(option);
-	for (let font of CONFIG.fontList) {
+	for (const fontListItem of CONFIG.fontList) {
 
 		// work out a filename if it doesn’t have one
-		const isDataUrl = font.url.indexOf("data:") === 0;
-		const filename = font.filename ? font.filename
-		                               : isDataUrl ? `${font.name}.ttf` 
-		                                           : font.url.substr(font.url.lastIndexOf("/")+1);
+		const isDataUrl = fontListItem.url.indexOf("data:") === 0;
+		const filename = fontListItem.filename ? fontListItem.filename
+		                               : isDataUrl ? `${fontListItem.name}.ttf` 
+		                                           : fontListItem.url.substr(fontListItem.url.lastIndexOf("/")+1);
 		
 		option = EL("option");
 		option.value = filename; // filename;
 		option.innerText = filename; // filename;
 
 		option.data = {
-			url: font.url,
-			filename: font.filename,
-			name: font.name,
+			url: fontListItem.url,
+			filename: fontListItem.filename,
+			name: fontListItem.name,
 		};
 
 		panelPart.append(option);
 
 		// preload this font if it has preload property
-		if (font.preload && !preloaded) {
+		if (fontListItem.preload && !preloaded) {
 
-			let vf = new SamsaFont({
-
-				fontFamily: font.name,
-				url: font.url,
-				filename: filename,
-				callback: vfLoaded,
+			fetch(fontListItem.url)
+			.then(response => {
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				return response.arrayBuffer();
+			})
+			.then(arrayBuffer => {
+				const font = new SamsaFont(new SamsaBuffer(arrayBuffer), {allGlyphs: true, allTVTs: true, metadata: {filename: fontListItem.url, size: arrayBuffer.byteLength}});
+				vfLoaded (font);
 			});
-
 			preloaded = true; // we preload max one font
 			Q(".font-selector").value = filename;
 		}
 	}
 
 	// assign each panel to left or right panel-container
-	const panelsLeft = Q("#panels-left"), panelsRight = Q("#panels-right");
-	for (let panelInfo of CONFIG.panels) {
+	const panelsLeft = Q("#panels-left");
+	const panelsRight = Q("#panels-right");
+	for (const panelInfo of CONFIG.panels) {
 		if (panel = Q(`#${panelInfo.id}`)) { // = not ==
-			let container = panelInfo.side == "right" ? panelsRight : panelsLeft;
+			const container = panelInfo.side == "right" ? panelsRight : panelsLeft;
 			panel.classList.add(panelInfo.open == false ? "closed" : "open");
 			container.append(panel);		
 		}
@@ -4014,8 +4028,6 @@ window.onload = () => {
 }
 
 </script>
-
-<script src="samsa-config.js"></script>
 
 </body>
 </html>
