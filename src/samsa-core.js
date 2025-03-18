@@ -505,9 +505,11 @@ const GVAR_SHARED_POINT_NUMBERS = 0x8000;
 const GVAR_EMBEDDED_PEAK_TUPLE = 0x8000;
 const GVAR_INTERMEDIATE_REGION = 0x4000;
 const GVAR_PRIVATE_POINT_NUMBERS = 0x2000;
-const DELTAS_ARE_ZERO = 0x80;
-const DELTAS_ARE_WORDS = 0x40;
-const DELTA_RUN_COUNT_MASK = 0x3f;
+const GVAR_DELTAS_ARE_ZERO = 0x80;
+const GVAR_DELTAS_ARE_WORDS = 0x40;
+const GVAR_DELTA_RUN_COUNT_MASK = 0x3f;
+const GVAR_POINTS_ARE_WORDS = 0x80;
+const GVAR_POINT_RUN_COUNT_MASK = 0x7f;
 
 // COLRv1 paint types (multiple formats have the same type)
 const PAINT_LAYERS = 1;
@@ -593,7 +595,7 @@ const SVG_PAINTCOMPOSITE_MODES = [
 // - font is the SamsaFont object
 // - buf is a SamsaBuffer object already set up to cover the table data only, initialized with the table's offset being p=0 and length = its length
 // - return (none), but font.<tableTag> now contains more (possibly all) of the decoded table data
-const TABLE_DECODERS = {
+SAMSAGLOBAL.TABLE_DECODERS = {
 
 	"avar": (font, buf) => {
 		// avar1 and avar2
@@ -691,6 +693,7 @@ const TABLE_DECODERS = {
 								const nonDefaultUVSOffset = bufE.u32;
 								const defaultUVS = [];
 								const nonDefaultUVS = [];
+								const tell = bufE.tell();
 
 								if (defaultUVSOffset) {
 									bufE.seek(defaultUVSOffset);
@@ -712,6 +715,8 @@ const TABLE_DECODERS = {
 									defaultUVS: defaultUVS,
 									nonDefaultUVS: nonDefaultUVS,
 								};
+
+								bufE.seek(tell);
 
 								// so now, we have e.g. varSelector == 0xfe0f, encoding.varSelectors[0xfe0f].defaultUVS == an array of { startUnicodeValue, additionalCount }
 							}
@@ -1069,7 +1074,7 @@ const TABLE_DECODERS = {
 
 }
 
-const TABLE_ENCODERS = {
+SAMSAGLOBAL.TABLE_ENCODERS = {
 
 	"avar": (font, avar) => {
 		// encode avar
@@ -1137,13 +1142,12 @@ const TABLE_ENCODERS = {
 
 		const avarFinalSize = majorVersion === 1 ? avar1Length : avar2Length;
 
-
 		// attempt to decode
+		// TODO: is this test code? if so, remove it
+		// TODO: return avarFinalSize?
 		bufAvarHeader.seek(0);
-
-
 		font.avar = bufAvarHeader.decode(FORMATS["avar"])
-		TABLE_DECODERS["avar"](font, bufAvarHeader);
+		SAMSAGLOBAL.TABLE_DECODERS["avar"](font, bufAvarHeader);
 		return new SamsaBuffer(bufAvarHeader.buffer, 0, avarFinalSize);
 
 	},
@@ -1894,7 +1898,6 @@ class SamsaBuffer extends DataView {
 	}
 
 	checkSum(offset=0, length) {
-		// TODO: delete special casing of the head table, we should have set any bytes not to be counted to zero
 		if (length === undefined) {
 			length = this.byteLength - offset;
 		}
@@ -2640,14 +2643,14 @@ class SamsaBuffer extends DataView {
 
 	// encodeInstance is how we export a static font!
 	encodeInstance(instance, options={format: "truetype"}) {
-		// options.format: "truetype" | "cff2";
+		// options.format: "truetype" | "cff2"
+		// options.checkSums: true | false
 		// TODO: instantiate MVAR, cvar, GSUB etc.
-		// TODO: checksums
 
 		const startTime = performance.now();
 		const font = instance.font;
 		const numGlyphs = font.maxp.numGlyphs;
-		const tables = font.tableList.filter(table => !["fvar", "gvar", "avar", "cvar", "HVAR", "VVAR", "MVAR", "STAT"].includes(table.tag));
+		const tables = font.tableList.filter(table => !["fvar", "gvar", "avar", "cvar", "HVAR", "VVAR", "MVAR", "STAT"].includes(table.tag)); // remove variable-specific tables
 		const tableDirectory = {};
 		const locas = [0];
 		const hMetrics = [];
@@ -2713,7 +2716,6 @@ class SamsaBuffer extends DataView {
 
 		// table checkSums
 		if (options.checkSums) {
-			const checksums = {};
 			for (const table of tables) {
 				checkSumTotal += table.checkSum = this.checkSum(table.offset, table.length);
 				checkSumTotal &= 0xffffffff;
@@ -2729,15 +2731,13 @@ class SamsaBuffer extends DataView {
 			.sort((a,b) => compareString(a.tag, b.tag)) // sort by tag
 			.forEach(table => this.u32_array = this.tableDirectoryEntry(table)); // write 4 U32s for each table directory entry
 
-		// header checkSum
-		if (options.checkSums) {
-			checkSumTotal += this.checkSum(0, 12 + 16 * tables.length);
-			checkSumTotal &= 0xffffffff;
-		}
-
 		// final fixups
-		this.seek(tableDirectory.head.offset + 8); // fix head.checkSumAdjustment
-		this.u32 = ((0xB1B0AFBA - checkSumTotal) + 0x100000000) % 0xffffffff;
+		if (options.checkSums) {
+			checkSumTotal += this.checkSum(0, 12 + 16 * tables.length); // add header checkSum
+			checkSumTotal &= 0xffffffff;
+			this.seek(tableDirectory.head.offset + 8); // write the final value into head.checkSumAdjustment
+			this.u32 = ((0xB1B0AFBA - checkSumTotal) + 0x100000000) % 0xffffffff;
+		}
 
 		const endTime = performance.now();
 		console.log("Font encoding time: " + (endTime - startTime) + " ms");
@@ -2877,17 +2877,15 @@ class SamsaBuffer extends DataView {
 	// - used in gvar and cvar tables
 	// - https://learn.microsoft.com/en-us/typography/opentype/spec/otvarcommonformats#packed-point-numbers
 	decodePointIds() {
-		const POINTS_ARE_WORDS = 0x80;
-		const POINT_RUN_COUNT_MASK = 0x7f;
 		const pointIds = [];
 		const _count = this.u8;
-		const count = _count & POINTS_ARE_WORDS ? (_count & POINT_RUN_COUNT_MASK) * 0x0100 + this.u8 : _count;
+		const count = _count & GVAR_POINTS_ARE_WORDS ? (_count & GVAR_POINT_RUN_COUNT_MASK) * 0x0100 + this.u8 : _count;
 		let pointId = 0;
 		let c = 0;
 		while (c < count) {
 			const _runCount = this.u8;
-			const runCount = (_runCount & POINT_RUN_COUNT_MASK) + 1;
-			const getter = _runCount & POINTS_ARE_WORDS ? this.getters[U16] : this.getters[U8];
+			const runCount = (_runCount & GVAR_POINT_RUN_COUNT_MASK) + 1;
+			const getter = _runCount & GVAR_POINTS_ARE_WORDS ? this.getters[U16] : this.getters[U8];
 			for (let r=0; r < runCount; r++) {
 				pointId += getter(); // convert delta ids into absolute ids
 				pointIds.push(pointId);
@@ -2895,6 +2893,70 @@ class SamsaBuffer extends DataView {
 			c += runCount;
 		}
 		return pointIds;
+	}
+
+	encodePointIds(pointIds) {
+
+		// note that the implicit "all points" encoding is intentionally not handled here, being a matter for the caller, knowing when to process an empty pointIds array
+		const numPoints = pointIds.length;
+
+		// handle 0-length arrays immediately
+		if (numPoints === 0) {
+			this.u8 = 0;
+		}
+		else if (numPoints < 0x80 && pointIds[numPoints-1] < 0x100) {
+			// FAST PATH
+			// - this is the common fast case, that handles all glyphs with <128 points; there are more "fast" cases but it’s expensive to test for all of them
+			// - there is one run of u8s, of length numPoints
+			this.u8 = numPoints; // total number of points
+			this.u8 = numPoints-1; // number of points in the run (with -1 adjustment)
+			const u8Packed = new Uint8Array(this.buffer, this.byteOffset + this.tell()); // we write pointIds directly to this Uint8Array
+			let prevPointId = 0;
+			for (let pc=0; pc < numPoints; pc++) {
+				u8Packed[pc] = -prevPointId + (prevPointId = pointIds[pc]); // this order of operations allows the one-liner
+			}
+			this.seekr(numPoints); // make the SamsaBuffer account for the bytes we wrote
+		}
+		else {
+			// SLOW PATH
+			// - we may need u16s or multiple runs
+			// - we night speed this up a little by always writing to the u8Packed array, avoiding SamsaBuffer
+			if (numPoints < 0x80)
+				this.u8 = numPoints; // set length byte
+			else
+				this.u16 = numPoints | (GVAR_POINTS_ARE_WORDS << 8); // set length byte
+
+			// this method avoids the need to create arrays of runs
+			const u8PackedTell = this.byteOffset + this.tell();
+			const u8Packed = new Uint8Array(this.buffer, u8PackedTell); // this Uint8Array allows us to store and increment runSizes directly in memory
+			let prevRunType = 0; // this will be 1 or 2 (representing the byte length of the items in the previous run, but initial value of 0 causes the test "thisRunType === prevRunType" to always fail)
+			let runSizeTell = 0; // the write position of the runSize field of the current run
+			let prevPointId = 0;
+			for (let pc=0; pc < numPoints; pc++) {
+				const pointId = pointIds[pc];
+				const rPointId = pointId - prevPointId; // relative pointId
+				const thisRunType = (rPointId < 0x100) ? 1 : 2; // byte length of the items in the run
+
+				if (thisRunType === prevRunType && (u8Packed[runSizeTell] & GVAR_POINT_RUN_COUNT_MASK) < 0x7f) {
+					// we are already in a run
+					u8Packed[runSizeTell]++; // this is safe whether or not GVAR_POINTS_ARE_WORDS (bit 7) is set
+				}
+				else {
+					// we are starting a new run
+					runSizeTell = this.tell() - u8PackedTell;
+					this.u8 = (thisRunType === 1) ? 0 : GVAR_POINTS_ARE_WORDS; // this field stores count-1 in bits 0..6 (hence the < 0xff check above) and the runType in bit 7
+				}
+
+				switch (thisRunType) {
+					case 1: this.u8 = rPointId; break;
+					case 2: this.u16 = rPointId; break;
+				}				
+
+				// for the next iteration
+				prevRunType = thisRunType;
+				prevPointId = pointId;
+			}
+		}
 	}
 
 	// parse packed deltas
@@ -2905,13 +2967,13 @@ class SamsaBuffer extends DataView {
 		let d = 0;
 		while (d < count) {
 			const _runCount = this.u8;
-			const runCount = (_runCount & DELTA_RUN_COUNT_MASK) + 1;
-			if (_runCount & DELTAS_ARE_ZERO) {
+			const runCount = (_runCount & GVAR_DELTA_RUN_COUNT_MASK) + 1;
+			if (_runCount & GVAR_DELTAS_ARE_ZERO) {
 				for (let r=0; r < runCount; r++) {
 					deltas[d++] = 0;
 				}
 			} else {
-				const getter = _runCount & DELTAS_ARE_WORDS ? this.getters[I16] : this.getters[I8];
+				const getter = _runCount & GVAR_DELTAS_ARE_WORDS ? this.getters[I16] : this.getters[I8];
 				for (let r=0; r < runCount; r++) {
 					deltas[d++] = getter();
 				}
@@ -2921,7 +2983,7 @@ class SamsaBuffer extends DataView {
 	}
 
 	encodeDeltas(deltas) {
-		// deltas are encoded in groups of size [1,64] (0xff & DELTA_RUN_COUNT_MASK + 1 = 64)
+		// deltas are encoded in groups of size [1,64] (0xff & GVAR_DELTA_RUN_COUNT_MASK + 1 = 64)
 		// cost of switching to a new group and back is 2 bytes
 		// cost of not switching to zeroes is 2 bytes per delta if we’re in words, 1 byte per delta if we’re in bytes
 		// cost of not switching to bytes is 1 byte per delta
@@ -2951,7 +3013,7 @@ class SamsaBuffer extends DataView {
 		d=0;
 		runs.forEach(run => {
 			const [numBytes, runCount] = run;
-			const _runCount = runCount | (numBytes == 2 ? DELTAS_ARE_WORDS : 0) | (numBytes == 0 ? DELTAS_ARE_ZERO : 0);
+			const _runCount = runCount | (numBytes == 2 ? GVAR_DELTAS_ARE_WORDS : 0) | (numBytes == 0 ? GVAR_DELTAS_ARE_ZERO : 0);
 			this.u8(_runCount); // this incorporates runCount (bits 0-5 and the flag bits 6 and 7)
 			if (numBytes > 0) { // write nothing for zero deltas
 				for (let i=0; i<=runCount; i++) { // <= 0 means 1 item, 1 means 2 items, etc.
@@ -3951,15 +4013,13 @@ class SamsaBuffer extends DataView {
 function SamsaFont(buf, options = {}) {
 
 	let valid = true;
-	console.log("SamsaFont!")
 
+	buf.seek(0);
 	this.buf = buf; // SamsaBuffer
 	this.tables = {};
 	this.tableList = [];
 	this.glyphs = [];
 	this.ItemVariationStores = {}; // keys will be "avar", "MVAR", "COLR", "CFF2", "HVAR", "VVAR"... they all get recalculated when a new instance is requested
-	this.tableDecoders = TABLE_DECODERS; // we assign it here so we have access to it in code that imports the library
-	this.tableEncoders = TABLE_ENCODERS; // we assign it here so we have access to it in code that imports the library
 	this.metadata = options.metadata || {};
 
 	// font header
@@ -3995,9 +4055,18 @@ function SamsaFont(buf, options = {}) {
 	}
 
 	// assign the buffer attribute to each table
-	this.tableList.forEach(table => {
-		table.buffer = this.bufferFromTable(table.tag);
-	});
+	if (options.tableBuffers) {
+		// the caller is supplying the buffers for the tables (unusual)
+		this.tableList.forEach(table => {
+			table.buffer = options.tableBuffers[table.tag]; // fine to assign the others as undefined
+		});
+	}
+	else {
+		// the tables are to be found in the supplied buffer in the normal way
+		this.tableList.forEach(table => {
+			table.buffer = this.bufferFromTable(table.tag);
+		});	
+	}
 
 	if (!valid) {
 		return null;
@@ -4013,16 +4082,18 @@ function SamsaFont(buf, options = {}) {
 		}
 
 		if (this.tables[tag]) {
-
+			//console.log(tag)
 			// decode first part of table (or create an empty object)
-			const tbuf = this.tables[tag].buffer;
-			this[tag] = FORMATS[tag] ? tbuf.decode(FORMATS[tag]) : {};
-			this[tag].buffer = tbuf;
+			const tbuf = this.tables[tag]?.buffer;
+			if (tbuf) {
+				this[tag] = FORMATS[tag] ? tbuf.decode(FORMATS[tag]) : {};
+				this[tag].buffer = tbuf;
 
-			// decode more of the table
-			if (this.tableDecoders[tag]) {
-				this.tableDecoders[tag](this, tbuf);
-			}
+				// decode more of the table
+				if (SAMSAGLOBAL.TABLE_DECODERS[tag]) {
+					SAMSAGLOBAL.TABLE_DECODERS[tag](this, tbuf);
+				}
+			}	
 		}
 	});
 
@@ -4063,7 +4134,7 @@ function SamsaFont(buf, options = {}) {
 }
 
 SamsaFont.prototype.validateChecksums = function () {
-	// TODO: make this work with the head table, with the purer version of the the checkSum function
+	// TODO: make this work with the head table, with the purer version of the the checkSum function, perhaps using an array of the offsets of the U32s to ignore
 	const errors = [];
 	font.tableList.forEach(table => {
 		let actualSum = font.buf.checkSum(table.offset, table.length, table.tag == "head");
@@ -4762,6 +4833,8 @@ SamsaInstance.prototype.glyphRunGSUB = function (inputRun, options={}) {
 	// note that these lookups are specific to GSUB
 	function decodeLookup(lookupListIndex) {
 
+		// function getCoverageFrom
+
 		if (lookupListIndex >= gsub.lookupCount)
 			return false;
 
@@ -4776,12 +4849,12 @@ SamsaInstance.prototype.glyphRunGSUB = function (inputRun, options={}) {
 			const subtable = { format: buf.u16 };
 			if (lookup.type <= 4) {
 
-				const coverageOffset = buf.u16;
 				switch (lookup.type) {
 
 					// LookupType 1: Single Substitution Subtable
 					case 1: {
-						if (subtable.format == 1) {
+						subtable.coverageOffset = buf.u16;
+						if (subtable.format === 1) {
 							subtable.deltaGlyphID = buf.i16; // note i16
 						}
 						else if (subtable.format == 2) {
@@ -4792,7 +4865,8 @@ SamsaInstance.prototype.glyphRunGSUB = function (inputRun, options={}) {
 
 					// LookupType 2: Multiple Substitution Subtable
 					case 2: {
-						if (subtable.format == 1) {
+						subtable.coverageOffset = buf.u16;
+						if (subtable.format === 1) {
 							subtable.sequences = [];
 							const sequenceOffsets = buf.u16_pascalArray;
 							sequenceOffsets.forEach(offset => {
@@ -4806,7 +4880,8 @@ SamsaInstance.prototype.glyphRunGSUB = function (inputRun, options={}) {
 
 					// LookupType 3: Alternate Substitution Subtable
 					case 3: {
-						if (subtable.format == 1) {
+						subtable.coverageOffset = buf.u16;
+						if (subtable.format === 1) {
 							subtable.alternateSets = [];
 							const alternateSetOffsets = buf.u16_pascalArray;
 							alternateSetOffsets.forEach(offset => {
@@ -4819,7 +4894,8 @@ SamsaInstance.prototype.glyphRunGSUB = function (inputRun, options={}) {
 
 					// LookupType 4: Ligature Substitution Subtable
 					case 4: {
-						if (subtable.format == 1) {
+						subtable.coverageOffset = buf.u16;
+						if (subtable.format === 1) {
 							subtable.ligatureSets = []; // a ligature set is a set of ligatures that share the same first glyph (e.g. ffl, ff, fi, fl)
 							const ligSetOffsets = buf.u16_pascalArray;
 							ligSetOffsets.forEach(offset => {
@@ -4838,11 +4914,38 @@ SamsaInstance.prototype.glyphRunGSUB = function (inputRun, options={}) {
 						}
 						break;
 					}
+
+					// LookupType 5: Contextual Substitution
+					case 5: {
+						// TODO
+						break;
+					}
+
+					// LookupType 6: Chained Contexts Substitution
+					case 6: {
+						// TODO
+						/*
+						if (subtable.format == 1) {
+							subtable.coverage = buf.decodeCoverage();
+							subtable.classDef = buf.decodeClassDef();
+							subtable.classSet = [];
+							const classSetOffsets = buf.u16_pascalArray;
+							classSetOffsets.forEach(offset => {
+								buf.seek(subtableOffset + offset);
+								subtable.classSet.push(buf.u16_pascalArray);
+							});
+						}
+						*/
+						break;
+
+					}
 				}
 
 				// get coverage for this lookup
-				buf.seek(subtableOffset + coverageOffset);
-				subtable.coverage = buf.decodeCoverage();
+				if (subtable.coverageOffset) {
+					buf.seek(subtableOffset + coverageOffset);
+					subtable.coverage = buf.decodeCoverage();
+				}
 			}
 			lookup.subtables.push(subtable);
 		})
@@ -4873,6 +4976,7 @@ SamsaInstance.prototype.glyphRunGSUB = function (inputRun, options={}) {
 
 	// sort each lookup group: each lookupGroup becomes a sorted array of integers
 	lookupGroups.forEach(lookupGroup => lookupGroup.sort((a,b) => a-b));
+	
 
 	// https://learn.microsoft.com/en-us/typography/opentype/spec/chapter2
 	// During text processing, a client applies a feature to some sequence of glyphs for a string. It then processes 
@@ -5497,6 +5601,7 @@ function SamsaGlyph (init={}) {
 	this.curveOrder = 2; 
 	//this.curveOrder = init.curveOrder || (this.font ? this.font.curveOrder : undefined);
 }
+
 
 // SamsaGlyph.instantiate()
 // - instantiates a glyph
