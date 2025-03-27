@@ -1214,8 +1214,7 @@ function coverageIndexForGlyph (coverage, g) {
 		coverageIndex = coverage.glyphArray.indexOf(g);
 	}
 	else if (coverage.format === 2) {
-		for (let ra=0; ra<coverage.glyphRanges.length; ra++) {
-			const range = coverage.glyphRanges[ra];
+		for (const range of coverage.glyphRanges) {
 			if (g >= range.startGlyphID && g <= range.endGlyphID) {
 				coverageIndex = range.startCoverageIndex + g - range.startGlyphID;
 				break;
@@ -2073,12 +2072,17 @@ class SamsaBuffer extends DataView {
 		return this.decodeString(this.u8);
 	}
 
-	decodeGlyph(numBytes, options={}) {
-		
+	decodeGlyph(byteLength, options={}) {
+
 		const metrics = options.metrics ?? [0, 0, 0, 0];
-		const glyph = numBytes ? new SamsaGlyph(this.decode(FORMATS.GlyphHeader)) : new SamsaGlyph();
+		const glyphOffset = this.tell();
+		const glyph = byteLength ? new SamsaGlyph(this.decode(FORMATS.GlyphHeader)) : new SamsaGlyph();
 		if (options.id)
 			glyph.id = options.id;
+
+		// set offset & length
+		glyph.offset = glyphOffset;
+		glyph.length = byteLength;
 
 		// set metrics from the font’s hmtx
 		glyph.font = options.font;
@@ -2087,7 +2091,7 @@ class SamsaBuffer extends DataView {
 		}
 
 		// empty glyph
-		if (numBytes === 0) {
+		if (byteLength === 0) {
 		}
 
 		// simple glyph
@@ -2095,7 +2099,12 @@ class SamsaBuffer extends DataView {
 
 			glyph.endPts = this.u16_arrayOfLength(glyph.numberOfContours); // end points of each contour
 			glyph.numPoints = glyph.endPts[glyph.numberOfContours -1] + 1;
-			this.seekr(glyph.instructionLength = this.u16); // skip over instructions
+
+			// get instructions into a SamsaBuffer
+			if (glyph.instructionLength = this.u16) {
+				glyph.instructions = new SamsaBuffer(this.buffer, this.byteOffset + this.tell(), glyph.instructionLength);
+			}
+			this.seekr(glyph.instructionLength);
 
 			// flags
 			const flags = [];
@@ -2217,13 +2226,11 @@ class SamsaBuffer extends DataView {
 		// - maximum size of the compiled glyph in bytes (without padding) if options.getMaxCompiledSize
 
 		// set default options
-		if (options.compression === undefined)
-			options.compression = 1; // standard TrueType compression
-		if (options.bbox === undefined)
-			options.bbox = true; // recalculate bounding box
+		options.compression ??= 1; // standard TrueType compression
+		options.bbox ??= true; // recalculate bounding box
 
 		if (options.getMaxCompiledSize) {
-			if (options.compression == 2) {
+			if (options.compression === 2) {
 				if (glyph.numberOfContours > 0)
 					return 
 				else if (glyph.numberOfContours < 0)
@@ -2424,25 +2431,16 @@ class SamsaBuffer extends DataView {
 			}
 
 			else {
-
 				// options.compression != 2
-
-				// new header with bbox
-				this.encode(FORMATS.GlyphHeader, glyph);
-		
-				// endpoints
-				glyph.endPts.forEach(endPt => {
-					this.u16 = endPt;
-				});
-		
-				// instructions (none for now)
-				this.u16 = instructionLength;
+				this.encode(FORMATS.GlyphHeader, glyph); // new header with bbox
+				this.u16_array = glyph.endPts; // write endpoints array
+				this.u16 = instructionLength; // instructions (none for now)
 				this.seekr(instructionLength);
 		
 				// write glyph points
 
 				// compression: none
-				if (options.compression == 0) {
+				if (options.compression === 0) {
 
 					// write uncompressed glyph points (faster in memory and for SSD disks)
 					let cx=0;
@@ -2489,11 +2487,10 @@ class SamsaBuffer extends DataView {
 							cy = y;
 						}
 					}
-
 				}
 
 				// compression: standard TrueType compression
-				else if (options.compression == 1) {
+				else if (options.compression === 1) {
 
 					// write compressed glyph points (slower)
 					let cx=0, cy=0;
@@ -2642,38 +2639,40 @@ class SamsaBuffer extends DataView {
 	}
 
 	// encodeInstance is how we export a static font!
-	encodeInstance(instance, options={format: "truetype"}) {
-		// options.format: "truetype" | "cff2"
-		// options.checkSums: true | false
-		// TODO: instantiate MVAR, cvar, GSUB etc.
+	// - TODO: instantiate MVAR, cvar, GSUB etc.
+	encodeInstance(instance, options={}) {
+		options.format ??= "truetype";
+		options.checkSums ??= true;
+		options.glyphCompression ??= true;
 
-		const startTime = performance.now();
 		const font = instance.font;
 		const numGlyphs = font.maxp.numGlyphs;
-		const tables = font.tableList.filter(table => !["fvar", "gvar", "avar", "cvar", "HVAR", "VVAR", "MVAR", "STAT"].includes(table.tag)); // remove variable-specific tables
-		const tableDirectory = {};
-		const locas = [0];
+		const tableListFiltered = font.tableList.filter(table => !["fvar", "gvar", "avar", "cvar", "HVAR", "VVAR", "MVAR", "STAT"].includes(table.tag)); // remove variable-specific tables
+		const tableListNew = [];
+		const tableDirectory = {}; // the new table directory
+		const locas = [0]; // TODO: use a Uint32Array and bit-shift to divide by 2 for max performance
 		const hMetrics = [];
-		const outputBufU8 = new Uint8Array(this.buffer); // we can use outputBufU8[outputBuf.p] to write bytes to the current buffer position
+		const outputBufU8 = new Uint8Array(this.buffer, this.byteOffset); // we can use outputBufU8[outputBuf.p] to write bytes to the current buffer position
 		let indexToLocFormat;
 		let checkSumTotal = 0;
 
 		// skip the header, then write each table
-		this.seek(12 + tables.length * 16);
-		tables.forEach(table => {
-			
-			table.offset = this.tell();
-			table.checkSum = 0;
-			tableDirectory[table.tag] = table;
+		// - "glyf" must be written first, as it creates arrays used by "loca" and "hmtx"
+		// - fortunately this happens naturally due to ordering by table tag
+		// - this table ordering is contrary to some optimizers, such as the old CACHETT.EXE
+		this.seek(12 + tableListFiltered.length * 16);
+		tableListFiltered.forEach(table => {
+
+			const tableNew = { tag: table.tag, checkSum: 0, length: 0, offset: this.tell() };
 			switch (table.tag) {
 				case "glyf": {
 					for (let g = 0; g < numGlyphs; g++) {
 						const glyph = font.glyphs[g] ?? font.loadGlyphById(g);
 						const iglyph = glyph.instantiate(instance); // load & instantiate glyph, no decomposition
-						this.encodeGlyph(iglyph, {bbox: true});
+						this.encodeGlyph(iglyph, { bbox: true, compression: +options.glyphCompression }); // "+" converts false -> 0, true -> 1"
 						hMetrics.push([Math.round(iglyph.points[iglyph.numPoints+1][0]), iglyph.xMin]); // advanceWidth, leftSideBearing
 						this.padToModulo(2);
-						locas.push(this.tell() - table.offset); // since locas is initialized as [0], locas.length ends up as numGlyphs+1
+						locas.push(this.tell() - tableNew.offset); // since locas is initialized as [0], locas.length ends up as numGlyphs+1
 					}
 					break;
 				}
@@ -2687,7 +2686,7 @@ class SamsaBuffer extends DataView {
 				case "hmtx": {
 					for (const [advanceWidth, lsb] of hMetrics) {
 						this.u16 = Math.max(0, advanceWidth); // negative values are not allowed
-						this.i16 = lsb; // TODO: left side bearing 
+						this.i16 = lsb; // TODO: exploit advanceWidth compression where hhea.numberOfHMetrics < numGlyphs
 					}
 					break;
 				}
@@ -2699,7 +2698,11 @@ class SamsaBuffer extends DataView {
 					break;
 				}
 			}
-			table.length = this.tell() - table.offset;
+
+			// table.length = this.tell() - table.offset;
+			tableNew.length = this.tell() - tableNew.offset;
+			tableListNew.push(tableNew);
+			tableDirectory[table.tag] = tableNew;
 			this.padToModulo(4);
 		});
 
@@ -2707,6 +2710,7 @@ class SamsaBuffer extends DataView {
 		const finalLength = this.tell();
 
 		// fixups
+		// - these write to the new font data just written to memory, and do not affect the original loaded font data
 		this.seek(tableDirectory.head.offset + 50); // fix head.indexToLocFormat to the value actually used, rather the one read from the input
 		this.u16 = indexToLocFormat; // either 0 or 1	
 		this.seek(tableDirectory.head.offset + 8); // fix head.checkSumAdjustment to zero so we can correclty checksum
@@ -2716,7 +2720,7 @@ class SamsaBuffer extends DataView {
 
 		// table checkSums
 		if (options.checkSums) {
-			for (const table of tables) {
+			for (const table of tableListNew) {
 				checkSumTotal += table.checkSum = this.checkSum(table.offset, table.length);
 				checkSumTotal &= 0xffffffff;
 			}
@@ -2725,24 +2729,21 @@ class SamsaBuffer extends DataView {
 		// write final header and table directory
 		this.seek(0);
 		this.u32 = font.header.sfntVersion;
-		this.u16 = tables.length;
-		this.u16_array = font.binarySearchParams(tables.length); // write 3 U16s for the binary search params
-		tables
+		this.u16 = tableListNew.length;
+		this.u16_array = font.binarySearchParams(tableListNew.length); // write 3 U16s for the binary search params
+		tableListNew
 			.sort((a,b) => compareString(a.tag, b.tag)) // sort by tag
 			.forEach(table => this.u32_array = this.tableDirectoryEntry(table)); // write 4 U32s for each table directory entry
 
 		// final fixups
 		if (options.checkSums) {
-			checkSumTotal += this.checkSum(0, 12 + 16 * tables.length); // add header checkSum
+			checkSumTotal += this.checkSum(0, 12 + 16 * tableListNew.length); // add header checkSum
 			checkSumTotal &= 0xffffffff;
 			this.seek(tableDirectory.head.offset + 8); // write the final value into head.checkSumAdjustment
 			this.u32 = ((0xB1B0AFBA - checkSumTotal) + 0x100000000) % 0xffffffff;
 		}
-
-		const endTime = performance.now();
-		console.log("Font encoding time: " + (endTime - startTime) + " ms");
-
-		return finalLength; // now the buffer "this" contains the binary font, we return the length to the client as the buffer is larger than the font
+		this.seek(finalLength);
+		return finalLength; // now the buffer "this" contains the binary font, we return the length to the client (finalLength <= this.byteLength)
 	}
 
 	decodeItemVariationStore() {
@@ -2924,7 +2925,7 @@ class SamsaBuffer extends DataView {
 			if (numPoints < 0x80)
 				this.u8 = numPoints; // set length byte
 			else
-				this.u16 = numPoints | (GVAR_POINTS_ARE_WORDS << 8); // set length byte
+				this.u16 = numPoints | (GVAR_POINTS_ARE_WORDS << 8); // set length bit
 
 			// this method avoids the need to create arrays of runs
 			const u8PackedTell = this.byteOffset + this.tell();
@@ -4424,6 +4425,38 @@ SamsaFont.prototype.instance = function (axisSettings={}) {
 	return new SamsaInstance(this, axisSettings);
 }
 
+// convenience functions
+SamsaFont.prototype.axes = function () {
+	return this.fvar ? this.fvar.axes : [];
+}
+
+SamsaFont.prototype.instances = function () {
+	return this.fvar ? this.fvar.instances : [];
+}
+
+SamsaFont.prototype.fvsFromCoordinates = function (coordinates) { // note that coordinates here are not normalized, so directly from the user or the fvar table
+	const fvs = {};
+	if (this.fvar) {
+		this.fvar.axes.forEach((axis,a) => {
+			if (coordinates === undefined)
+				fvs[axis.axisTag] = axis.defaultValue; // set coordinates == undefined to get a default fvs (of course you can use an empty object for this)
+			else
+				fvs[axis.axisTag] = coordinates[a];
+		});
+	}
+	return fvs;
+}
+
+SamsaFont.prototype.coordinatesFromFvs = function (axisSettings) {
+	const coordinates = [];
+	if (this.fvar) {
+		this.fvar.axes.forEach((axis,a) => {
+			coordinates[a] = axisSettings[axis.axisTag] ?? axis.defaultValue;
+		});
+	}
+	return coordinates;
+}
+
 
 //-------------------------------------------------------------------------------
 // SamsaInstance
@@ -4434,6 +4467,8 @@ function SamsaInstance(font, axisSettings={}, options={}) {
 	this.font = font;
 	if (options.name)
 		this.name = options.name;
+	if (options.ppem)
+		this.ppem = options.ppem;
 	const {avar, gvar} = font; // destructure table data objects
 	this.axisSettings = {...axisSettings};
 	this.coordinates = font.coordinatesFromFvs(axisSettings); // the coordinates of the instance in user space
@@ -4581,40 +4616,6 @@ function SamsaInstance(font, axisSettings={}, options={}) {
 		});
 	}
 }
-
-
-// convenience functions
-SamsaFont.prototype.axes = function () {
-	return this.fvar ? this.fvar.axes : [];
-}
-
-SamsaFont.prototype.instances = function () {
-	return this.fvar ? this.fvar.instances : [];
-}
-
-SamsaFont.prototype.fvsFromCoordinates = function (coordinates) { // note that coordinates here are not normalized, so directly from the user or the fvar table
-	const fvs = {};
-	if (this.fvar) {
-		this.fvar.axes.forEach((axis,a) => {
-			if (coordinates === undefined)
-				fvs[axis.axisTag] = axis.defaultValue; // set coordinates == undefined to get a default fvs (of course you can use an empty object for this)
-			else
-				fvs[axis.axisTag] = coordinates[a];
-		});
-	}
-	return fvs;
-}
-
-SamsaFont.prototype.coordinatesFromFvs = function (axisSettings) {
-	const coordinates = [];
-	if (this.fvar) {
-		this.fvar.axes.forEach((axis,a) => {
-			coordinates[a] = axisSettings[axis.axisTag] ?? axis.defaultValue;
-		});
-	}
-	return coordinates;
-}
-
 
 // SamsaInstance.glyphAdvance() - return the advance of a glyph
 // - we need this method in SamsaInstance, not SamsaGlyph, because SamsaGlyph might not be loaded (and we don’t need to load it, because we have hmtx and HVAR)
@@ -4943,7 +4944,7 @@ SamsaInstance.prototype.glyphRunGSUB = function (inputRun, options={}) {
 
 				// get coverage for this lookup
 				if (subtable.coverageOffset) {
-					buf.seek(subtableOffset + coverageOffset);
+					buf.seek(subtableOffset + subtable.coverageOffset);
 					subtable.coverage = buf.decodeCoverage();
 				}
 			}
@@ -5597,9 +5598,13 @@ function SamsaGlyph (init={}) {
 	this.points = init.points || [];
 	this.components = init.components || [];
 	this.endPts = init.endPts || [];
-	this.tvts = init.tvts ? font.gvar.buffer.decodeTvts(this) : undefined; // init.tvts is boolean
-	this.curveOrder = 2; 
-	//this.curveOrder = init.curveOrder || (this.font ? this.font.curveOrder : undefined);
+	this.tvts = init.tvts ? font.gvar.buffer.decodeTvts(this) : undefined; // init.tvts is boolean // TODO: this doesn’t work, move it to an options parameter?
+	this.curveOrder = init.curveOrder || 2;
+
+	this.xMin = init.xMin || 0;
+	this.yMin = init.yMin || 0;
+	this.xMax = init.xMax || 0;
+	this.yMax = init.yMax || 0;
 }
 
 
