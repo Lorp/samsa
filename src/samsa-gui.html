@@ -163,6 +163,57 @@
 import { SamsaFont, SamsaInstance, SamsaGlyph, SamsaBuffer, SAMSAGLOBAL } from  "./samsa-core.js";
 import { CONFIG } from  "./samsa-config.js";
 
+// shorthands and simple functions
+function Q (selector, root=document) {
+	return root.querySelector(selector);
+}
+
+function Qall (selector, root=document) {
+	return root.querySelectorAll(selector);
+}
+
+Element.prototype.attr = function(attrs) {
+// Element.prototype.attr = function (attrs) {
+// set multiple element attributes using the supplied attrs object
+	for (const key in attrs) {
+		this.setAttribute(key, attrs[key]);
+	}
+};
+
+SVGElement.prototype.attr = function(attrs) {
+// set multiple element attributes using the supplied attrs object
+// - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
+	for (const key in attrs) {
+		this.setAttributeNS(null, key, attrs[key]);
+	}
+};
+
+function EL (tag, attrs={}, props={}) {
+	let el = document.createElement(tag);
+	el.attr(attrs);
+	for (const prop in props)
+		el[prop] = props[prop];
+	return el;
+}
+
+function SVG (tag) {
+    return document.createElementNS("http://www.w3.org/2000/svg", tag);
+}
+
+function clamp (num, min, max) {
+	if (num < min)
+		num = min;
+	else if (num > max)
+		num = max;
+	return num;
+}
+
+function htmlEntities(str) {
+	// https://css-tricks.com/snippets/javascript/htmlentities-for-javascript/
+	return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+
 const GLOBAL = {
 	vf: null, // maybe allow an array of fonts... select them with a drop down in info panel
 	currentGlyphId: null,
@@ -605,44 +656,6 @@ Qall(".panel>h2").forEach(header => {
 	header.append(info);
 });
 
-
-// shorthands
-function Q (selector) {
-	return document.querySelector(selector);
-}
-
-function Qall (selector) {
-	return document.querySelectorAll(selector);
-}
-
-function EL (tag) {
-	return document.createElement(tag);
-}
-
-function SVG (tag) {
-    return document.createElementNS("http://www.w3.org/2000/svg", tag);
-}
-
-function clamp (num, min, max) {
-	if (num < min)
-		num = min;
-	else if (num > max)
-		num = max;
-	return num;
-}
-
-SVGElement.prototype.attr = function (attrs) {
-// set multiple SVG attributes using the attrs array
-// - example of attrs: { d: path, stroke: "black", "stroke-width": "2px", fill: "#eee" }
-	for (const prop in attrs) {
-		this.setAttributeNS(null, prop, attrs[prop]);
-	}
-};
-
-function htmlEntities(str) {
-	// https://css-tricks.com/snippets/javascript/htmlentities-for-javascript/
-	return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 // TODO: specify that this gets the current fvs from sliders
 function getCurrentFvs() {
@@ -1592,7 +1605,6 @@ function vfLoaded (font) {
 			option.value = -1;
 			option.innerText = "[no match]";
 			select.append(option)
-
 			selects.push(select);
 		}
 
@@ -1672,17 +1684,10 @@ function vfLoaded (font) {
 
 		});
 
-		label = EL("label");
-		let input = EL("input");
-
-		input.id = "stat-composed-name";
-		input.readOnly = true;
-		label.innerText = "Composed name";
-
-		// add grid to the panel
-		grid.append(label, input);
-		panel.append(grid);
-
+		label = EL("label", undefined, {innerText: "Composed name"});
+		const input = EL("input", {style: "grid-column: 2 / 4; width: 100%;"}, {id:"stat-composed-name", readOnly: true});
+		grid.append(label, input); // add label and input to the grid
+		panel.append(grid); // add grid to the panel
 	}
 
 	else {
